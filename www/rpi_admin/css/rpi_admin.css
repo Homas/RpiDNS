@@ -1,0 +1,54 @@
+/*
+(c) Vadim Pavlov 2020
+RpiDNS
+*/
+html,body {height: 100%;}
+.dropdown .dropdown-menu .dropdown-item:focus .sorting:focus  { outline: none;}
+:focus {
+  outline: none!important;
+}
+.menu-bkgr,.corners {background-color: #343038;} /*251956*/
+.copyright{
+  text-align: right;
+  height: 20px; /* .push must be the same height as .footer */
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+}
+.curl_angels {
+  background-position: left top;
+  border-radius: 10px 0px 0px 0px;
+  background-color: #F5FAFB;
+}
+.corners {
+   padding: 0;
+}
+
+
+.vcenter {
+    display: inline-block;
+    vertical-align: middle;
+    float: none;
+}
+
+.spacer { margin: 0 10px;}
+
+.v-spacer { margin: 10px 0;}
+
+[v-cloak] {
+  display: none;
+}
+
+.hidden {
+  display: none!important;
+}
+
+@media (min-width: 1366px){
+	.d-xxl-block {
+			display: block!important;
+	}
+	.d-xxl-table-cell {
+			display: table-cell!important;
+	}
+}
