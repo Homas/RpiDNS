@@ -21,7 +21,19 @@
 	$qlogs=array();
 	$hits=array();
 	$hits_unique=array();
+	$macs=array();
 
+	//ip neigh show
+	//https://regauth.standards.ieee.org/standards-ra-web/pub/view.html#registries
+	//https://macaddress.io/database-download
+	
+	exec('/bin/ip neigh show',$out);
+	foreach ($out as $neigh){
+		//192.168.43.1 dev wlan0 lladdr a0:63:91:5b:1c:82 STALE
+		if (preg_match("/^([0-9a-fA-F\.\:]+) dev .* lladdr ([^ ]+)/",$neigh,$mac))$macs[$mac[1]] = $mac[2];		
+	};
+	//var_dump($macs);
+	
 	foreach ($qlog_files as $qlog=>$fpos){
 		if (file_exists($fpos)) {$pos=intval(file_get_contents($fpos));}else{$pos=0;};
 		$reset_pos=0;
@@ -42,9 +54,9 @@
 			$query=[];
 			if (preg_match("/^(\d+[a-zA-Z0-9\-]+[ |T][^ ]+).*client (@0x[0-9a-zA-Z]+ )?([0-9a-fA-F\.\:]+)#([0-9]+) \([^\)]+\): query: ([^ ]+) ([^ ]+) ([^ ]+) ([^ ]+) \(([^ ]+)\)/",$line,$query)){
 				# get queries
-				# 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - fqdn, 6 - class, 7 - type, 8 - options, 9 - server				
+				# 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - fqdn, 7 - class, 6 - type, 8 - options, 9 - server				
 				#echo "$line \n-----\n";print_r($query);
-				$qlogs[] = [$query[1],$query[3],$query[4],$query[5],$query[6],$query[7],$query[8],$query[9]];
+				$qlogs[] = [$query[1],$query[3],$query[4],$query[5],$query[7],$query[6],$query[8],$query[9]];
 			};
 
 			$rpz=[];
@@ -62,12 +74,12 @@
 		fclose($fh);
 		$sql="";$cmm="";
 		foreach ($qlogs as $query) { #*_queries.log
-			$sql.=$cmm."(".strval(strtotime($query[0])).",'${query[1]}','${query[2]}','${query[3]}','${query[4]}','${query[5]}','${query[6]}','${query[7]}','".(array_key_exists($query[1].' '.$query[3],$hits_unique)?'blocked':'allowed')."')";
+			$sql.=$cmm."(".strval(strtotime($query[0])).",'${query[1]}','${query[2]}','${query[3]}','${query[4]}','${query[5]}','${query[6]}','${query[7]}','".(array_key_exists($query[1].' '.$query[3],$hits_unique)?'blocked':'allowed')."','".(array_key_exists($query[1],$macs)?$macs[$query[1]]:'')."')";
 			$cmm=",";
 		};
 		$db = new SQLite3("/opt/rpidns/www/".DBFile);
 		if ($sql !=""){
-			$sql="insert into queries_raw (dt, client_ip, client_port, fqdn, type, class, options, server, action) values ".$sql;
+			$sql="insert into queries_raw (dt, client_ip, client_port, fqdn, type, class, options, server, action, mac) values ".$sql;
 			$db->exec($sql);
 			//echo $sql;
 		};
@@ -76,10 +88,10 @@
 		foreach ($hits as $query) { #*_queries.log
 			switch ($query[4]){
 				case "QNAME":
-					$sql.=$cmm."(".strval(strtotime($query[0])).",'${query[1]}','${query[2]}','${query[3]}','${query[5]}','${query[4]}','${query[7]}','".substr($query[8],strlen($query[7])+1)."')";
+					$sql.=$cmm."(".strval(strtotime($query[0])).",'${query[1]}','${query[2]}','${query[3]}','${query[5]}','${query[4]}','${query[8]}','".substr($query[8],strlen($query[7])+1)."','".(array_key_exists($query[1],$macs)?$macs[$query[1]]:'')."')";
 					break;
 				case "IP":
-					$sql.=$cmm."(".strval(strtotime($query[0])).",'${query[1]}','${query[2]}','${query[3]}','${query[5]}','${query[4]}','${query[7]}','".substr($query[8],strpos($query[8],"rpz-ip")+7)."')";
+					$sql.=$cmm."(".strval(strtotime($query[0])).",'${query[1]}','${query[2]}','${query[3]}','${query[5]}','${query[4]}','${query[8]}','".substr($query[8],strpos($query[8],"rpz-ip")+7)."','".(array_key_exists($query[1],$macs)?$macs[$query[1]]:'')."')";
 					break;
 				default:
 					echo $query[4]." is not supported\n";
@@ -87,7 +99,7 @@
 			$cmm=",";
 		};
 		if ($sql !=""){
-			$sql="insert into hits_raw (dt, client_ip, client_port, fqdn, action, rule_type, rule, feed) values ".$sql;
+			$sql="insert into hits_raw (dt, client_ip, client_port, fqdn, action, rule_type, rule, feed, mac) values ".$sql;
 		  $db->exec($sql);
 			//echo "\n\n\n".$sql;
 		};
@@ -95,35 +107,35 @@
 		#data aggergation;
 		#delete from queries_raw;delete from hits_raw;delete from queries_5m;delete from hits_5m;delete from queries_1h;delete from hits_1h;delete from queries_1d;delete from hits_1d;
 		$sql="
-INSERT INTO queries_5m (dt, client_ip, fqdn, type, class, options, server, action, cnt)
-select (dt - dt % 300) as dtz ,client_ip,fqdn,type,class, options, server, action, count(rowid) as cnt from queries_raw
-where dt>=ifnull((select max(dt) from queries_5m),0) and dt<((select max(dt) from queries_raw) - (select max(dt) from queries_raw) % 300)
-group by dtz ,client_ip,fqdn,type,class, options, server, action;
+INSERT INTO queries_5m (dt, client_ip, mac, fqdn, type, class, options, server, action, cnt)
+select (dt - dt % 300) as dtz ,client_ip, mac,fqdn,type,class, options, server, action, count(rowid) as cnt from queries_raw
+where dt>ifnull((select max(dt)+300 from queries_5m),0) and dt<=((select max(dt) from queries_raw) - (select max(dt) from queries_raw) % 300 -1)
+group by dtz, client_ip, mac,fqdn,type,class, options, server, action;
 
-INSERT INTO hits_5m (dt, client_ip, fqdn, action, rule_type, rule, feed, cnt)
-select (dt - dt % 300) as dtz ,client_ip,fqdn, action, rule_type, rule, feed, count(rowid) as cnt from hits_raw
-where dt>=ifnull((select max(dt) from hits_5m),0) and dt<((select max(dt) from hits_raw) - (select max(dt) from hits_raw) % 300)
-group by dtz ,client_ip,fqdn, action, rule_type, rule, feed;
+INSERT INTO hits_5m (dt, client_ip, mac, fqdn, action, rule_type, rule, feed, cnt)
+select (dt - dt % 300) as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(rowid) as cnt from hits_raw
+where dt>ifnull((select max(dt)+300 from hits_5m),0) and dt<=((select max(dt) from hits_raw) - (select max(dt) from hits_raw) % 300 -1)
+group by dtz, client_ip, mac, fqdn, action, rule_type, rule, feed;
 
-INSERT INTO queries_1h (dt, client_ip, fqdn, type, class, options, server, action, cnt)
-select (dt - dt % 3600) as dtz ,client_ip,fqdn,type,class, options, server, action, count(rowid) as cnt from queries_raw
-where dt>=ifnull((select max(dt) from queries_1h),0) and dt<((select max(dt) from queries_raw) - (select max(dt) from queries_raw) % 3600)
-group by dtz ,client_ip,fqdn,type,class, options, server, action;
+INSERT INTO queries_1h (dt, client_ip, mac, fqdn, type, class, options, server, action, cnt)
+select (dt - dt % 3600) as dtz ,client_ip, mac,fqdn,type,class, options, server, action, count(rowid) as cnt from queries_raw
+where dt>ifnull((select max(dt)+3600 from queries_1h),0) and dt<=((select max(dt) from queries_raw) - (select max(dt) from queries_raw) % 3600 -1)
+group by dtz, client_ip, mac, fqdn,type,class, options, server, action;
 
-INSERT INTO hits_1h (dt, client_ip, fqdn, action, rule_type, rule, feed, cnt)
-select (dt - dt % 3600) as dtz ,client_ip,fqdn, action, rule_type, rule, feed, count(rowid) as cnt from hits_raw
-where dt>=ifnull((select max(dt) from hits_1h),0) and dt<((select max(dt) from hits_raw) - (select max(dt) from hits_raw) % 3600)
-group by dtz ,client_ip,fqdn, action, rule_type, rule, feed;
+INSERT INTO hits_1h (dt, client_ip, mac, fqdn, action, rule_type, rule, feed, cnt)
+select (dt - dt % 3600) as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(rowid) as cnt from hits_raw
+where dt>ifnull((select max(dt)+3600 from hits_1h),0) and dt<=((select max(dt) from hits_raw) - (select max(dt) from hits_raw) % 3600 -1)
+group by dtz, client_ip, mac, fqdn, action, rule_type, rule, feed;
 
-INSERT INTO queries_1d (dt, client_ip, fqdn, type, class, options, server, action, cnt)
-select (dt - dt % 86400) as dtz ,client_ip,fqdn,type,class, options, server, action, count(rowid) as cnt from queries_raw
-where dt>=ifnull((select max(dt) from queries_1d),0) and dt<((select max(dt) from queries_raw) - (select max(dt) from queries_raw) % 86400)
-group by dtz ,client_ip,fqdn,type,class, options, server, action;
+INSERT INTO queries_1d (dt, client_ip, mac, fqdn, type, class, options, server, action, cnt)
+select (dt - dt % 86400) as dtz ,client_ip, mac,fqdn,type,class, options, server, action, count(rowid) as cnt from queries_raw
+where dt>ifnull((select max(dt)+86400 from queries_1d),0) and dt<=((select max(dt) from queries_raw) - (select max(dt) from queries_raw) % 86400 -1)
+group by dtz, client_ip, mac, fqdn,type,class, options, server, action;
 
-INSERT INTO hits_1d (dt, client_ip, fqdn, action, rule_type, rule, feed, cnt)
-select (dt - dt % 86400) as dtz ,client_ip,fqdn, action, rule_type, rule, feed, count(rowid) as cnt from hits_raw
-where dt>=ifnull((select max(dt) from hits_1d),0) and dt<((select max(dt) from hits_raw) - (select max(dt) from hits_raw) % 86400)
-group by dtz ,client_ip,fqdn, action, rule_type, rule, feed;
+INSERT INTO hits_1d (dt, client_ip, mac, fqdn, action, rule_type, rule, feed, cnt)
+select (dt - dt % 86400) as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(rowid) as cnt from hits_raw
+where dt>ifnull((select max(dt)+86400 from hits_1d),0) and dt<=((select max(dt) from hits_raw) - (select max(dt) from hits_raw) % 86400 - 1)
+group by dtz, client_ip, mac, fqdn, action, rule_type, rule, feed;
 		";
 		$db->exec($sql);
 		$db->close();

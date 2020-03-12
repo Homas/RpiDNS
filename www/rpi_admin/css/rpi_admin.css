@@ -52,3 +52,74 @@ html,body {height: 100%;}
 			display: table-cell!important;
 	}
 }
+
+/*Colors*/
+.salmon {
+	color: salmon;
+}
+
+.white {
+	color: white;
+}
+
+.green {
+	color: LimeGreen;
+}
+
+
+.width005{width: 005px;}
+.width010{width: 010px;}
+.width020{width: 020px;}
+.width050{width: 055px;}
+.width060{width: 065px;}
+.width100{width: 100px;}
+.width105{width: 105px;}
+.width150{width: 155px;}
+.width180{width: 180px;}
+.width200{width: 200px;}
+.width250{width: 250px;}
+.width300{width: 300px;}
+.width350{width: 350px;}
+
+.mw150{max-width: 150px;}
+.mw200{max-width: 200px;}
+.mw250{max-width: 250px;}
+.mw300{max-width: 300px;}
+.mw350{max-width: 350px;}
+.mw400{max-width: 400px;}
+
+
+
+
+.page-link
+{
+    background-color: white;
+    color: #868e96;
+}
+
+.page-link:focus,
+.page-link:hover,
+{
+    color: #5a5a5a;
+    background-color: #eee;
+    border-color: #ddd;
+}
+
+.page-item.active .page-link
+{
+    color: white;
+    background-color: #868e96 !Important;
+    border: solid 1px #868e96 !Important;
+}
+
+.page-item.active .page-link:hover
+{
+    background-color: #ddd !Important;
+    border: solid 1px #eee;
+}
+
+.scroll_tab{
+	overflow-y: auto;
+	overflow-x: hidden;
+	height: 100%;	
+}

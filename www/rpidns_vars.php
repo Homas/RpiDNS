@@ -94,11 +94,45 @@ function DB_selectArray($db,$sql){
   return $data;
 };
 
+function DB_selectArrayNum($db,$sql){
+  switch (DB){
+    case "sqlite":
+			#error_log("$sql\n");
+      $data=[];
+      $result=$db->query($sql);
+      while ($row=$result->fetchArray(SQLITE3_NUM)){
+        $data[]=$row;
+      };
+    break;
+  }
+  return $data;
+};
+
+function DB_fetchRecord($db,$sql){
+	$row=[];
+  switch (DB){
+    case "sqlite":
+			#error_log("$sql\n");
+      $result=$db->query($sql);
+      $row=$result->fetchArray(SQLITE3_ASSOC);
+    break;
+  }
+  return $row;
+};
 
 function DB_fetchArray($result){
   switch (DB){
     case "sqlite":
       $data=$result->fetchArray(SQLITE3_ASSOC);
+    break;
+  }
+  return $data;
+};
+
+function DB_fetchArrayNum($result){
+  switch (DB){
+    case "sqlite":
+      $data=$result->fetchArray(SQLITE3_NUM);
     break;
   }
   return $data;
