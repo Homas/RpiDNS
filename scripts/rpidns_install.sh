@@ -3,7 +3,7 @@ SYSUSER=`who am i | awk '{print $1}'`
 apt-get -q -y install php-fpm sqlite php-sqlite3 
 #init DB
 mkdir -p /opt/rpidns/www/db
-chown $SYSUSER:www-data /opt/rpidns/www/ddb
+chown $SYSUSER:www-data /opt/rpidns/www/db
 chmod 775 /opt/rpidns/www/db
 
 touch /opt/rpidns/www/db/rpidns.sqlite
