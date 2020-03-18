@@ -10,7 +10,7 @@ function getRequest(){
   if (empty($rawRequest)){
     $Data=$_REQUEST;
   }else{
-    $Data=json_decode($rawRequest,true);
+    $Data=array_merge($_REQUEST,json_decode($rawRequest,true));
   };
   $Data['method'] = $_SERVER['REQUEST_METHOD'];
   //$Data['req'] = explode("/", substr(@$_SERVER['PATH_INFO'], 1))[0];
@@ -147,5 +147,13 @@ function DB_execute($db,$sql){
   return $result;
 };
 
+function DB_lasterror($db){
+  switch (DB){
+    case "sqlite":
+      $result=$db->lastErrorMsg();
+    break;
+  }
+  return $result;
+};
 	
 ?>

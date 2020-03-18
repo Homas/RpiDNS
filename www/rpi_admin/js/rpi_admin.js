@@ -47,7 +47,7 @@ const io2c_app = new Vue({
 		
     qlogs_fields: [
         { key: 'dtz', label: 'Local Time', sortable: true, formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
-        { key: 'client_ip', label: 'Client IP', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+        { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
 //        { key: 'server', label: 'Server', sortable: true},
         { key: 'mac', label: 'MAC', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
         { key: 'fqdn', label: 'Request', sortable: true, 'tdClass':'mw250'},
@@ -60,7 +60,7 @@ const io2c_app = new Vue({
 
     hits_fields: [
         { key: 'dtz', label: 'Local Time', sortable: true,   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
-        { key: 'client_ip', label: 'Client IP', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+        { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
         { key: 'mac', label: 'MAC', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
         { key: 'fqdn', label: 'Request', sortable: true, 'tdClass':'mw200'},
         { key: 'action', label: 'Action', sortable: true},
@@ -71,7 +71,7 @@ const io2c_app = new Vue({
     ],
 		
 		dash_stats_fields:[
-			{ key: 'name', label: 'Name', 'tdClass':'mw350'},
+			{ key: 'name', label: 'Name', 'tdClass':'mw350 mouseoverpointer'},
 			{ key: 'cnt', label: 'Count'},			
 		],
 
@@ -130,7 +130,52 @@ const io2c_app = new Vue({
 					}
           },
       },
-		
+			retention:[],
+			assets_by:"mac",
+			assets_autocreate:true,
+			retention_fields: [
+				{ key: '0', label: 'Table', },
+				{ key: '1', label: 'Size', formatter: (value) => { return value<1024?value+' b':value<1024*1024?Math.round(value/1024/1024*100)/100+' Kb':value<1024*1024*1024?Math.round(value/1024/1024*100)/100+' Mb':Math.round(value/1024/1024/1024*100)/100+' Gb'} },
+				{ key: '2', label: 'Rows', },
+        { key: '3', label: 'From',   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
+        { key: '4', label: 'To',   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
+				{ key: '5', label: 'Retention', },
+	
+			],
+
+    assets_fields: [
+			{ key: 'rowid', label: '',  'tdClass':'width050 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell' },
+			{ key: 'address', label: 'Address', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+			{ key: 'name', label: 'Name', sortable: true, 'tdClass':'mw200'},
+			{ key: 'vendor', label: 'Vendor', sortable: true},
+			{ key: 'dtz', label: 'Added', sortable: true,   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
+			{ key: 'comment', label: 'Comment', sortable: true},
+    ],
+		assets_Filter:'', //assets filter
+		asset_selected:0,
+		addAssetAddr:'',
+		addAssetName:'',
+		addAssetVendor:'',
+		addAssetComment:'',
+		addAssetRowID:0,
+		addIOC:'',
+		addIOCtype:'',
+		addIOCcomment:'',
+		addIOCactive: true,
+		addIOCsubd: true,
+		addBLRowID:0,
+		bl_Filter:'', //blacklist filter
+		bl_selected:0,		
+		wl_Filter:'', //whitelist filter
+		wl_selected:0,		
+    lists_fields: [
+			{ key: 'rowid', label: '',  'tdClass':'width050 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell' },
+			{ key: 'ioc', label: 'Domain/IP', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+			{ key: 'dtz', label: 'Added', sortable: true,  'tdClass':'width250 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell',   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
+			{ key: 'active', label: 'Active',  'tdClass':'width050 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell' },
+			{ key: 'subdomains', label: '*.',  'tdClass':'width050 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell' },
+			{ key: 'comment', label: 'Comment', sortable: true},
+    ],
 	},
 
   mounted: function () {
@@ -149,6 +194,7 @@ const io2c_app = new Vue({
       window.addEventListener('resize', () => {update_window_size(this);});
     });
 		this.refreshDashQPS();
+		this.getSettings();
 	},
 	
   methods: {	
@@ -199,11 +245,105 @@ const io2c_app = new Vue({
 			this.$root.$emit('bv::refresh::table', 'dash_topX_bclient');
 			this.$root.$emit('bv::refresh::table', 'dash_topX_feeds');
 		},
+
+    getSettings(){
+			let doc=this;
+			axios.get('/rpi_admin/rpidata.php?req=RPIsettings').then((data) => {doc.$root.retention=data.data.retention;doc.$root.assets_autocreate=(data.data.assets_autocreate==='1');doc.$root.assets_by=data.data.assets_by;});
+		},
 		
 		//dashDrilldown(tab,item){
 		//	this.qlogs_Filter=item.name;
 		//	this.cfgTab=tab;
 		//},
+		
+		add_asset($ev){
+			let doc=this;
+			data={id:this.addAssetRowID, name: this.addAssetName, address: this.addAssetAddr, vendor: this.addAssetVendor, comment: this.addAssetComment};
+			if (this.addAssetRowID==0) promise = axios.post('/rpi_admin/rpidata.php?req=assets',data); else promise = axios.put('/rpi_admin/rpidata.php?req=assets',data);					
+			var items=promise.then((data) => {
+				if (data.data.status=="success") {
+					doc.$root.$emit('bv::refresh::table', 'assets');
+				}else{
+					doc.showInfo(data.data.reason,3);					
+				}
+			}).catch(error => {
+				doc.showInfo('Unknown error!!!',3);
+			})
+		},
+		
+		delete_asset(asset,tbl){
+
+			this.$bvModal.msgBoxConfirm('You are about to delete the selected asset. This action is irreversible!', {
+				title: 'Please confirm the action',
+				size: 'md',
+				buttonSize: 'md',
+				okVariant: 'danger',
+				okTitle: 'YES',
+				cancelTitle: 'NO',
+				footerClass: 'p-2',
+				bodyClass: 'text-center',
+				hideHeaderClose: false,
+				centered: true
+			})
+				.then(value => {
+
+					if (value) {
+						let doc=this;
+						var data={id: asset.rowid};
+						let table=tbl;
+						let promise = axios.delete('/rpi_admin/rpidata.php?req='+table,{data});
+						var items=promise.then((data) => {
+							if (data.data.status=="success") {
+								doc.$root.$emit('bv::refresh::table', table);
+							}else{
+								doc.showInfo(data.data.reason,3);						
+							}
+						}).catch(error => {
+							doc.showInfo('Unknown error!!!',3);
+						})
+		
+					};
+					
+			});
+			
+		},
+
+
+		add_ioc($ev){
+			let doc=this;
+			let $table=this.addIOCtype=='bl'?'blacklist':'whitelist';
+			data={id:this.addBLRowID, ioc: this.addIOC, ltype: this.addIOCtype, active: this.addIOCactive, subdomains: this.addIOCsubd, comment: this.addIOCcomment};
+			if (this.addBLRowID==0) promise = axios.post('/rpi_admin/rpidata.php?req='+$table,data); else promise = axios.put('/rpi_admin/rpidata.php?req='+$table,data);					
+			var items=promise.then((data) => {
+				if (data.data.status=="success") {
+					doc.$root.$emit('bv::refresh::table', $table);
+				}else{
+					doc.showInfo(data.data.reason,3);					
+				}
+			}).catch(error => {
+				doc.showInfo('Unknown error!!!',3);
+			})
+		},
+	
+    showInfo: function (msg,time) {
+			let size='sm';
+			if (msg.length>30) size='md';
+      var self=this;
+			var id = Math.random().toString(36).substring(7);
+			this.$bvModal.msgBoxOk(msg, {
+				id: 'infoMsgBox'+id,
+				size: size,
+				buttonSize: 'sm',
+				okVariant: 'success',
+				headerClass: 'p-2 border-bottom-0',
+				footerClass: 'p-2 border-top-0',
+				bodyClass: 'font-weight-bold text-center',
+				centered: true
+			});
+      setTimeout(function(){
+				self.$bvModal.hide('infoMsgBox'+id)
+      }, time * 1000);
+    },   
 		
 	},
 	

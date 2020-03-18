@@ -2,6 +2,7 @@
 
 	$root_dir="/opt/rpidns";
   require_once "$root_dir/www/rpidns_vars.php";
+	require_once "/opt/rpidns/www/rpisettings.php";
 	$logs="$root_dir/logs/*_queries.log";
 
 	$qlog_files=[];
@@ -22,7 +23,8 @@
 	$hits=array();
 	$hits_unique=array();
 	$macs=array();
-
+  $vendors=[];
+	$devices=[];
 	//ip neigh show
 	//https://regauth.standards.ieee.org/standards-ra-web/pub/view.html#registries
 	//https://macaddress.io/database-download
@@ -30,9 +32,18 @@
 	exec('/bin/ip neigh show',$out);
 	foreach ($out as $neigh){
 		//192.168.43.1 dev wlan0 lladdr a0:63:91:5b:1c:82 STALE
-		if (preg_match("/^([0-9a-fA-F\.\:]+) dev .* lladdr ([^ ]+)/",$neigh,$mac))$macs[$mac[1]] = $mac[2];		
+		if (preg_match("/^([0-9a-fA-F\.\:]+) dev .* lladdr ([^ ]+)/",$neigh,$mac)){
+			$macs[$mac[1]] = $mac[2];
+			$mac_search=substr($mac[2],0,8);
+			$out2=[];
+			exec('grep -i -e "'.$mac_search.'" /opt/rpidns/scripts/mac.db | awk -F"\t" '."'\$3{print \$3} !\$3{print \$2}'",$out2);
+			//echo "$mac_search\n";
+			//var_dump($out2);
+			$vendors[$mac[2]]=$out2[0];
+		};
 	};
 	//var_dump($macs);
+	//var_dump($vendors);
 	
 	foreach ($qlog_files as $qlog=>$fpos){
 		if (file_exists($fpos)) {$pos=intval(file_get_contents($fpos));}else{$pos=0;};
@@ -57,6 +68,7 @@
 				# 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - fqdn, 7 - class, 6 - type, 8 - options, 9 - server				
 				#echo "$line \n-----\n";print_r($query);
 				$qlogs[] = [$query[1],$query[3],$query[4],$query[5],$query[7],$query[6],$query[8],$query[9]];
+				$devices[$query[3]]=$macs[$query[3]];
 			};
 
 			$rpz=[];
@@ -66,6 +78,7 @@
 				#echo "$line \n-----\n";print_r($rpz);
 				$hits[] = [$rpz[1],$rpz[3],$rpz[4],$rpz[5],$rpz[6],$rpz[7],$rpz[8],$rpz[9],$rpz[10]];
 				$hits_unique[$rpz[3].' '.$rpz[5]]=true;
+				$devices[$rpz[3]]=$macs[$rpz[3]];
 			};
 
 
@@ -77,7 +90,7 @@
 			$sql.=$cmm."(".strval(strtotime($query[0])).",'${query[1]}','${query[2]}','${query[3]}','${query[4]}','${query[5]}','${query[6]}','${query[7]}','".(array_key_exists($query[1].' '.$query[3],$hits_unique)?'blocked':'allowed')."','".(array_key_exists($query[1],$macs)?$macs[$query[1]]:'')."')";
 			$cmm=",";
 		};
-		$db = new SQLite3("/opt/rpidns/www/".DBFile);
+		$db = new SQLite3("/opt/rpidns/www/db/".DBFile);
 		if ($sql !=""){
 			$sql="insert into queries_raw (dt, client_ip, client_port, fqdn, type, class, options, server, action, mac) values ".$sql;
 			$db->exec($sql);
@@ -136,7 +149,28 @@ INSERT INTO hits_1d (dt, client_ip, mac, fqdn, action, rule_type, rule, feed, cn
 select (dt - dt % 86400) as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(rowid) as cnt from hits_raw
 where dt>ifnull((select max(dt)+86400 from hits_1d),0) and dt<=((select max(dt) from hits_raw) - (select max(dt) from hits_raw) % 86400 - 1)
 group by dtz, client_ip, mac, fqdn, action, rule_type, rule, feed;
+
 		";
+		//insert or ignore into assets
+		//if ($assets_by=="mac"){
+		//	foreach ($vendors as $mac => $vendor){
+		//		$sql.="
+		//		insert or ignore into assets(address, vendor, added_dt) values('$mac','$vendor',".time().");
+		//		";
+		//	};}else{
+		//	foreach ($macs as $ip => $mac){
+		//		$sql.="
+		//		insert or ignore into assets(address, vendor, added_dt) values('$ip','${vendors[$mac]}',".time().");
+		//		";
+		//	};				
+		//	};
+		
+		foreach ($devices as $ip => $mac){
+			if ($assets_by=="mac" and $mac!='') $sql.="
+			insert or ignore into assets(address, vendor, added_dt) values('".($assets_by=="mac"?$mac:$ip)."','${vendors[$mac]}',".time().");
+			";
+		};				
+
 		$db->exec($sql);
 		$db->close();
 		$qlogs=[];

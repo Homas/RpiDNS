@@ -89,7 +89,9 @@ html,body {height: 100%;}
 .mw400{max-width: 400px;}
 
 
-
+.whitebg{
+	background-color: white;
+}
 
 .page-link
 {
@@ -123,3 +125,16 @@ html,body {height: 100%;}
 	overflow-x: hidden;
 	height: 100%;	
 }
+
+.mouseoverpointer{
+	cursor: pointer;
+}
+
+.modal-header, .modal-footer, .modal-body  {
+/*
+  Check how to fix Tkey we need to remove padding header(bottom), footer(top)
+  padding: 5px 5px 5px 16px;
+*/
+  border: 0;
+}
+
