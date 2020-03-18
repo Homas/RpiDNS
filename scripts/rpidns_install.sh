@@ -7,8 +7,8 @@ chown $SYSUSER:www-data /opt/rpidns/www/db
 chmod 775 /opt/rpidns/www/db
 
 touch /opt/rpidns/www/db/rpidns.sqlite
-chown $SYSUSER:www-data /opt/rpidns/www/rpidns.sqlite
-chmod 660 /opt/rpidns/www/rpidns.sqlite
+chown $SYSUSER:www-data /opt/rpidns/www/db/rpidns.sqlite
+chmod 660 /opt/rpidns/www/db/rpidns.sqlite
 /usr/bin/php /opt/rpidns/scripts/init_db.php
 
 #install crontabs
