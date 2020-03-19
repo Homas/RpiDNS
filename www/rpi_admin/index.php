@@ -47,22 +47,44 @@
 										<b-card-group deck>
 											<b-card header="TopX Allowed Requests" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_req" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter=item.name;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
+													<b-table id="dash_topX_req" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+														<template v-slot:cell(fname)="row">
+															<b-popover title="Actions" :target="'tip-good_requests'+row.item.fname" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter=row.item.fname;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="addIOC=row.item.fname;addIOCtype='bl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Blacklist</a>
+																<hr class="m-1">
+																<strong>Research:</strong><br>
+																- <a target=_blank :href="'https://duckduckgo.com/?q=%22'+row.item.fname+'%22'">DuckDuckGo</a><br>
+																- <a target="_blank" :href="'https://www.google.com/search?q=%22'+row.item.fname+'%22'">Google</a><br>
+																- <a target="_blank" :href="'https://www.virustotal.com/gui/search/'+row.item.fname">VirusTotal</a><br>
+																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fname">RiskIQ Community</a><br>
+																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fname">DomainTools Whois</a><br>
+																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fname">Robtex</a>
+															</b-popover>
+															<span :id="'tip-good_requests'+row.item.fname">{{row.item.fname}}</span>
+														</template>								
 													</b-table>
 												</div>
 											</b-card>
 											<b-card header="TopX Allowed Request Types" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_req_type" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req_type&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter=item.name;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
+													<b-table id="dash_topX_req_type" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req_type&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter=item.fname;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 													</b-table>
 												</div>
 											</b-card>
 											<b-card header="TopX Allowed Clients" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_client" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_client&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter=item.client_ip;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
+													<b-table id="dash_topX_client" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_client&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter=(item.mac==null || item.mac=='')?item.fname:item.mac;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+														<template v-slot:cell(fname)="row">
+															<b-popover title="Actions" :target="'tip-good_clients'+row.item.fname" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter=(row.item.mac==null || row.item.mac=='')?row.item.fname:row.item.mac;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter=(row.item.mac==null || row.item.mac=='')?row.item.fname:row.item.mac;hits_period=dash_period;cfgTab=2;">Show hits</a>
+															</b-popover>
+															<span :id="'tip-good_clients'+row.item.fname">{{row.item.fname}}</span>
+														</template>		
 													</b-table>
 												</div>
 											</b-card>
@@ -73,21 +95,43 @@
 										<b-card-group deck>
 											<b-card header="TopX Blocked Requests" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_breq" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_breq&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.hits_Filter=item.name;this.hits_period=this.dash_period;this.cfgTab=2;}">
+													<b-table id="dash_topX_breq" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_breq&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden"> <!-- @row-clicked="(item, index, event) =>  {this.hits_Filter=item.fname;this.hits_period=this.dash_period;this.cfgTab=2;}" -->
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+														<template v-slot:cell(fname)="row">
+															<b-popover title="Actions" :target="'tip-bad_requests'+row.item.fname" triggers="hover">
+																<a href="javascript:{}" @click.stop="hits_Filter=row.item.fname;hits_period=dash_period;cfgTab=2;">Show hits</a><br>
+																<a href="javascript:{}" @click.stop="addIOC=row.item.fname;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a>
+																<hr class="m-1">
+																<strong>Research:</strong><br>
+																- <a target=_blank :href="'https://duckduckgo.com/?q=%22'+row.item.fname+'%22'">DuckDuckGo</a><br>
+																- <a target="_blank" :href="'https://www.google.com/search?q=%22'+row.item.fname+'%22'">Google</a><br>
+																- <a target="_blank" :href="'https://www.virustotal.com/gui/search/'+row.item.fname">VirusTotal</a><br>
+																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fname">RiskIQ Community</a><br>
+																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fname">DomainTools Whois</a><br>
+																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fname">Robtex</a>
+															</b-popover>
+															<span :id="'tip-bad_requests'+row.item.fname">{{row.item.fname}}</span>
+														</template>			
 													</b-table>
 												</div>
 											</b-card>
 											<b-card header="TopX Blocked Clients" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_bclient" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_bclient&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.hits_Filter=item.client_ip;this.hits_period=this.dash_period;this.cfgTab=2;}">
+													<b-table id="dash_topX_bclient" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_bclient&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+														<template v-slot:cell(fname)="row">
+															<b-popover title="Actions" :target="'tip-bad_clients'+row.item.fname" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter=(row.item.mac==null || row.item.mac=='')?row.item.fname:row.item.mac;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter=(row.item.mac==null || row.item.mac=='')?row.item.fname:row.item.mac;hits_period=dash_period;cfgTab=2;">Show hits</a>
+															</b-popover>
+															<span :id="'tip-bad_clients'+row.item.fname">{{row.item.fname}}</span>
+														</template>
 													</b-table>
 												</div>
 											</b-card>
 											<b-card header="TopX Feeds" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_feeds" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_feeds&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.hits_Filter=item.name;this.hits_period=this.dash_period;this.cfgTab=2;}">
+													<b-table id="dash_topX_feeds" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_feeds&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.hits_Filter=item.fname;this.hits_period=this.dash_period;this.cfgTab=2;}">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 													</b-table>
 												</div>
@@ -401,7 +445,7 @@
 													<b-table id="tbl_retention" no-border-collapse striped hover small :items="retention" :fields="retention_fields">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(5)="row">
-															<b-form-input :id="'ret_'+row.item[5]" min=1 max=1825 type="number" size="sm" :value="row.item[5]" v-b-tooltip.hover title="days"></b-form-input>
+															<b-form-input :ref="'ret_'+row.item[0]" min=1 max=1825 type="number" size="sm" :value="row.item[5]" v-b-tooltip.hover title="days"></b-form-input>
 														</template>
 													</b-table>
 												</b-col>
@@ -415,13 +459,15 @@
 														<b-form-select id="assets_by" v-model="assets_by" size="sm">
 															<b-form-select-option value="mac">MAC Address</b-form-select-option>
 															<b-form-select-option value="ip">IP Address</b-form-select-option>
-														</b-form-select>
+														</b-form-select><br><br>
+														<label for="dashboard_topx">Dashboard show Top &nbsp;&nbsp;&nbsp;</label>
+														<b-form-input id="dashboard_topx" min=1 max=200 type="number" size="sm" v-model="dashboard_topx"></b-form-input>
 													</b-form>
 												</b-col>
 											</b-row>
 											<b-row>
 												<b-col cols="12">
-													<b-button size="sm" :disabled="true" @click="">Save</b-button>
+													<b-button size="sm" @click="setSettings">Save</b-button>
 												</b-col>
 											</b-row>
 										</b-tab>

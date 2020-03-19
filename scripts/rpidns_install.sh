@@ -19,8 +19,15 @@ EOF
 cat /tmp/$SYSUSER | crontab -u $SYSUSER -
 rm -rf /tmp/$SYSUSER
 
+chmod 664 /opt/rpidns/www/rpisettings.php
+chown pi:www-data /opt/rpidns/www/rpisettings.php
+
 curl https://gitlab.com/wireshark/wireshark/raw/master/manuf -o /opt/rpidns/scripts/mac.db
 
 #/etc/php/7.3/fpm/php.ini
 #disable_functions
 #service php7.3-fpm restart
+
+#pi@pi-dev:/opt/rpidns/www $ cat /etc/php/7.3/fpm/pool.d/www.conf |grep limit_extension
+#;security.limit_extensions = .php .php3 .php4 .php5 .php7
+#pi@pi-dev:/opt/rpidns/www $ 

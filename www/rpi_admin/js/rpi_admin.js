@@ -71,7 +71,7 @@ const io2c_app = new Vue({
     ],
 		
 		dash_stats_fields:[
-			{ key: 'name', label: 'Name', 'tdClass':'mw350 mouseoverpointer'},
+			{ key: 'fname', label: 'Name', 'tdClass':'mw350 mouseoverpointer'},
 			{ key: 'cnt', label: 'Count'},			
 		],
 
@@ -133,6 +133,7 @@ const io2c_app = new Vue({
 			retention:[],
 			assets_by:"mac",
 			assets_autocreate:true,
+			dashboard_topx:100,
 			retention_fields: [
 				{ key: '0', label: 'Table', },
 				{ key: '1', label: 'Size', formatter: (value) => { return value<1024?value+' b':value<1024*1024?Math.round(value/1024/1024*100)/100+' Kb':value<1024*1024*1024?Math.round(value/1024/1024*100)/100+' Mb':Math.round(value/1024/1024/1024*100)/100+' Gb'} },
@@ -248,7 +249,24 @@ const io2c_app = new Vue({
 
     getSettings(){
 			let doc=this;
-			axios.get('/rpi_admin/rpidata.php?req=RPIsettings').then((data) => {doc.$root.retention=data.data.retention;doc.$root.assets_autocreate=(data.data.assets_autocreate==='1');doc.$root.assets_by=data.data.assets_by;});
+			axios.get('/rpi_admin/rpidata.php?req=RPIsettings').then((data) => {
+				doc.$root.retention=data.data.retention;
+				doc.$root.assets_autocreate=(data.data.assets_autocreate==='1');
+				doc.$root.assets_by=data.data.assets_by;
+				doc.$root.dashboard_topx=parseInt(data.data.dashboard_topx);
+			});
+		},
+		
+		setSettings(){
+			let doc=this;
+			data={dash_topx:this.dashboard_topx, assets_by:this.assets_by, assets_autocreate:this.assets_autocreate,
+						queries_raw:this.$refs.ret_queries_raw.localValue,queries_5m:this.$refs.ret_queries_5m.localValue,queries_1h:this.$refs.ret_queries_1h.localValue,queries_1d:this.$refs.ret_queries_1d.localValue,
+						hits_raw:this.$refs.ret_hits_raw.localValue,hits_5m:this.$refs.ret_hits_5m.localValue,hits_1h:this.$refs.ret_hits_1h.localValue,hits_1d:this.$refs.ret_hits_1d.localValue};
+			axios.put('/rpi_admin/rpidata.php?req=RPIsettings',data).then((data) => {
+				if (data.data.status!="success") doc.showInfo(data.data.reason,3); else doc.showInfo("Settings were saved",3);		
+			}).catch(error => {
+				doc.showInfo('Unknown error!!!',3);
+			});
 		},
 		
 		//dashDrilldown(tab,item){
