@@ -162,16 +162,22 @@
 										<b-row>
 											<b-col cols="2" lg="2"><span class="bold"><i class="fas fa-shoe-prints"></i>&nbsp;&nbsp;Query logs</span></b-col>
 											<b-col cols="10" lg="10" class="text-right">
-												<b-form-group class="m-0"><b-form-radio-group v-model="qlogs_period" :options="qperiod_options" buttons size="sm" @change="qlogs_cp=1"></b-form-radio-group></b-form-group>
+												<b-form-group class="m-0">
+													<b-button v-b-tooltip.hover title="Refresh" variant="outline-secondary" size="sm" @click.stop="refreshTbl('qlogs')"><i class="fa fa-sync"></i></b-button>
+													<b-form-radio-group v-model="qlogs_period" :options="qperiod_options" buttons size="sm" @change="qlogs_cp=1"></b-form-radio-group>
+												</b-form-group>
 											</b-col>
 										</b-row>
 									</template>
 									<b-row class='d-none d-sm-flex'>
 										<b-col cols="1" lg="1">
-											<b-button v-b-tooltip.hover title="Refresh" variant="outline-secondary" size="sm" @click.stop="refreshTbl('qlogs')"><i class="fa fa-sync"></i></b-button>
+											<b-form-radio-group buttons size="sm" v-model="query_ltype">
+												<b-form-radio  value="logs">Logs</b-form-radio>
+												<b-form-radio  value="stats">Stats</b-form-radio>
+											</b-form-radio-group>												
 										</b-col>
 										<b-col cols="3" lg="3">
-											
+										
 										</b-col>
 										<b-col cols="3" lg="3">
 											<b-pagination v-model="qlogs_cp" :total-rows="qlogs_nrows" :per-page="qlogs_pp" aria-controls="qlogs" size="sm" pills align="center" first-number last-number></b-pagination>
@@ -195,6 +201,15 @@
 												<div ref="refLogsDiv">
 													<b-table id="qlogs" ref="refLogs" :sticky-header="`${logs_height}px`" :per-page="qlogs_pp" :current-page="qlogs_cp" no-border-collapse striped hover :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=queries_raw&period='+this.qlogs_period+'&cp='+this.qlogs_cp+'&filter='+this.qlogs_Filter+'&pp='+this.qlogs_pp" :fields="qlogs_fields" small responsive :filter="qlogs_Filter" sort-by="dtz" :sort-desc="true">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+														<template v-slot:cell(cname)="row">
+															<b-popover title="Info" :target="'tip-qlogs_cname'+row.item.rowid" triggers="hover">
+																<strong>Mac:</strong> {{row.item.mac}}<br>
+																<strong>IP:</strong> {{row.item.client_ip}}<br>
+																<strong>Vendor:</strong> {{row.item.vendor}}<br>
+																<span v-if="row.item.comment != ''"><strong>Comment:</strong> {{row.item.comment}}</span>
+															</b-popover>
+															<span :id="'tip-qlogs_cname'+row.item.rowid">{{row.item.cname}}</span>
+														</template>
 														<template v-slot:cell(action)="row">
 															<div v-if="row.item.action == 'blocked'"><i class="fas fa-hand-paper salmon"></i> Block</div>
 															<div v-else><i class="fas fa-check green"></i> Allow</div>
@@ -240,13 +255,19 @@
 									<b-row>
 										<b-col cols="2" lg="2"><span class="bold"><i class="fas fa-shoe-prints"></i>&nbsp;&nbsp;RPZ hits</span></b-col>
 										<b-col cols="10" lg="10" class="text-right">
-											<b-form-group class="m-0"><b-form-radio-group v-model="hits_period" :options="period_options" buttons size="sm" @change="hits_cp=1"></b-form-radio-group></b-form-group>
+											<b-form-group class="m-0">
+												<b-button v-b-tooltip.hover title="Refresh" variant="outline-secondary" size="sm" @click.stop="refreshTbl('hits')"><i class="fa fa-sync"></i></b-button>
+												<b-form-radio-group v-model="hits_period" :options="period_options" buttons size="sm" @change="hits_cp=1"></b-form-radio-group>
+											</b-form-group>
 										</b-col>
 									</b-row>
 									</template>
 									<b-row class='d-none d-sm-flex'>
 										<b-col cols="1" lg="1" >
-											<b-button v-b-tooltip.hover title="Refresh" variant="outline-secondary" size="sm" @click.stop="refreshTbl('hits')"><i class="fa fa-sync"></i></b-button>
+											<b-form-radio-group buttons size="sm" v-model="query_ltype">
+												<b-form-radio  value="logs">Logs</b-form-radio>
+												<b-form-radio  value="stats">Stats</b-form-radio>
+											</b-form-radio-group>			
 										</b-col>
 										<b-col cols="3" lg="3">
 											
@@ -271,6 +292,17 @@
 												<div ref="refLogsDiv">
 													<b-table id="hits" ref="refHits" :sticky-header="`${logs_height}px`" :per-page="hits_pp" :current-page="hits_cp" no-border-collapse striped hover :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=hits_raw&period='+this.hits_period+'&cp='+this.hits_cp+'&filter='+this.hits_Filter+'&pp='+this.hits_pp" :fields="hits_fields" small responsive :filter="hits_Filter" sort-by="dtz" :sort-desc="true">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+
+														<template v-slot:cell(cname)="row">
+															<b-popover title="Info" :target="'tip-hits_cname'+row.item.rowid" triggers="hover">
+																<strong>Mac:</strong> {{row.item.mac}}<br>
+																<strong>IP:</strong> {{row.item.client_ip}}<br>
+																<strong>Vendor:</strong> {{row.item.vendor}}<br>
+																<span v-if="row.item.comment != ''"><strong>Comment:</strong> {{row.item.comment}}</span>
+															</b-popover>
+															<span :id="'tip-hits_cname'+row.item.rowid">{{row.item.cname}}</span>
+														</template>
+														
 														<template v-slot:cell(fqdn)="row">
 															<b-popover title="Actions" :target="'tip-hits'+row.item.rowid" triggers="hover">
 																<a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a>
@@ -302,7 +334,7 @@
 														</template>
 													</b-table>
 							
-												</div>
+												</span>
 											</template>
 										</b-col>
 									</b-row>
@@ -351,6 +383,27 @@
 														<template v-slot:cell(rowid)="row">
 															<b-form-checkbox :value="row.item" :name="'asset'+row.item.rowid" v-model="asset_selected" /> 
 														</template>
+														<template v-slot:cell(address)="row">
+															<b-popover title="Actions" :target="'tip-assets'+row.item.address" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter=row.item.address;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter=row.item.address;cfgTab=2;">Show hits</a>
+															</b-popover>
+															<span :id="'tip-assets'+row.item.address">{{row.item.address}}</span>
+														</template>
+														<template v-slot:cell(name)="row">
+															<b-popover title="Actions" :target="'tip-assets_name'+row.item.rowid" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter=row.item.name;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter=row.item.name;cfgTab=2;">Show hits</a>
+															</b-popover>
+															<span :id="'tip-assets_name'+row.item.rowid">{{row.item.name}}</span>
+														</template>
+														<template v-slot:cell(vendor)="row">
+															<b-popover title="Actions" :target="'tip-assets_vendor'+row.item.rowid" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter=row.item.vendor;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter=row.item.vendor;cfgTab=2;">Show hits</a>
+															</b-popover>
+															<span :id="'tip-assets_vendor'+row.item.rowid">{{row.item.vendor}}</span>
+														</template>
 													</b-table>
 												</b-col>
 											</b-row>
@@ -390,7 +443,14 @@
 														</template>    
 														<template v-slot:cell(active)="row">
 															<div v-if="row.item.active == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
-														</template>    
+														</template>
+														<template v-slot:cell(ioc)="row">
+															<b-popover title="Actions" :target="'tip-blacklist'+row.item.ioc" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter=row.item.ioc;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter=row.item.ioc;cfgTab=2;">Show hits</a>
+															</b-popover>
+															<span :id="'tip-blacklist'+row.item.ioc">{{row.item.ioc}}</span>
+														</template>
 													</b-table>
 												</b-col>
 											</b-row>
@@ -432,7 +492,14 @@
 														</template>    
 														<template v-slot:cell(active)="row">
 															<div v-if="row.item.active == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
-														</template>    
+														</template>
+														<template v-slot:cell(ioc)="row">
+															<b-popover title="Actions" :target="'tip-whitelist'+row.item.ioc" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter=row.item.ioc;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter=row.item.ioc;cfgTab=2;">Show hits</a>
+															</b-popover>
+															<span :id="'tip-whitelist'+row.item.ioc">{{row.item.ioc}}</span>
+														</template>
 													</b-table>
 												</b-col>
 											</b-row>
@@ -442,7 +509,7 @@
 											<b-row>
 												<b-col cols="7" lg="7">
 													<h4>Data statistics and retention</h4>
-													<b-table id="tbl_retention" no-border-collapse striped hover small :items="retention" :fields="retention_fields">
+													<b-table id="tbl_retention" :busy="db_stats_busy" no-border-collapse striped hover small :items="retention" :fields="retention_fields">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(5)="row">
 															<b-form-input :ref="'ret_'+row.item[0]" min=1 max=1825 type="number" size="sm" :value="row.item[5]" v-b-tooltip.hover title="days"></b-form-input>

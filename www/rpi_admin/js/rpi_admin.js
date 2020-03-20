@@ -48,12 +48,12 @@ const io2c_app = new Vue({
     qlogs_fields: [
         { key: 'dtz', label: 'Local Time', sortable: true, formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
         { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
-//        { key: 'server', label: 'Server', sortable: true},
-        { key: 'mac', label: 'MAC', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+        { key: 'server', label: 'Server', sortable: true,  'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+//        { key: 'mac', label: 'MAC', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
         { key: 'fqdn', label: 'Request', sortable: true, 'tdClass':'mw250'},
         { key: 'type', label: 'Type', sortable: true},
         { key: 'class', label: 'Class', sortable: true},
-//        { key: 'options', label: 'Options', sortable: true},
+        { key: 'options', label: 'Options', sortable: true},
         { key: 'cnt', label: 'Count', sortable: true},
         { key: 'action', label: 'Action', sortable: true},
     ],		
@@ -61,7 +61,7 @@ const io2c_app = new Vue({
     hits_fields: [
         { key: 'dtz', label: 'Local Time', sortable: true,   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
         { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
-        { key: 'mac', label: 'MAC', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+ //       { key: 'mac', label: 'MAC', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
         { key: 'fqdn', label: 'Request', sortable: true, 'tdClass':'mw200'},
         { key: 'action', label: 'Action', sortable: true},
         { key: 'rule', label: 'Rule', sortable: true, 'tdClass':'mw300 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
@@ -69,6 +69,9 @@ const io2c_app = new Vue({
 //        { key: 'feed', label: 'Feed', sortable: true},
         { key: 'cnt', label: 'Count', sortable: true},
     ],
+		
+		query_ltype:'logs',
+		hits_ltype:'logs',
 		
 		dash_stats_fields:[
 			{ key: 'fname', label: 'Name', 'tdClass':'mw350 mouseoverpointer'},
@@ -134,6 +137,7 @@ const io2c_app = new Vue({
 			assets_by:"mac",
 			assets_autocreate:true,
 			dashboard_topx:100,
+			db_stats_busy: false,
 			retention_fields: [
 				{ key: '0', label: 'Table', },
 				{ key: '1', label: 'Size', formatter: (value) => { return value<1024?value+' b':value<1024*1024?Math.round(value/1024/1024*100)/100+' Kb':value<1024*1024*1024?Math.round(value/1024/1024*100)/100+' Mb':Math.round(value/1024/1024/1024*100)/100+' Gb'} },
@@ -249,11 +253,13 @@ const io2c_app = new Vue({
 
     getSettings(){
 			let doc=this;
+			this.db_stats_busy=true;
 			axios.get('/rpi_admin/rpidata.php?req=RPIsettings').then((data) => {
-				doc.$root.retention=data.data.retention;
-				doc.$root.assets_autocreate=(data.data.assets_autocreate==='1');
-				doc.$root.assets_by=data.data.assets_by;
-				doc.$root.dashboard_topx=parseInt(data.data.dashboard_topx);
+				doc.db_stats_busy=false;
+				doc.retention=data.data.retention;
+				doc.assets_autocreate=(data.data.assets_autocreate==='1');
+				doc.assets_by=data.data.assets_by;
+				doc.dashboard_topx=parseInt(data.data.dashboard_topx);
 			});
 		},
 		
