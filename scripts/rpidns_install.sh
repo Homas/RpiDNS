@@ -15,6 +15,8 @@ chmod 660 /opt/rpidns/www/db/rpidns.sqlite
 cat >> /tmp/$SYSUSER  << EOF
 ##Non-root cron scripts
 * * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php
+42 2 * * *	/usr/bin/php /opt/rpidns/www/db/clean_db.php
+42 3 * * *	/usr/bin/sqlite3 /opt/rpidns/www/db/rpidns.sqlite 'VACUUM;'
 EOF
 cat /tmp/$SYSUSER | crontab -u $SYSUSER -
 rm -rf /tmp/$SYSUSER

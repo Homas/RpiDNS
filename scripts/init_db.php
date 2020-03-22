@@ -1,10 +1,6 @@
 <?php
 #(c) Vadim Pavlov 2020
 #ioc2rpz DB init
-
-#chmod 664 /srv/www/io2cfg/io2db.sqlite
-#sudo chown homas:_apache /srv/www/io2cfg/io2db.sqlite
-
 require_once "/opt/rpidns/www/rpidns_vars.php";
 
 function initSQLiteDB($DBF){

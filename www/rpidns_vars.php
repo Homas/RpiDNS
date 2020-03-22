@@ -30,11 +30,11 @@ function secHeaders(){
 };	
 
 
-function DB_open() 
+function DB_open($file) 
 { 
   switch (DB){
     case "sqlite":
-      $db = new SQLite3(DBFile);
+      $db = new SQLite3($file);
       $db->busyTimeout(5000);
       $db->exec('PRAGMA journal_mode = wal;'); //PRAGMA foreign_keys = ON;
     break;

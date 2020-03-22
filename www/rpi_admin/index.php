@@ -173,7 +173,7 @@
 										<b-col cols="1" lg="1">
 											<b-form-radio-group buttons size="sm" v-model="query_ltype">
 												<b-form-radio  value="logs">Logs</b-form-radio>
-												<b-form-radio  value="stats">Stats</b-form-radio>
+												<b-form-radio  value="stats" disabled>Stats</b-form-radio>
 											</b-form-radio-group>												
 										</b-col>
 										<b-col cols="3" lg="3">
@@ -265,8 +265,8 @@
 									<b-row class='d-none d-sm-flex'>
 										<b-col cols="1" lg="1" >
 											<b-form-radio-group buttons size="sm" v-model="query_ltype">
-												<b-form-radio  value="logs">Logs</b-form-radio>
-												<b-form-radio  value="stats">Stats</b-form-radio>
+												<b-form-radio value="logs">Logs</b-form-radio>
+												<b-form-radio value="stats" disabled>Stats</b-form-radio>
 											</b-form-radio-group>			
 										</b-col>
 										<b-col cols="3" lg="3">
