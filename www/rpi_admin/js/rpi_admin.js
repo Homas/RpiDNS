@@ -153,7 +153,7 @@ const io2c_app = new Vue({
 			{ key: 'rowid', label: '',  'tdClass':'width050 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell' },
 			{ key: 'address', label: 'Address', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
 			{ key: 'name', label: 'Name', sortable: true, 'tdClass':'mw200'},
-			{ key: 'vendor', label: 'Vendor', sortable: true, 'tdClass':'mw150 d-none d-mdd-table-cell', 'thClass': 'd-none d-md-table-cell'},
+			{ key: 'vendor', label: 'Vendor', sortable: true, 'tdClass':'mw150 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell'},
 			{ key: 'dtz', label: 'Added', sortable: true,   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }, 'tdClass':'mw150 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell'},
 			{ key: 'comment', label: 'Comment', sortable: true, 'tdClass':'mw150 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell'},
     ],
