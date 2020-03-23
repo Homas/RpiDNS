@@ -12,9 +12,16 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 	<title>rpidns</title>
+
+<!--
 	<link type="text/css" rel="stylesheet" href="//unpkg.com/bootstrap/dist/css/bootstrap.min.css"/>
 	<link type="text/css" rel="stylesheet" href="//unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.css"/>    
 	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.12.1/css/all.css" crossorigin="anonymous">
+-->
+	<link type="text/css" rel="stylesheet" href="/rpi_admin/css/bootstrap.min.css"/>
+	<link type="text/css" rel="stylesheet" href="/rpi_admin/css/bootstrap-vue.min.css"/>    
+	<link rel="stylesheet" href="/rpi_admin/css/all.css" />
+
 	<link type="text/css" rel="stylesheet" href="/rpi_admin/css/rpi_admin.css?<?=$rpiver?>"/>
 </head>
 <body>
@@ -648,12 +655,23 @@
 	</div>
 	
 	<div class="copyright"><p>Copyright © 2020 Vadim Pavlov</p></div>
+<!--	
 		<script src="https://cdn.jsdelivr.net/npm/vue@latest/dist/vue.js"></script>
 		<script src="//unpkg.com/babel-polyfill@latest/dist/polyfill.min.js"></script>
 		<script src="//unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.js"></script>
 		<script src="//unpkg.com/axios/dist/axios.min.js"></script>
 		<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-		<script src="https://cdn.jsdelivr.net/npm/vue-apexcharts"></script>
+		<script src="https://cdn.jsdelivr.net/npm/vue-apexcharts"></script>		
+
+		<script src="/rpi_admin/js/vue.js"></script>
+-->
+		<script src="/rpi_admin/js/vue.min.js"></script>
+		<script src="/rpi_admin/js/polyfill.min.js"></script>
+		<script src="/rpi_admin/js/bootstrap-vue.min.js"></script>
+		<script src="/rpi_admin/js/axios.min.js"></script>
+		<script src="/rpi_admin/js/apexcharts"></script>
+		<script src="/rpi_admin/js/vue-apexcharts"></script>		
+
 		<script src="/rpi_admin/js/rpi_admin.js?<?=$rpiver?>"></script>		
 	</body>
 </html>
