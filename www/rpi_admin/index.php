@@ -21,8 +21,8 @@
 	<div id="app" fluid class="h-100 d-flex flex-column" v-cloak>
 		<div id="ConfApp" class="h-100 d-flex flex-column" v-cloak>
 			<div class="menu-bkgr white pl-4 pt-2"><span style="font-size: 32px">RpiDNS</span> powered by <a href="https://ioc2rpz.net" target="_blank">ioc2rpz.net</a></div>
-			<b-container fluid  class="h-100 d-flex flex-column">
-        <b-tabs ref="i2r" tabs pills vertical lazy nav-wrapper-class="menu-bkgr h-100 p-1" class="h-100 corners" content-class="curl_angels" :value="cfgTab" @input="changeTab" v-bind:nav-class="{ hidden: (toggleMenu == 2 && windowInnerWidth>=992) || (toggleMenu == 1 && windowInnerWidth<992) }" >
+			<b-container fluid  :class="{'h-100':true, 'd-flex':true, 'flex-column':true, 'p-0':windowInnerWidth<=500}">
+        <b-tabs ref="i2r" tabs pills :vertical="windowInnerWidth>500" lazy :nav-wrapper-class="{'menu-bkgr': true, 'h-100':windowInnerWidth>500 ,'p-1':windowInnerWidth>500}" class="h-100 corners" content-class="curl_angels" :value="cfgTab" @input="changeTab" v-bind:nav-class="{ hidden: (toggleMenu == 2 && windowInnerWidth>=992) || (toggleMenu == 1 && windowInnerWidth<992) }" >
 					<i v-cloak class="fa fa-angle-double-left border rounded-right border-dark" style="position: absolute;left: -2px;top: 10px;z-index: 1; cursor: pointer;" v-bind:class="{ hidden: (toggleMenu == 2 && windowInnerWidth>=992) || (toggleMenu == 1 && windowInnerWidth<992) }" v-on:click="toggleMenu += 1;this.update_window_size(this);this.window.localStorage.setItem('toggleMenu',toggleMenu);"></i>
 					<i v-cloak class="fa fa-angle-double-right border rounded-right border-dark" style="position: absolute;left: -2px;top: 10px;z-index: 1; cursor: pointer;" v-bind:class="{ hidden: (toggleMenu != 2 && windowInnerWidth>=992) || (toggleMenu != 1 && windowInnerWidth<992) }" v-on:click="toggleMenu = 0;this.update_window_size(this);this.window.localStorage.setItem('toggleMenu',toggleMenu);"></i>
           <b-tab class="scroll_tab">
@@ -33,8 +33,8 @@
 								<b-card no-body class="d-flex flex-column" style="max-height:calc(100vh - 100px)">
 									<template slot="header">
 										<b-row>
-											<b-col cols="2" lg="2"><span class="bold"><i class="fas fa-tachometer-alt"></i>&nbsp;&nbsp;Dashboard</span></b-col>
-											<b-col cols="10" lg="10" class="text-right">
+											<b-col cols="0" class="d-none d-lg-block" lg="2"><span class="bold"><i class="fas fa-tachometer-alt"></i>&nbsp;&nbsp;Dashboard</span></b-col>
+											<b-col cols="12" lg="10" class="text-right">
 												<b-form-group class="m-0">
 													<b-button v-b-tooltip.hover title="Refresh" variant="outline-secondary" size="sm" @click.stop="refreshDash"><i class="fa fa-sync"></i></b-button>&nbsp;&nbsp;&nbsp;
 													<b-form-radio-group v-model="dash_period" :options="period_options" buttons size="sm" @input="refreshDashQPS"></b-form-radio-group>
@@ -142,7 +142,7 @@
 									<div>
 										<b-card-group deck>
 											<b-card header="Queries per Minute">
-												<apexchart type="area" height="200" :options="qps_options" :series="qps_series"></apexchart>
+												<apexchart type="area" height="200" width="99%" :options="qps_options" :series="qps_series"></apexchart>
 											</b-card>
 										</b-card-group>
 									</div>									
@@ -160,8 +160,8 @@
 								<b-card >
 									<template slot="header">
 										<b-row>
-											<b-col cols="2" lg="2"><span class="bold"><i class="fas fa-shoe-prints"></i>&nbsp;&nbsp;Query logs</span></b-col>
-											<b-col cols="10" lg="10" class="text-right">
+											<b-col cols="0" class="d-none d-lg-block"  lg="2"><span class="bold"><i class="fas fa-shoe-prints"></i>&nbsp;&nbsp;Query logs</span></b-col>
+											<b-col cols="12" lg="10" class="text-right">
 												<b-form-group class="m-0">
 													<b-button v-b-tooltip.hover title="Refresh" variant="outline-secondary" size="sm" @click.stop="refreshTbl('qlogs')"><i class="fa fa-sync"></i></b-button>
 													<b-form-radio-group v-model="qlogs_period" :options="qperiod_options" buttons size="sm" @change="qlogs_cp=1"></b-form-radio-group>
@@ -253,8 +253,8 @@
 								<b-card >
 									<template slot="header">
 									<b-row>
-										<b-col cols="2" lg="2"><span class="bold"><i class="fas fa-shoe-prints"></i>&nbsp;&nbsp;RPZ hits</span></b-col>
-										<b-col cols="10" lg="10" class="text-right">
+										<b-col cols="0" class="d-none d-lg-block"  lg="2"><span class="bold"><i class="fas fa-shoe-prints"></i>&nbsp;&nbsp;RPZ hits</span></b-col>
+										<b-col cols="12" lg="10" class="text-right">
 											<b-form-group class="m-0">
 												<b-button v-b-tooltip.hover title="Refresh" variant="outline-secondary" size="sm" @click.stop="refreshTbl('hits')"><i class="fa fa-sync"></i></b-button>
 												<b-form-radio-group v-model="hits_period" :options="period_options" buttons size="sm" @change="hits_cp=1"></b-form-radio-group>
@@ -433,7 +433,7 @@
 											</b-row>
 											<b-row>
 												<b-col cols="12" lg="12">
-													<b-table id="blacklist"  :sticky-header="`${logs_height}px`" no-border-collapse striped hover small :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=blacklist'" :fields="lists_fields" :filter="bl_Filter">
+													<b-table id="blacklist"  :sticky-header="`${logs_height}px`" no-border-collapse responsive striped hover small :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=blacklist'" :fields="lists_fields" :filter="bl_Filter">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(rowid)="row">
 															<b-form-checkbox :value="row.item" :name="'bl'+row.item.rowid" v-model="bl_selected" /> 
@@ -482,7 +482,7 @@
 											</b-row>
 											<b-row>
 												<b-col cols="12" lg="12">
-													<b-table id="whitelist"  :sticky-header="`${logs_height}px`" no-border-collapse striped hover small :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=whitelist'" :fields="lists_fields" :filter="wl_Filter">
+													<b-table id="whitelist"  :sticky-header="`${logs_height}px`" no-border-collapse striped hover small responsive :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=whitelist'" :fields="lists_fields" :filter="wl_Filter">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(rowid)="row">
 															<b-form-checkbox :value="row.item" :name="'wl'+row.item.rowid" v-model="wl_selected" /> 
@@ -507,16 +507,16 @@
 										</b-tab>
 										<b-tab title="Settings" lazy>
 											<b-row>
-												<b-col cols="7" lg="7">
+												<b-col cols="12" lg="7">
 													<h4>Data statistics and retention</h4>
-													<b-table id="tbl_retention" :busy="db_stats_busy" no-border-collapse striped hover small :items="retention" :fields="retention_fields">
+													<b-table id="tbl_retention" :busy="db_stats_busy" no-border-collapse responsive striped hover small :items="retention" :fields="retention_fields">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(5)="row">
 															<b-form-input :ref="'ret_'+row.item[0]" min=1 max=1825 type="number" size="sm" :value="row.item[5]" v-b-tooltip.hover title="days"></b-form-input>
 														</template>
 													</b-table>
 												</b-col>
-												<b-col cols="5" lg="5">
+												<b-col cols="12" lg="5">
 													<h4>Miscellaneous</h4>
 													<hr class="mt-0">
 													<b-form-checkbox v-model="assets_autocreate" switch>Automatically create assets</b-form-checkbox>

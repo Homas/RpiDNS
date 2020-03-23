@@ -12,6 +12,7 @@ chmod 660 /opt/rpidns/www/db/rpidns.sqlite
 /usr/bin/php /opt/rpidns/scripts/init_db.php
 
 #install crontabs
+crontab -l > /tmp/$SYSUSER
 cat >> /tmp/$SYSUSER  << EOF
 ##Non-root cron scripts
 * * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php
