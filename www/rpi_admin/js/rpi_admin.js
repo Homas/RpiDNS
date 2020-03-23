@@ -141,8 +141,8 @@ const io2c_app = new Vue({
 			db_stats_busy: false,
 			retention_fields: [
 				{ key: '0', label: 'Table', },
-				{ key: '1', label: 'Size',  'tdClass':'width050 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell', formatter: (value) => { return value<1024?value+' b':value<1024*1024?Math.round(value/1024/1024*100)/100+' Kb':value<1024*1024*1024?Math.round(value/1024/1024*100)/100+' Mb':Math.round(value/1024/1024/1024*100)/100+' Gb'} },
-				{ key: '2', label: 'Rows',  'tdClass':'width050 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell', },
+				{ key: '1', label: 'Size',  'tdClass':'width100 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell', formatter: (value) => { return value<1024?value+' b':value<1024*1024?Math.round(value/1024/1024*100)/100+' Kb':value<1024*1024*1024?Math.round(value/1024/1024*100)/100+' Mb':Math.round(value/1024/1024/1024*100)/100+' Gb'} },
+				{ key: '2', label: 'Rows',  'tdClass':'width100 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell', },
         { key: '3', label: 'From',  'tdClass':'d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell',   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
         { key: '4', label: 'To',  'tdClass':'d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell',   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
 				{ key: '5', label: 'Retention', },
