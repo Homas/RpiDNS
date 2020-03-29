@@ -10,9 +10,9 @@
 	$db->busyTimeout(15000);
 
 	//sortBy, sortDesc, period, cp, pp, filter
-	
+	 $default_sortBy=(array_key_exists("ltype",$REQUEST) and $REQUEST["ltype"] == 'stats' )?'cnt':'dtz';
 	if (array_key_exists("sortDesc",$REQUEST)) $sort=$REQUEST["sortDesc"]=='true'?'desc':''; else $sort='';
-	if (array_key_exists("sortBy",$REQUEST)) $sortBy=(in_array($REQUEST["sortBy"], array('dtz', 'client_ip', 'mac', 'fqdn', 'action', 'rule_type', 'rule', 'feed', 'cnt','type', 'class', 'options', 'server'),true))?$REQUEST["sortBy"]:'dtz'; else $sortBy='dtz';
+	if (array_key_exists("sortBy",$REQUEST)) $sortBy=(in_array($REQUEST["sortBy"], array('dtz', 'client_ip', 'mac', 'fqdn', 'action', 'rule_type', 'rule', 'feed', 'cnt','type', 'class', 'options', 'server'),true))?(($REQUEST["sortBy"]=='dtz' and $default_sortBy=='cnt')?$default_sortBy:$REQUEST["sortBy"]):$default_sortBy; else $sortBy=$default_sortBy;
 	if (array_key_exists("pp",$REQUEST)) $perPage=(intval($REQUEST["pp"])>1 and intval($REQUEST["pp"])<=500)?$REQUEST["pp"]:100; else $perPage=0;
 	if (array_key_exists("cp",$REQUEST)) $currentPage=intval($REQUEST["cp"]); else $currentPage=0;
 	
@@ -37,7 +37,10 @@
 	
 	$order="order by $sortBy $sort LIMIT $perPage OFFSET ".($perPage*($currentPage-1));
 	$qps_pref='';$qps_post='';
-	
+
+	$fields_h=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='hits_raw')?($REQUEST["fields"]?", ":"").$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":"").(preg_match('/rule[^_]/',$REQUEST["fields"])==1?", feed ":""):"client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment";	
+	$fields_q=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='queries_raw')?($REQUEST["fields"]?", ":"").$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":""):"client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment";
+
 	if (array_key_exists("period",$REQUEST))  switch ($REQUEST["period"]):
 		case "30m":
 		case "1h":
@@ -48,68 +51,80 @@
 				$qps_pref='';$qps_post='';				
 			};
 			if (array_key_exists("ltype",$REQUEST) and $REQUEST["ltype"] == 'stats' ){
-				//$fields_h="client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment";
-				$fields_h=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='hits_raw')?$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":"").(strpos($REQUEST["fields"],'rule')!==false?", feed ":""):"client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment";
-				
-				$order=$sortBy!='dtz'?$order:"order by cname $sort LIMIT $perPage OFFSET ".($perPage*($currentPage-1));
-
-				$sql_hits="select rowid, $fields_h, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, action, rule_type, rule, feed, count(*) as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits group by client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment) group by $fields_h";				
+				$sql_hits="select 'st' as tbl, rowid $fields_h, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, action, rule_type, rule, feed, count(*) as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits group by client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment) group by tbl $fields_h";				
 				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
 				$sql_hits.=" $order;";
 				
-				$fields_q=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='queries_raw')?$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":""):"client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment";
-				
-				$sql_queries="select rowid, $fields_q, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, type, class, options, server, action, ifnull(a.name,client_ip) as cname, vendor, comment, count(*) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment) group by $fields_q";
+				$sql_queries="select 'st' as tbl,  rowid $fields_q, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, type, class, options, server, action, ifnull(a.name,client_ip) as cname, vendor, comment, count(*) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment) group by tbl $fields_q";
 				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
 				$sql_queries.=" $order;";
+								
 			}else{
-				$sql_hits="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits $order;";
-				$sql_hits_count="select count(qr.rowid) as cnt from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits;";
+				$sql_hits="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits";
+				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
+				$sql_hits.=" $order;";
 				
-				$sql_queries="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries $order;";
-				$sql_queries_count="select count(qr.rowid) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries;";
+				$sql_queries="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries";
+				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
+				$sql_queries.=" $order;";
 			};
 			break;
 		case "1d":
 			$table="_1h";$period=86400;
 			$qps_pref='select (dtz - dtz % 1800) as dtx, max(cnt) as cntx from (';$qps_post=') group by dtx';
-			$sql_hits="
-			select *, ifnull(name,client_ip) as cname from (
-			select max(qr.rowid)  as rowid, 'raw' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(qr.rowid) as cnt, name, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_5m),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
-			union
-			select max(qr.rowid)  as rowid, '5m' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, sum(cnt) as cnt, name, vendor, comment from hits_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1h),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
-			union
-			select qr.rowid, '1h' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, cnt, name, vendor, comment from hits_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits
-			) 
-			$order;
-			";
 
-			$sql_hits_count="
-			select count(*) as cnt from (
-			select max(qr.rowid) as rowid, 'raw' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(qr.rowid) as cnt from hits_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_5m),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed
-			union
-			select max(qr.rowid) as rowid, '5m' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(qr.rowid) as cnt from hits_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1h),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed
-			union
-			select qr.rowid, '1h' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, cnt from hits_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits
-			)";
+			if (array_key_exists("ltype",$REQUEST) and $REQUEST["ltype"] == 'stats' ){
 
-			$sql_queries="
-			select *, ifnull(name,client_ip) as cname from (
-			select max(qr.rowid) as rowid, 'raw' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, count(qr.rowid) as cnt, name, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_5m),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
-			union
-			select max(qr.rowid) as rowid, '5m' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, sum(cnt) as cnt, name, vendor, comment from queries_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1h),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
-			union
-			select qr.rowid, '1h' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, cnt, name, vendor, comment from queries_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries
-			) $order;";
+				$sql_hits="
+				select  'st' as tbl, row_number() over (order by client_ip) as rowid $fields_h, sum(cnt) as cnt from (
+				select client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment, ifnull(name,client_ip) as cname, count(qr.rowid) as cnt from hits_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_5m),0) $filter_hits group by client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment, cname
+				union
+				select client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment, ifnull(name,client_ip) as cname, sum(cnt) as cnt from hits_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1h),0) $filter_hits group by client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment, cname
+				union
+				select client_ip, mac, fqdn, action, rule_type, rule, feed, name, vendor, comment, ifnull(name,client_ip) as cname, sum(cnt) as cnt from hits_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits group by client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment, cname
+				) group by tbl $fields_h";
 
-			$sql_queries_count="
-			select count (*) as cnt from (
-			select max(qr.rowid) as rowid, 'raw' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, count(qr.rowid) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_5m),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action
-			union
-			select max(qr.rowid) as rowid, '5m' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, sum(cnt) as cnt from queries_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1h),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action
-			union
-			select qr.rowid, '1h' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, cnt from queries_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries
-			)";
+				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
+				$sql_hits.=" $order;";
+
+				$sql_queries="
+				select 'st' as tbl, row_number() over (order by client_ip) as rowid $fields_q, sum(cnt) as cnt from (
+				select client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, ifnull(name,client_ip) as cname, count(*) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_5m),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, cname
+				union
+				select client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, ifnull(name,client_ip) as cname, sum(cnt) as cnt from queries_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1h),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, cname
+				union
+				select client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment,ifnull(name,client_ip) as cname, sum(cnt) as cnt from queries_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, cname
+				) group by tbl $fields_q";
+	
+				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
+				$sql_queries.=" $order;";			
+			
+			}else{
+
+				$sql_hits="
+				select *, ifnull(name,client_ip) as cname from (
+				select max(qr.rowid)  as rowid, 'raw' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(qr.rowid) as cnt, name, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_5m),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
+				union
+				select max(qr.rowid)  as rowid, '5m' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, sum(cnt) as cnt, name, vendor, comment from hits_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1h),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
+				union
+				select qr.rowid, '1h' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, cnt, name, vendor, comment from hits_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits
+				)
+				";
+				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
+				$sql_hits.=" $order;";
+	
+				$sql_queries="
+				select *, ifnull(name,client_ip) as cname from (
+				select max(qr.rowid) as rowid, 'raw' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, count(qr.rowid) as cnt, name, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_5m),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
+				union
+				select max(qr.rowid) as rowid, '5m' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, sum(cnt) as cnt, name, vendor, comment from queries_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1h),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
+				union
+				select qr.rowid, '1h' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, cnt, name, vendor, comment from queries_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries
+				)";
+	
+				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
+				$sql_queries.=" $order;";				
+			};
 			break;
 		case "1w":
 		case "30d":
@@ -121,55 +136,65 @@
 				$qps_pref='select (dtz - dtz % 86400) as dtx,max(cnt) as cntx from (';$qps_post=') group by dtx';				
 			};
 
-//			$sql_hits="select rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, cnt from hits_1d where dt>=strftime('%s', 'now')-$period $filter_hits $order;";
-//			$sql_hits_count="select count(rowid) as cnt from hits_1d where dt>=strftime('%s', 'now')-$period $filter_hits;";
 
-//			$sql_queries="select rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, cnt from queries_1d where dt>=strftime('%s', 'now')-$period $filter_queries $order;";
-//			$sql_queries_count="select count(rowid) as cnt from queries_1d where dt>=strftime('%s', 'now')-$period $filter_queries;";
-			$sql_hits="
-			select *, ifnull(name,client_ip) as cname from (
-			select max(qr.rowid) as rowid, 'raw' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(qr.rowid) as cnt, name, vendor, comment from hits_raw  qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_5m),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
-			union
-			select max(qr.rowid) as rowid, '5m' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, sum(cnt) as cnt, name, vendor, comment from hits_5m  qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1h),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
-			union
-			select max(qr.rowid) as rowid, '1h' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, sum(cnt) as cnt, name, vendor, comment from hits_1h  qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1d),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
-			union
-			select qr.rowid, '1d' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, cnt, name, vendor, comment from hits_1d qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits
-			) 
-			$order;
-			";
-			$sql_hits_count="
-			select count(*) as cnt from (
-			select max(qr.rowid) as rowid, 'raw' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(qr.rowid) as cnt from hits_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_5m),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed
-			union
-			select max(qr.rowid) as rowid, '5m' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(qr.rowid) as cnt from hits_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1h),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed
-			union
-			select max(qr.rowid) as rowid, '1h' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(qr.rowid) as cnt from hits_1h qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1d),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed
-			union
-			select qr.rowid, '1d' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, cnt from hits_1d qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits
-			)";
+			if (array_key_exists("ltype",$REQUEST) and $REQUEST["ltype"] == 'stats' ){
 
-			$sql_queries="
-			select *, ifnull(name,client_ip) as cname from (
-			select max(qr.rowid) as rowid, 'raw' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, count(qr.rowid) as cnt, name, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_5m),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
-			union
-			select max(qr.rowid) as rowid, '5m' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, sum(cnt) as cnt, name, vendor, comment from queries_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1h),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
-			union
-			select max(qr.rowid) as rowid, '1h' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, sum(cnt) as cnt, name, vendor, comment from queries_1h qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1d),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
-			union
-			select qr.rowid, '1d' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, cnt, name, vendor, comment from queries_1d qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries
-			) $order;";
+				$sql_hits="
+				select 'st' as tbl, row_number() over (order by client_ip) as rowid $fields_h, sum(cnt) as cnt from (
+				select client_ip, mac, fqdn, action, rule_type, rule, feed, name, vendor, comment, ifnull(name,client_ip) as cname, count(*) as cnt from hits_raw  qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_5m),0) $filter_hits group by client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
+				union
+				select client_ip, mac, fqdn, action, rule_type, rule, feed, name, vendor, comment, ifnull(name,client_ip) as cname, sum(cnt) as cnt from hits_5m  qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1h),0) $filter_hits group by client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
+				union
+				select client_ip, mac, fqdn, action, rule_type, rule, feed, name, vendor, comment, ifnull(name,client_ip) as cname, sum(cnt) as cnt from hits_1h  qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1d),0) $filter_hits group by client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
+				union
+				select client_ip, mac, fqdn, action, rule_type, rule, feed, name, vendor, comment, ifnull(name,client_ip) as cname, sum(cnt) as cnt from hits_1d qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits group by client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
+				) group by tbl $fields_h";
+				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
+				$sql_hits.=" $order;";
 
-			$sql_queries_count="
-			select count (*) as cnt from (
-			select max(qr.rowid) as rowid, 'raw' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, count(qr.rowid) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_5m),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action
-			union
-			select max(qr.rowid) as rowid, '5m' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, count(qr.rowid) as cnt from queries_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1h),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action
-			union
-			select max(qr.rowid) as rowid, '1h' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, count(qr.rowid) as cnt from queries_1h qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1d),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action
-			union
-			select qr.rowid, '1d' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, cnt from queries_1d qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries
-			)";
+				$sql_queries="
+				select 'st' as tbl, row_number() over (order by client_ip) as rowid $fields_q, sum(cnt) as cnt from (
+				select client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, ifnull(name,client_ip) as cname, count(*) as cnt  from queries_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_5m),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, cname
+				union
+				select client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, ifnull(name,client_ip) as cname, sum(cnt) as cnt  from queries_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1h),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, cname
+				union
+				select client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, ifnull(name,client_ip) as cname, sum(cnt) as cnt  from queries_1h qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1d),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, cname
+				union
+				select client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, ifnull(name,client_ip) as cname, sum(cnt) as cnt  from queries_1d qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, cname
+				) group by tbl $fields_q";
+
+				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
+				$sql_queries.=" $order;";				
+			
+
+			}else{
+				$sql_hits="
+				select *, ifnull(name,client_ip) as cname from (
+				select max(qr.rowid) as rowid, 'raw' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, count(qr.rowid) as cnt, name, vendor, comment from hits_raw  qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_5m),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
+				union
+				select max(qr.rowid) as rowid, '5m' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, sum(cnt) as cnt, name, vendor, comment from hits_5m  qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1h),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
+				union
+				select max(qr.rowid) as rowid, '1h' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac,fqdn, action, rule_type, rule, feed, sum(cnt) as cnt, name, vendor, comment from hits_1h  qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from hits_1d),0) $filter_hits group by tbl, client_ip, mac,fqdn, action, rule_type, rule, feed, name, vendor, comment
+				union
+				select qr.rowid, '1d' as tbl, strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, cnt, name, vendor, comment from hits_1d qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits
+				)";
+				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
+				$sql_hits.=" $order;";
+
+				$sql_queries="
+				select *, ifnull(name,client_ip) as cname from (
+				select max(qr.rowid) as rowid, 'raw' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, count(qr.rowid) as cnt, name, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_5m),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
+				union
+				select max(qr.rowid) as rowid, '5m' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, sum(cnt) as cnt, name, vendor, comment from queries_5m qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1h),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
+				union
+				select max(qr.rowid) as rowid, '1h' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, sum(cnt) as cnt, name, vendor, comment from queries_1h qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_1d),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
+				union
+				select qr.rowid, '1d' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, cnt, name, vendor, comment from queries_1d qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries
+				)";
+
+				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
+				$sql_queries.=" $order;";				
+			};
 		break;
 		default:
 			$table="_raw";$period=1800;
