@@ -37,7 +37,7 @@ html,body {height: 100%;}
 .v-spacer { margin: 10px 0;}
 
 [v-cloak] {
-  display: none;
+  display: none !important;
 }
 
 .hidden {

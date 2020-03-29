@@ -2,6 +2,8 @@
   $rpiver='2020-03-07.01';
 	define("DBFile", "rpidns.sqlite");
 	const DB="sqlite";
+	$filter_fields_q=['client_ip','fqdn','mac','type', 'class', 'server', 'options', 'action'];
+	$filter_fields_h=['client_ip','fqdn','mac','rule_type', 'rule', 'feed', 'action'];
 
 function getRequest(){
   #do it simple for now

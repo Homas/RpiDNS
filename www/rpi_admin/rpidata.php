@@ -16,9 +16,24 @@
 	if (array_key_exists("pp",$REQUEST)) $perPage=(intval($REQUEST["pp"])>1 and intval($REQUEST["pp"])<=500)?$REQUEST["pp"]:100; else $perPage=0;
 	if (array_key_exists("cp",$REQUEST)) $currentPage=intval($REQUEST["cp"]); else $currentPage=0;
 	
-	if (array_key_exists("filter",$REQUEST)) $filter_queries=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or type like "%'.($db->escapeString($REQUEST["filter"])).'%" or class like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%")':''; else $filter_queries=''; //not really safe but should be Ok for home usage
+	if (array_key_exists("filter",$REQUEST)) {
+		
+			$filter=explode("=",$REQUEST["filter"],2);
+			
+			if (array_key_exists(2,$filter)){
+				$filter_queries=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or type like "%'.($db->escapeString($REQUEST["filter"])).'%" or class like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%")':'';
+	
+				$filter_hits=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or rule like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%" )':'';				
+			}else{
+				$filter_queries=in_array($filter[0],$filter_fields_q)?" and ".($db->escapeString($filter[0])).' = "'.($db->escapeString($filter[1])).'" ':'';
+				$filter_hits=in_array($filter[0],$filter_fields_h)?" and ".($db->escapeString($filter[0])).' = "'.($db->escapeString($filter[1])).'" ':'';
+			};
+			
+		} else {
+			$filter_queries='';
+			$filter_hits='';
+		}; //not really safe but should be Ok for home usage
 
-	if (array_key_exists("filter",$REQUEST)) $filter_hits=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or rule like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%" )':'';  else $filter_hits=''; //not really safe but should be Ok for home usage
 	
 	$order="order by $sortBy $sort LIMIT $perPage OFFSET ".($perPage*($currentPage-1));
 	$qps_pref='';$qps_post='';
@@ -32,11 +47,29 @@
 				$table="_5m";$period=3600;
 				$qps_pref='';$qps_post='';				
 			};
-			$sql_hits="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits $order;";
-			$sql_hits_count="select count(qr.rowid) as cnt from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits;";
+			if (array_key_exists("ltype",$REQUEST) and $REQUEST["ltype"] == 'stats' ){
+				//$fields_h="client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment";
+				$fields_h=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='hits_raw')?$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":"").(strpos($REQUEST["fields"],'rule')!==false?", feed ":""):"client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment";
+				
+				$order=$sortBy!='dtz'?$order:"order by cname $sort LIMIT $perPage OFFSET ".($perPage*($currentPage-1));
 
-			$sql_queries="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries $order;";
-			$sql_queries_count="select count(qr.rowid) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries;";
+				$sql_hits="select rowid, $fields_h, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, action, rule_type, rule, feed, count(*) as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits group by client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment) group by $fields_h";				
+				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
+				$sql_hits.=" $order;";
+				//echo $sql_hits;
+				
+				$fields_q=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='queries_raw')?$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":""):"client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment";
+				
+				$sql_queries="select rowid, $fields_q, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, type, class, options, server, action, ifnull(a.name,client_ip) as cname, vendor, comment, count(*) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment) group by $fields_q";
+				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
+				$sql_queries.=" $order;";
+			}else{
+				$sql_hits="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits $order;";
+				$sql_hits_count="select count(qr.rowid) as cnt from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits;";
+				
+				$sql_queries="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries $order;";
+				$sql_queries_count="select count(qr.rowid) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries;";
+			};
 			break;
 		case "1d":
 			$table="_1h";$period=86400;
@@ -153,7 +186,7 @@
 	switch ($REQUEST['method'].' '.$REQUEST["req"]):
     case "GET queries_raw":
 //			$sql="select rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, ".($table=="_raw"?"'1' as":"")." cnt from queries$table where dt>=strftime('%s', 'now')-$period order by dt desc;";
-			$response='{"status":"ok", "records":"'.(DB_fetchRecord($db,$sql_queries_count)['cnt']).'","data":'.json_encode(DB_selectArray($db,$sql_queries)).'}';
+			$response='{"status":"ok", "records":"'.(DB_fetchRecord($db,$sql_queries_count)['cnt']).'","data":'.json_encode(DB_selectArray($db,$sql_queries)).'}'; //,"sql":"'.$sql_queries.'"
       break;
     case "GET hits_raw":
 //			$sql="select rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, ".($table=="_raw"?"'1' as":"")." cnt from hits$table where dt>=strftime('%s', 'now')-$period order by dt desc";

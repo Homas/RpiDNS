@@ -54,11 +54,11 @@
 										<b-card-group deck>
 											<b-card header="TopX Allowed Requests" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_req" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden">
+													<b-table id="dash_topX_req" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter='fqdn='+item.fname;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(fname)="row">
 															<b-popover title="Actions" :target="'tip-good_requests'+row.item.fname" triggers="hover">
-																<a href="javascript:{}" @click.stop="qlogs_Filter=row.item.fname;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="qlogs_Filter='fqdn='+row.item.fname;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
 																<a href="javascript:{}" @click.stop="addIOC=row.item.fname;addIOCtype='bl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Blacklist</a>
 																<hr class="m-1">
 																<strong>Research:</strong><br>
@@ -76,19 +76,19 @@
 											</b-card>
 											<b-card header="TopX Allowed Request Types" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_req_type" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req_type&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter=item.fname;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
+													<b-table id="dash_topX_req_type" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req_type&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter='type='+item.fname;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 													</b-table>
 												</div>
 											</b-card>
 											<b-card header="TopX Allowed Clients" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_client" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_client&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter=(item.mac==null || item.mac=='')?item.fname:item.mac;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
+													<b-table id="dash_topX_client" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_client&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter=(item.mac==null || item.mac=='')?'client_ip='+item.fname:'mac='+item.mac;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(fname)="row">
 															<b-popover title="Actions" :target="'tip-good_clients'+row.item.fname" triggers="hover">
-																<a href="javascript:{}" @click.stop="qlogs_Filter=(row.item.mac==null || row.item.mac=='')?row.item.fname:row.item.mac;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
-																<a href="javascript:{}" @click.stop="hits_Filter=(row.item.mac==null || row.item.mac=='')?row.item.fname:row.item.mac;hits_period=dash_period;cfgTab=2;">Show hits</a>
+																<a href="javascript:{}" @click.stop="qlogs_Filter=(row.item.mac==null || row.item.mac=='')?'client_ip='+row.item.fname:'mac='+row.item.mac;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter=(row.item.mac==null || row.item.mac=='')?'client_ip='+row.item.fname:'mac='+row.item.mac;hits_period=dash_period;cfgTab=2;">Show hits</a>
 															</b-popover>
 															<span :id="'tip-good_clients'+row.item.fname">{{row.item.fname}}</span>
 														</template>		
@@ -102,11 +102,11 @@
 										<b-card-group deck>
 											<b-card header="TopX Blocked Requests" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_breq" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_breq&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden"> <!-- @row-clicked="(item, index, event) =>  {this.hits_Filter=item.fname;this.hits_period=this.dash_period;this.cfgTab=2;}" -->
+													<b-table id="dash_topX_breq" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_breq&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.hits_Filter='fqdn='+item.fname;this.hits_period=this.dash_period;this.cfgTab=2;}"> 
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(fname)="row">
 															<b-popover title="Actions" :target="'tip-bad_requests'+row.item.fname" triggers="hover">
-																<a href="javascript:{}" @click.stop="hits_Filter=row.item.fname;hits_period=dash_period;cfgTab=2;">Show hits</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter='fqdn='+row.item.fname;hits_period=dash_period;cfgTab=2;">Show hits</a><br>
 																<a href="javascript:{}" @click.stop="addIOC=row.item.fname;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a>
 																<hr class="m-1">
 																<strong>Research:</strong><br>
@@ -124,12 +124,12 @@
 											</b-card>
 											<b-card header="TopX Blocked Clients" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_bclient" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_bclient&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden">
+													<b-table id="dash_topX_bclient" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_bclient&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.hits_Filter=(item.mac==null || item.mac=='')?'client_ip='+item.fname:'mac='+item.mac;this.hits_period=this.dash_period;this.cfgTab=2;}">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(fname)="row">
 															<b-popover title="Actions" :target="'tip-bad_clients'+row.item.fname" triggers="hover">
-																<a href="javascript:{}" @click.stop="qlogs_Filter=(row.item.mac==null || row.item.mac=='')?row.item.fname:row.item.mac;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
-																<a href="javascript:{}" @click.stop="hits_Filter=(row.item.mac==null || row.item.mac=='')?row.item.fname:row.item.mac;hits_period=dash_period;cfgTab=2;">Show hits</a>
+																<a href="javascript:{}" @click.stop="qlogs_Filter=(row.item.mac==null || row.item.mac=='')?'client_ip='+row.item.fname:'mac='+row.item.mac;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter=(row.item.mac==null || row.item.mac=='')?'client_ip='+row.item.fname:'mac='+row.item.mac;hits_period=dash_period;cfgTab=2;">Show hits</a>
 															</b-popover>
 															<span :id="'tip-bad_clients'+row.item.fname">{{row.item.fname}}</span>
 														</template>
@@ -138,7 +138,7 @@
 											</b-card>
 											<b-card header="TopX Feeds" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_feeds" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_feeds&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.hits_Filter=item.fname;this.hits_period=this.dash_period;this.cfgTab=2;}">
+													<b-table id="dash_topX_feeds" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_feeds&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.hits_Filter='feed='+item.fname;this.hits_period=this.dash_period;this.cfgTab=2;}">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 													</b-table>
 												</div>
@@ -158,7 +158,7 @@
 						<!--End Dashboard page-->
           </b-tab>
 
-          <b-tab  @click="qlogs_cp=1;refreshTbl('qlogs')" lazy>
+          <b-tab  @click="refreshTbl('qlogs')" lazy> <!--qlogs_cp=1;-->
 					<template slot="title"><i class="fas fa-shoe-prints"></i><span class="d-none d-lg-inline" v-bind:class="{ hidden: toggleMenu>0 }">&nbsp;&nbsp;Query log</span></template>
 						<!--Query log href="#/cfg/home"-->
 
@@ -178,9 +178,9 @@
 									</template>
 									<b-row class='d-none d-sm-flex'>
 										<b-col cols="1" lg="1">
-											<b-form-radio-group buttons size="sm" v-model="query_ltype">
+											<b-form-radio-group buttons size="sm" v-model="query_ltype" @change="switch_stats('query')">
 												<b-form-radio  value="logs">Logs</b-form-radio>
-												<b-form-radio  value="stats" disabled>Stats</b-form-radio>
+												<b-form-radio  value="stats">Stats</b-form-radio>
 											</b-form-radio-group>												
 										</b-col>
 										<b-col cols="3" lg="3">
@@ -206,8 +206,44 @@
 										<b-col sm="12">
 											<template>
 												<div ref="refLogsDiv">
-													<b-table id="qlogs" ref="refLogs" :sticky-header="`${logs_height}px`" :per-page="qlogs_pp" :current-page="qlogs_cp" no-border-collapse striped hover :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=queries_raw&period='+this.qlogs_period+'&cp='+this.qlogs_cp+'&filter='+this.qlogs_Filter+'&pp='+this.qlogs_pp" :fields="qlogs_fields" small responsive :filter="qlogs_Filter" sort-by="dtz" :sort-desc="true">
+													<b-table id="qlogs" ref="refLogs" :sticky-header="`${logs_height}px`" :sort-icon-left='true' :per-page="qlogs_pp" :current-page="qlogs_cp" no-border-collapse striped hover :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=queries_raw&period='+this.qlogs_period+'&cp='+this.qlogs_cp+'&filter='+this.qlogs_Filter+'&pp='+this.qlogs_pp+'&ltype='+this.query_ltype+'&fields='+this.qlogs_select_fields" :fields="qlogs_fields" small responsive :filter="qlogs_Filter" sort-by="dtz" :sort-desc="true">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+														
+														<template v-slot:head(cname)="row">
+															<div v-if="query_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="qlogs_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+
+														<template v-slot:head(server)="row">
+															<div v-if="query_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="qlogs_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+
+														<template v-slot:head(fqdn)="row">
+															<div v-if="query_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="qlogs_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+
+														<template v-slot:head(type)="row">
+															<div v-if="query_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="qlogs_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+
+														<template v-slot:head(class)="row">
+															<div v-if="query_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="qlogs_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+														
+														<template v-slot:head(options)="row">
+															<div v-if="query_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="qlogs_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+															
+														<template v-slot:head(action)="row">
+															<div v-if="query_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="qlogs_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+														
 														<template v-slot:cell(cname)="row">
 															<b-popover title="Info" :target="'tip-qlogs_cname'+row.item.rowid" triggers="hover">
 																<strong>Mac:</strong> {{row.item.mac}}<br>
@@ -218,13 +254,19 @@
 															<span :id="'tip-qlogs_cname'+row.item.rowid">{{row.item.cname}}</span>
 														</template>
 														<template v-slot:cell(action)="row">
-															<div v-if="row.item.action == 'blocked'"><i class="fas fa-hand-paper salmon"></i> Block</div>
-															<div v-else><i class="fas fa-check green"></i> Allow</div>
+															<b-popover title="Actions" :target="'tip-hits-action'+row.item.rowid" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter='action='+row.item.action">Filter by</a>												
+															</b-popover>
+															<span :id="'tip-hits-action'+row.item.rowid">															
+																<div v-if="row.item.action == 'blocked'"><i class="fas fa-hand-paper salmon"></i> Block</div>
+																<div v-if="row.item.action == 'allowed'"><i class="fas fa-check green"></i> Allow</div>
+															</span>
 														</template>                							
 														<template v-slot:cell(fqdn)="row">
 															<b-popover title="Actions" :target="'tip-hits'+row.item.rowid" triggers="hover">
 																<div v-if="row.item.action == 'blocked'"><a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a></div>
 																<div v-else><a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='bl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Blacklist</a></div>
+																<a href="javascript:{}" @click.stop="qlogs_Filter='fqdn='+row.item.fqdn">Filter by</a>	
 																<hr class="m-1">
 																<strong>Research:</strong><br>
 																- <a target=_blank :href="'https://duckduckgo.com/?q=%22'+row.item.fqdn+'%22'">DuckDuckGo</a><br>
@@ -236,6 +278,33 @@
 															</b-popover>
 															<span :id="'tip-hits'+row.item.rowid">{{row.item.fqdn}}</span>
 														</template>
+														<template v-slot:cell(server)="row">
+															<b-popover title="Actions" :target="'tip-hits-server'+row.item.rowid" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter='server='+row.item.server">Filter by</a>												
+															</b-popover>
+															<span :id="'tip-hits-server'+row.item.rowid">{{row.item.server}}</span>
+														</template>			
+														<template v-slot:cell(class)="row">
+															<b-popover title="Actions" :target="'tip-hits-class'+row.item.rowid" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter='class='+row.item.class">Filter by</a>												
+															</b-popover>
+															<span :id="'tip-hits-class'+row.item.rowid">{{row.item.class}}</span>
+														</template>
+
+														<template v-slot:cell(type)="row">
+															<b-popover title="Actions" :target="'tip-hits-type'+row.item.rowid" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter='type='+row.item.type">Filter by</a>												
+															</b-popover>
+															<span :id="'tip-hits-type'+row.item.rowid">{{row.item.type}}</span>
+														</template>
+							
+														<template v-slot:cell(options)="row">
+															<b-popover title="Actions" :target="'tip-hits-options'+row.item.rowid" triggers="hover">
+																<a href="javascript:{}" @click.stop="qlogs_Filter='options='+row.item.options">Filter by</a>												
+															</b-popover>
+															<span :id="'tip-hits-options'+row.item.rowid">{{row.item.options}}</span>
+														</template>
+														
 													</b-table>
 							
 												</div>
@@ -251,7 +320,7 @@
 						<!--Query log page-->
           </b-tab>
 
-          <b-tab @click="hits_cp=1;refreshTbl('hits')" lazy>
+          <b-tab @click="refreshTbl('hits')" lazy> <!--hits_cp=1;-->
 					<template slot="title"><i class="fa fa-shield-alt"></i><span class="d-none d-lg-inline" v-bind:class="{ hidden: toggleMenu>0 }">&nbsp;&nbspRPZ hits</span></template>
 						<!--RPZ hits page href="#/cfg/home"-->
 
@@ -271,9 +340,9 @@
 									</template>
 									<b-row class='d-none d-sm-flex'>
 										<b-col cols="1" lg="1" >
-											<b-form-radio-group buttons size="sm" v-model="query_ltype">
+											<b-form-radio-group buttons size="sm" v-model="hits_ltype" @change="switch_stats('hits')">
 												<b-form-radio value="logs">Logs</b-form-radio>
-												<b-form-radio value="stats" disabled>Stats</b-form-radio>
+												<b-form-radio value="stats">Stats</b-form-radio>
 											</b-form-radio-group>			
 										</b-col>
 										<b-col cols="3" lg="3">
@@ -297,9 +366,34 @@
 										<b-col sm="12">
 											<template>
 												<div ref="refLogsDiv">
-													<b-table id="hits" ref="refHits" :sticky-header="`${logs_height}px`" :per-page="hits_pp" :current-page="hits_cp" no-border-collapse striped hover :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=hits_raw&period='+this.hits_period+'&cp='+this.hits_cp+'&filter='+this.hits_Filter+'&pp='+this.hits_pp" :fields="hits_fields" small responsive :filter="hits_Filter" sort-by="dtz" :sort-desc="true">
+													<b-table id="hits" ref="refHits" :sticky-header="`${logs_height}px`" :sort-icon-left='true' :per-page="hits_pp" :current-page="hits_cp" no-border-collapse striped hover :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=hits_raw&period='+this.hits_period+'&cp='+this.hits_cp+'&filter='+this.hits_Filter+'&pp='+this.hits_pp+'&ltype='+this.hits_ltype+'&fields='+this.hits_select_fields" :fields="hits_fields" small responsive :filter="hits_Filter" sort-by="dtz" :sort-desc="true">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+														
+														<template v-slot:head(cname)="row">
+															<div v-if="hits_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="hits_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
 
+														<template v-slot:head(fqdn)="row">
+															<div v-if="hits_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="hits_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+
+														<template v-slot:head(rule)="row">
+															<div v-if="hits_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="hits_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+
+														<template v-slot:head(rule_type)="row">
+															<div v-if="hits_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="hits_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+															
+														<template v-slot:head(action)="row">
+															<div v-if="hits_ltype == 'stats'"><b-form-checkbox name="qlog_head" :value="row.column" v-model="hits_select_fields">{{row.label}}</b-form-checkbox></div>
+															<div v-else>{{row.label}}</div>
+														</template>
+														
 														<template v-slot:cell(cname)="row">
 															<b-popover title="Info" :target="'tip-hits_cname'+row.item.rowid" triggers="hover">
 																<strong>Mac:</strong> {{row.item.mac}}<br>
@@ -312,7 +406,8 @@
 														
 														<template v-slot:cell(fqdn)="row">
 															<b-popover title="Actions" :target="'tip-hits'+row.item.rowid" triggers="hover">
-																<a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a>
+																<a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a><br>
+																<a href="javascript:{}" @click.stop="hits_Filter='fqdn='+row.item.fqdn">Filter by</a>
 																<hr class="m-1">
 																<strong>Research:</strong><br>
 																- <a target=_blank :href="'https://duckduckgo.com/?q=%22'+row.item.fqdn+'%22'">DuckDuckGo</a><br>
@@ -326,19 +421,28 @@
 														</template>
 
 														<template v-slot:cell(rule)="row">
-															<b-popover title="Actions" :target="'tip-hits-rule'+row.item.rowid" triggers="hover">
-																<a href="javascript:{}" @click.stop="addIOC=row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) ) ;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a>
-																<hr class="m-1">
-																<strong>Research:</strong><br>
-																- <a target=_blank :href="'https://duckduckgo.com/?q=%22'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )+'%22'">DuckDuckGo</a><br>
-																- <a target="_blank" :href="'https://www.google.com/search?q=%22'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )+'%22'">Google</a><br>
-																- <a target="_blank" :href="'https://www.virustotal.com/gui/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">VirusTotal</a><br>
-																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">RiskIQ Community</a><br>
-																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">DomainTools Whois</a><br>
-																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">Robtex</a>														
-															</b-popover>
-															<span :id="'tip-hits-rule'+row.item.rowid">{{row.item.rule}}</span>
+															<template  v-if="typeof row.item.rule !== 'undefined'">
+																<b-popover title="Actions" :target="'tip-hits-rule'+row.item.rowid" triggers="hover">
+																	<a href="javascript:{}" @click.stop="addIOC=row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) ) ;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a><br>
+																	<a href="javascript:{}" @click.stop="hits_Filter='rule='+row.item.rule">Filter by</a>
+																	<hr class="m-1">
+																	<strong>Research:</strong><br>
+																	- <a target=_blank :href="'https://duckduckgo.com/?q=%22'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )+'%22'">DuckDuckGo</a><br>
+																	- <a target="_blank" :href="'https://www.google.com/search?q=%22'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )+'%22'">Google</a><br>
+																	- <a target="_blank" :href="'https://www.virustotal.com/gui/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">VirusTotal</a><br>
+																	- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">RiskIQ Community</a><br>
+																	- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">DomainTools Whois</a><br>
+																	- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">Robtex</a>														
+																</b-popover>
+																<span :id="'tip-hits-rule'+row.item.rowid">{{row.item.rule}}</span>
+															</template>
 														</template>
+														<template v-slot:cell(rule_type)="row">
+															<b-popover title="Actions" :target="'tip-hits-rule_type'+row.item.rowid" triggers="hover">
+																<a href="javascript:{}" @click.stop="hits_Filter='rule_type='+row.item.rule_type">Filter by</a>												
+															</b-popover>
+															<span :id="'tip-hits-rule_type'+row.item.rowid">{{row.item.rule_type}}</span>
+														</template>														
 													</b-table>
 							
 												</span>
@@ -385,7 +489,7 @@
 											</b-row>
 											<b-row>
 												<b-col cols="12" lg="12">
-													<b-table id="assets"  :sticky-header="`${logs_height}px`" no-border-collapse striped hover small :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=assets'" :fields="assets_fields" :filter="assets_Filter">
+													<b-table id="assets"  :sticky-header="`${logs_height}px`" :sort-icon-left='true' no-border-collapse striped hover small :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=assets'" :fields="assets_fields" :filter="assets_Filter">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(rowid)="row">
 															<b-form-checkbox :value="row.item" :name="'asset'+row.item.rowid" v-model="asset_selected" /> 
@@ -440,16 +544,20 @@
 											</b-row>
 											<b-row>
 												<b-col cols="12" lg="12">
-													<b-table id="blacklist"  :sticky-header="`${logs_height}px`" no-border-collapse responsive striped hover small :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=blacklist'" :fields="lists_fields" :filter="bl_Filter">
+													<b-table id="blacklist" ref="blacklist" :sticky-header="`${logs_height}px`" :sort-icon-left='true' no-border-collapse responsive striped hover small :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=blacklist'" :fields="lists_fields" :filter="bl_Filter">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(rowid)="row">
 															<b-form-checkbox :value="row.item" :name="'bl'+row.item.rowid" v-model="bl_selected" /> 
 														</template>
 														<template v-slot:cell(subdomains)="row">
-															<div v-if="row.item.subdomains == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
+															<span  @click="toggle_ioc('blacklist',row.item.rowid,'subdomains')">
+																<div v-if="row.item.subdomains == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
+															</span>
 														</template>    
 														<template v-slot:cell(active)="row">
-															<div v-if="row.item.active == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
+															<span  @click="toggle_ioc('blacklist',row.item.rowid,'active')">
+																<div v-if="row.item.active == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
+															</span>
 														</template>
 														<template v-slot:cell(ioc)="row">
 															<b-popover title="Actions" :target="'tip-blacklist'+row.item.ioc" triggers="hover">
@@ -489,16 +597,20 @@
 											</b-row>
 											<b-row>
 												<b-col cols="12" lg="12">
-													<b-table id="whitelist"  :sticky-header="`${logs_height}px`" no-border-collapse striped hover small responsive :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=whitelist'" :fields="lists_fields" :filter="wl_Filter">
+													<b-table id="whitelist" ref="whitelist" :sticky-header="`${logs_height}px`" :sort-icon-left='true' no-border-collapse striped hover small responsive :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=whitelist'" :fields="lists_fields" :filter="wl_Filter">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(rowid)="row">
 															<b-form-checkbox :value="row.item" :name="'wl'+row.item.rowid" v-model="wl_selected" /> 
 														</template>
 														<template v-slot:cell(subdomains)="row">
-															<div v-if="row.item.subdomains == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
+															<span  @click="toggle_ioc('whitelist',row.item.rowid,'subdomains')">
+																<div v-if="row.item.subdomains == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
+															</span>
 														</template>    
 														<template v-slot:cell(active)="row">
-															<div v-if="row.item.active == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
+															<span  @click="toggle_ioc('whitelist',row.item.rowid,'active')">
+																<div v-if="row.item.active == '1'"><i class="fas fa-toggle-on fa-lg"></i></div><div v-else><i class="fas fa-toggle-off fa-lg"></i></div>
+															</span>
 														</template>
 														<template v-slot:cell(ioc)="row">
 															<b-popover title="Actions" :target="'tip-whitelist'+row.item.ioc" triggers="hover">

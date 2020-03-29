@@ -3,6 +3,8 @@
 RpiDNS powered by https://ioc2rpz.net
 */
 
+//Vue.config.devtools = true;
+
 const gColors = ['#008FFB', '#00E396', '#FEB019', '#FF4560', '#775DD0',
 								 '#3F51B5', '#03A9F4', '#4CAF50', '#F9CE1D', '#FF9800',
 								 '#33B2DF', '#546E7A', '#D4526E', '#13D8AA', '#A5978B',
@@ -45,7 +47,7 @@ const io2c_app = new Vue({
 		//hits_psort:['dtz','desc'],
 		//hits_pcp:1,
 		
-    qlogs_fields: [
+    qlogs_fields_logs: [
         { key: 'dtz', label: 'Local Time', sortable: true, formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
         { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
         { key: 'server', label: 'Server', sortable: true,  'tdClass':'mw200 d-none d-lg-table-cell', 'thClass': 'd-none d-lg-table-cell'},
@@ -58,7 +60,21 @@ const io2c_app = new Vue({
         { key: 'action', label: 'Action', sortable: true},
     ],		
 
-    hits_fields: [
+    qlogs_fields_stats: [
+        { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+        { key: 'server', label: 'Server', sortable: true,  'tdClass':'mw200 d-none d-lg-table-cell', 'thClass': 'd-none d-lg-table-cell'},
+        { key: 'fqdn', label: 'Request', sortable: true, 'tdClass':'mw250'},
+        { key: 'type', label: 'Type', sortable: true},
+        { key: 'class', label: 'Class', sortable: true, 'tdClass':'d-none d-xl-table-cell', 'thClass': 'd-none d-xl-table-cell'},
+        { key: 'options', label: 'Options', sortable: true, 'tdClass':'d-none d-xl-table-cell', 'thClass': 'd-none d-xl-table-cell'},
+        { key: 'cnt', label: 'Count', sortable: true},
+        { key: 'action', label: 'Action', sortable: true},
+    ],
+		
+		qlogs_fields: [],
+		qlogs_select_fields:['cname','server','fqdn','type','class','options','action'],
+		
+    hits_fields_logs: [
         { key: 'dtz', label: 'Local Time', sortable: true,   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
         { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
  //       { key: 'mac', label: 'MAC', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
@@ -69,6 +85,18 @@ const io2c_app = new Vue({
 //        { key: 'feed', label: 'Feed', sortable: true},
         { key: 'cnt', label: 'Count', sortable: true},
     ],
+		
+    hits_fields_stats: [
+        { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+        { key: 'fqdn', label: 'Request', sortable: true, 'tdClass':'mw200'},
+        { key: 'action', label: 'Action', sortable: true, 'tdClass':'d-none d-lg-table-cell', 'thClass': 'd-none d-lg-table-cell'},
+        { key: 'rule', label: 'Rule', sortable: true, 'tdClass':'mw300 d-none d-lg-table-cell', 'thClass': 'd-none d-lg-table-cell'},
+	      { key: 'rule_type', label: 'Type', sortable: true, 'tdClass':'d-none d-lg-table-cell', 'thClass': 'd-none d-lg-table-cell'},
+        { key: 'cnt', label: 'Count', sortable: true},
+    ],
+		
+		hits_fields: [],
+		hits_select_fields: ['cname','fqdn','action','rule','rule_type'],
 		
 		query_ltype:'logs',
 		hits_ltype:'logs',
@@ -178,13 +206,15 @@ const io2c_app = new Vue({
 			{ key: 'rowid', label: '',  'tdClass':'width050 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell' },
 			{ key: 'ioc', label: 'Domain/IP', sortable: true, 'tdClass':'mw150'},
 			{ key: 'dtz', label: 'Added', sortable: true,  'tdClass':'width250 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell',   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
-			{ key: 'active', label: 'Active',  'tdClass':'width050 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell' },
-			{ key: 'subdomains', label: '*.',  'tdClass':'width050 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell' },
+			{ key: 'active', label: 'Active', sortable: true,  'tdClass':'width050 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell' },
+			{ key: 'subdomains', label: '*.', sortable: true,  'tdClass':'width050 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell' },
 			{ key: 'comment', label: 'Comment', sortable: true, 'tdClass':'mw150 d-none d-lg-table-cell', 'thClass': 'd-none d-lg-table-cell'},
     ],
 	},
 
   mounted: function () {
+		this.hits_fields = this.hits_fields_logs;
+		this.qlogs_fields = this.qlogs_fields_logs;
     if (window.location.hash) {
       var a=window.location.hash.split(/#|\//).filter(String);
       switch (a[0]){
@@ -229,9 +259,8 @@ const io2c_app = new Vue({
     },
 		
     refreshTbl(tbl){
-			if ((tbl=='qlogs'||tbl=='hits') && Date.now()-this.logs_updatetime>60*1000) { //update once a minute 
-	      this.$root.$emit('bv::refresh::table', tbl);
-				this.logs_updatetime=Date.now();
+			if ((tbl=='qlogs'||tbl=='hits')) { //update once a minute 
+	      if ((Date.now()-this.logs_updatetime)>60*1000) {this.$root.$emit('bv::refresh::table', tbl);this.logs_updatetime=Date.now();};
 			}else{
 	      this.$root.$emit('bv::refresh::table', tbl);				
 			};
@@ -338,16 +367,61 @@ const io2c_app = new Vue({
 			let doc=this;
 			let $table=this.addIOCtype=='bl'?'blacklist':'whitelist';
 			data={id:this.addBLRowID, ioc: this.addIOC, ltype: this.addIOCtype, active: this.addIOCactive, subdomains: this.addIOCsubd, comment: this.addIOCcomment};
-			if (this.addBLRowID==0) promise = axios.post('/rpi_admin/rpidata.php?req='+$table,data); else promise = axios.put('/rpi_admin/rpidata.php?req='+$table,data);					
+			let ioc;
+			if (this.addBLRowID==0) promise = axios.post('/rpi_admin/rpidata.php?req='+$table,data); else
+				{
+					let iocs=$table=='whitelist'?this.$refs.whitelist.$data.localItems:this.$refs.blacklist.$data.localItems;
+					for (let i in iocs) if (iocs[i].rowid == doc.addBLRowID) ioc = iocs[i];
+					promise = axios.put('/rpi_admin/rpidata.php?req='+$table,data);
+				};
 			var items=promise.then((data) => {
 				if (data.data.status=="success") {
-					doc.$root.$emit('bv::refresh::table', $table);
+					if (doc.addBLRowID==0)  doc.$root.$emit('bv::refresh::table', $table); else {
+						ioc.ioc=doc.addIOC;
+						ioc.active=doc.addIOCactive?1:0;
+						ioc.subdomains=doc.addIOCsubd?1:0;
+						ioc.comment=doc.addIOCcomment;
+					};
 				}else{
 					doc.showInfo(data.data.reason,3);					
 				}
 			}).catch(error => {
 				doc.showInfo('Unknown error!!!',3);
 			})
+		},
+
+		toggle_ioc(table,id,field){
+			//alert(table+' '+id+' '+field);
+			let doc = this;
+			let iocs=table=='whitelist'?this.$refs.whitelist.$data.localItems:this.$refs.blacklist.$data.localItems;
+			let ioc;
+			for (let i in iocs) if (iocs[i].rowid == id) ioc = iocs[i];
+			
+			let data={id:ioc.rowid, ioc: ioc.ioc, ltype: table, active: field=='active'?(ioc.active?false:true):(ioc.active?true:false), subdomains: field=='subdomains'?(ioc.subdomains?false:true):(ioc.subdomains?true:false), comment: ioc.comment};
+			promise = axios.put('/rpi_admin/rpidata.php?req='+table,data);					
+			var items=promise.then((data) => {
+				if (data.data.status=="success") {
+					ioc[field]=ioc[field]?0:1;
+				}else{
+					doc.showInfo(data.data.reason,3);					
+				}
+			}).catch(error => {
+				doc.showInfo('Unknown error!!!',3);
+			})			
+			
+		},
+		
+		switch_stats(table){
+			switch (table) {
+				case 'hits':
+					this.$refs.refHits.$data.localItems=[];
+					this.hits_fields = this.hits_ltype != 'logs'?this.hits_fields_logs:this.hits_fields_stats;
+				break;
+				case 'query':
+					this.$refs.refLogs.$data.localItems=[];
+					this.qlogs_fields = this.query_ltype != 'logs'?this.qlogs_fields_logs:this.qlogs_fields_stats;
+				break;
+			}
 		},
 	
     showInfo: function (msg,time) {
