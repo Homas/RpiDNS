@@ -56,7 +56,6 @@
 				$sql_hits="select rowid, $fields_h, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, action, rule_type, rule, feed, count(*) as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits group by client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment) group by $fields_h";				
 				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
 				$sql_hits.=" $order;";
-				//echo $sql_hits;
 				
 				$fields_q=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='queries_raw')?$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":""):"client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment";
 				
