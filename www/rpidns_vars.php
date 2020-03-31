@@ -1,5 +1,6 @@
 <?php
-  $rpiver='2020-03-07.01';
+  $rpiver='0.9.0.0';// - 2020-03-29.01';
+	$RpiPath="/opt/rpidns";
 	define("DBFile", "rpidns.sqlite");
 	const DB="sqlite";
 	$filter_fields_q=['client_ip','fqdn','mac','type', 'class', 'server', 'options', 'action'];

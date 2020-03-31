@@ -74,13 +74,7 @@
 													</b-table>
 												</div>
 											</b-card>
-											<b-card header="TopX Allowed Request Types" body-class="p-2">
-												<div>
-													<b-table id="dash_topX_req_type" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req_type&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter='type='+item.fname;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
-														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
-													</b-table>
-												</div>
-											</b-card>
+
 											<b-card header="TopX Allowed Clients" body-class="p-2">
 												<div>
 													<b-table id="dash_topX_client" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_client&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter=(item.mac==null || item.mac=='')?'client_ip='+item.fname:'mac='+item.mac;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
@@ -95,7 +89,25 @@
 													</b-table>
 												</div>
 											</b-card>
+
+
+											<b-card header="TopX Allowed Request Types" body-class="p-2">
+												<div>
+													<b-table id="dash_topX_req_type" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req_type&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter='type='+item.fname;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
+														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+													</b-table>
+												</div>
+											</b-card>
+
+											<b-card header="RpiDNS" body-class="p-2">
+												<div>
+													<b-table id="dash_topX_req_type" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=server_stats'" :fields="dash_stats_fields" thead-class="hidden">
+														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+													</b-table>
+												</div>
+											</b-card>
 										</b-card-group>
+
 									</div>
 									<div class="v-spacer"></div>							
 									<div>
@@ -143,6 +155,13 @@
 													</b-table>
 												</div>
 											</b-card>
+
+											<b-card header="" body-class="p-2" border-variant="light" :v-show="false">
+												<div>
+
+												</div>
+											</b-card>
+
 										</b-card-group>
 									</div>
 									<div class="v-spacer"></div>							

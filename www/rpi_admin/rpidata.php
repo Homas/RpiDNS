@@ -486,6 +486,20 @@ RpiDNS powered by https://ioc2rpz.net
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}'; 
 			break;
 
+			
+    case "GET server_stats":
+			$server_stats=[];
+			$cores=intval(trim(exec('/usr/bin/nproc')));
+			$load=sys_getloadavg();
+			$server_stats[0]["fname"]='CPU load';$server_stats[0]["cnt"]="1m - ".round(($load[1] * 100) / $cores,2).'%, 5m - '.round(($load[2] * 100) / $cores,2).'%, 15m - '.round(($load[3] * 100) / $cores,2).'%';
+			$memory=preg_split('/\s+/',trim(exec('/usr/bin/free | /bin/grep Mem')));			
+			$server_stats[1]["fname"]='Memory usage';$server_stats[1]["cnt"]=round(intval($memory[2])/intval($memory[1])*100,2)."%";
+			$server_stats[2]["fname"]='Disk usage';$server_stats[2]["cnt"]=round (100 - ((disk_free_space  ($RpiPath) / disk_total_space ($RpiPath)) * 100)) .'%';
+			$uptime=floatval(@file_get_contents('/proc/uptime'));
+			$server_stats[3]["fname"]='Uptime'; $server_stats[3]["cnt"] = intdiv($uptime, 86400).' days '.(intdiv($uptime, 3600) % 24).' hours '.(intdiv($uptime, 60) % 60).' min '.($uptime % 60).' sec';
+			$response='{"status":"ok", "records":"4","data":'.json_encode($server_stats).'}';
+      break;			
+		
     default:
       $response='{"status":"failed", "records":"0", "reason":"not supported API call:'.$REQUEST['method'].' '.$REQUEST["req"].'"}';
 	endswitch;
