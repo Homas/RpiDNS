@@ -1,7 +1,7 @@
 ## Widgets
- - [ ] CPU utilization
- - [ ] Memory utilization
- - [ ] Disk utilization
+ - [x] CPU utilization
+ - [x] Memory utilization
+ - [x] Disk utilization
  - [ ] CHR (cache hit rate)
 
 ## Backend
