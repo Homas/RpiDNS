@@ -103,6 +103,18 @@
 												<div>
 													<b-table id="dash_topX_req_type" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=server_stats'" :fields="dash_stats_fields" thead-class="hidden">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+
+														<template v-slot:cell(cnt)="row">
+															<div v-if="row.item.fname == 'CPU load'">
+																<b-popover :target="'tip-RpiDNS'+row.item.fname" triggers="hover" placement="topright">
+																	Load in 1 minute, 5 minutes, 15 minutes
+																</b-popover>
+																<span :id="'tip-RpiDNS'+row.item.fname">{{row.item.cnt}}</span>
+															</div>
+															<div v-else>{{row.item.cnt}}</div>
+
+														</template>
+
 													</b-table>
 												</div>
 											</b-card>
@@ -118,7 +130,8 @@
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(fname)="row">
 															<b-popover title="Actions" :target="'tip-bad_requests'+row.item.fname" triggers="hover">
-																<a href="javascript:{}" @click.stop="hits_Filter='fqdn='+row.item.fname;hits_period=dash_period;cfgTab=2;">Show hits</a><br>
+																Show <a href="javascript:{}" @click.stop="qlogs_Filter='fqdn='+row.item.fname;qlogs_period=dash_period;cfgTab=1;">queries</a>&nbsp;|&nbsp; 
+																<a href="javascript:{}" @click.stop="hits_Filter='fqdn='+row.item.fname;hits_period=dash_period;cfgTab=2;">hits</a><br>
 																<a href="javascript:{}" @click.stop="addIOC=row.item.fname;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a>
 																<hr class="m-1">
 																<strong>Research:</strong><br>
@@ -140,8 +153,8 @@
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 														<template v-slot:cell(fname)="row">
 															<b-popover title="Actions" :target="'tip-bad_clients'+row.item.fname" triggers="hover">
-																<a href="javascript:{}" @click.stop="qlogs_Filter=(row.item.mac==null || row.item.mac=='')?'client_ip='+row.item.fname:'mac='+row.item.mac;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
-																<a href="javascript:{}" @click.stop="hits_Filter=(row.item.mac==null || row.item.mac=='')?'client_ip='+row.item.fname:'mac='+row.item.mac;hits_period=dash_period;cfgTab=2;">Show hits</a>
+																Show <a href="javascript:{}" @click.stop="qlogs_Filter=(row.item.mac==null || row.item.mac=='')?'client_ip='+row.item.fname:'mac='+row.item.mac;qlogs_period=dash_period;cfgTab=1;">queries</a>&nbsp;|&nbsp;
+																<a href="javascript:{}" @click.stop="hits_Filter=(row.item.mac==null || row.item.mac=='')?'client_ip='+row.item.fname:'mac='+row.item.mac;hits_period=dash_period;cfgTab=2;">hits</a>
 															</b-popover>
 															<span :id="'tip-bad_clients'+row.item.fname">{{row.item.fname}}</span>
 														</template>

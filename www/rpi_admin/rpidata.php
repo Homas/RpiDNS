@@ -20,7 +20,7 @@
 		
 			$filter=explode("=",$REQUEST["filter"],2);
 			
-			if (array_key_exists(2,$filter)){
+			if (!array_key_exists(1,$filter)){
 				$filter_queries=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or type like "%'.($db->escapeString($REQUEST["filter"])).'%" or class like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%")':'';
 	
 				$filter_hits=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or rule like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%" )':'';				
@@ -491,12 +491,14 @@ RpiDNS powered by https://ioc2rpz.net
 			$server_stats=[];
 			$cores=intval(trim(exec('/usr/bin/nproc')));
 			$load=sys_getloadavg();
-			$server_stats[0]["fname"]='CPU load';$server_stats[0]["cnt"]="1m - ".round(($load[1] * 100) / $cores,2).'%, 5m - '.round(($load[2] * 100) / $cores,2).'%, 15m - '.round(($load[3] * 100) / $cores,2).'%';
+			$server_stats[0]["fname"]='CPU load';$server_stats[0]["cnt"]="".round(($load[0] * 100) / $cores,2).'%, '.round(($load[1] * 100) / $cores,2).'%, '.round(($load[2] * 100) / $cores,2).'%';
 			$memory=preg_split('/\s+/',trim(exec('/usr/bin/free | /bin/grep Mem')));			
 			$server_stats[1]["fname"]='Memory usage';$server_stats[1]["cnt"]=round(intval($memory[2])/intval($memory[1])*100,2)."%";
 			$server_stats[2]["fname"]='Disk usage';$server_stats[2]["cnt"]=round (100 - ((disk_free_space  ($RpiPath) / disk_total_space ($RpiPath)) * 100)) .'%';
 			$uptime=floatval(@file_get_contents('/proc/uptime'));
 			$server_stats[3]["fname"]='Uptime'; $server_stats[3]["cnt"] = intdiv($uptime, 86400).' days '.(intdiv($uptime, 3600) % 24).' hours '.(intdiv($uptime, 60) % 60).' min '.($uptime % 60).' sec';
+			$temp=exec('/opt/vc/bin/vcgencmd measure_temp | awk -F "=" \'{print $2}\'');
+			$server_stats[4]["fname"]='Temp'; $server_stats[4]["cnt"]=$temp; 
 			$response='{"status":"ok", "records":"4","data":'.json_encode($server_stats).'}';
       break;			
 		

@@ -8,7 +8,7 @@
 	$qlog_files=[];
 	foreach (glob($logs) as $qfn) { #*_queries.log
 			$qlog_files[$qfn]="$qfn.pos";
-			echo "file $qfn\n";
+			#echo "file $qfn\n";
 	};
 	
 	//set PID file and check PID
@@ -68,7 +68,7 @@
 				# 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - fqdn, 7 - class, 6 - type, 8 - options, 9 - server				
 				#echo "$line \n-----\n";print_r($query);
 				$qlogs[] = [$query[1],$query[3],$query[4],$query[5],$query[7],$query[6],$query[8],$query[9]];
-				$devices[$query[3]]=$macs[$query[3]];
+				if (array_key_exists($query[3],$macs)) $devices[$query[3]]=$macs[$query[3]];
 			};
 
 			$rpz=[];
@@ -78,7 +78,7 @@
 				#echo "$line \n-----\n";print_r($rpz);
 				$hits[] = [$rpz[1],$rpz[3],$rpz[4],$rpz[5],$rpz[6],$rpz[7],$rpz[8],$rpz[9],$rpz[10]];
 				$hits_unique[$rpz[3].' '.$rpz[5]]=true;
-				$devices[$rpz[3]]=$macs[$rpz[3]];
+				if (array_key_exists($rpz[3],$macs)) $devices[$rpz[3]]=$macs[$rpz[3]];
 			};
 
 
