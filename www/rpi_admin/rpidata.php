@@ -451,7 +451,7 @@ RpiDNS powered by https://ioc2rpz.net
     case "POST whitelist":
 			$list=$REQUEST["req"]=='blacklist'?'bl':'wl';
 			$ioc=filter_var($REQUEST['ioc'], FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME);
-      $sql="insert into localzone(ioc, active, subdomains, comment, added_dt, ltype) values('".DB_escape($db,$ioc)."',".($REQUEST['active']=='true'?'true':'false').",'".($REQUEST['subdomains']=='true'?'true':'false')."','".DB_escape($db,$REQUEST['comment'])."',".time().",'$list')";
+      $sql="insert into localzone(ioc, active, subdomains, comment, added_dt, ltype) values('".DB_escape($db,$ioc)."',".($REQUEST['active']=='true'?'true':'false').",".($REQUEST['subdomains']=='true'?'true':'false').",'".DB_escape($db,$REQUEST['comment'])."',".time().",'$list')";
       if (DB_execute($db,$sql)) {
 				$out=[];
 				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
