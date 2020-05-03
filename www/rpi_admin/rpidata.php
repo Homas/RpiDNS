@@ -228,6 +228,20 @@
 				";
 			$response='{"status":"ok","data":'.json_encode(DB_selectArray($db,$sql)).'}';
 			break;
+
+		case "GET dash_topX_server":
+			if ($period<=86400)
+				$sql="select server as fname, count(rowid) as cnt from queries_raw where dt>=strftime('%s', 'now')-$period and action='allowed' group by fname order by cnt desc limit $dash_topx";
+				else $sql="
+				select fname, sum(cnt2) as cnt from (
+					select fname, cnt2 from (select server as fname, count(rowid) as cnt2 from queries_raw where dt>=strftime('%s', 'now')-strftime('%s', 'now')%86400 and action='allowed' group by fname order by cnt2 desc limit $dash_topx)
+				union
+					select fname, cnt2 from (select server as fname, sum(cnt) as cnt2 from queries_1d where dt>=strftime('%s', 'now')-strftime('%s', 'now')%86400-$period and action='allowed' group by fname order by cnt2 desc limit $dash_topx)
+				)  group by fname order by cnt desc limit $dash_topx
+				";
+			$response='{"status":"ok","data":'.json_encode(DB_selectArray($db,$sql)).'}';
+			break;
+
 		case "GET dash_topX_req_type":
 			if ($period<=86400)
 				$sql="select type as fname, count(rowid) as cnt from queries_raw where dt>=strftime('%s', 'now')-$period and action='allowed' group by fname order by cnt desc limit $dash_topx";

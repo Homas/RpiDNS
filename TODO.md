@@ -1,8 +1,6 @@
 ## Widgets
- - [x] CPU utilization
- - [x] Memory utilization
- - [x] Disk utilization
  - [ ] CHR (cache hit rate)
+ - [ ] RpiDNS (servers) total statistics
 
 ## UX/UI
  - [ ] IoC input validation
@@ -12,13 +10,15 @@
 
 ## Backend
  - [ ] Optimize pagination (replace LIMIT) and SQL
- - [ ] PostreSQL support
  - [ ] Advanced filtering
- - [ ] Upgrade script
+
+## Tools
+ - [ ] Upgrade script (download RpiDNS from github andd execure upgrade script)
+ - [ ] Import DB tool
  
- ## Logs
+## Logs
  - [ ] Add server or file to RPZ logs
  
- ## Documentation
+## Documentation
  - [ ] Update readme.md
  - [ ] Add comments

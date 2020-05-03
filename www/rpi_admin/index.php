@@ -67,7 +67,8 @@
 																- <a target="_blank" :href="'https://www.virustotal.com/gui/search/'+row.item.fname">VirusTotal</a><br>
 																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fname">RiskIQ Community</a><br>
 																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fname">DomainTools Whois</a><br>
-																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fname">Robtex</a>
+																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fname">Robtex</a><br>
+                                - <a target="_blank" :href="'https://apility.io/search/'+row.item.fname">Apility.io</a>
 															</b-popover>
 															<span :id="'tip-good_requests'+row.item.fname">{{row.item.fname}}</span>
 														</template>								
@@ -140,7 +141,8 @@
 																- <a target="_blank" :href="'https://www.virustotal.com/gui/search/'+row.item.fname">VirusTotal</a><br>
 																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fname">RiskIQ Community</a><br>
 																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fname">DomainTools Whois</a><br>
-																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fname">Robtex</a>
+																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fname">Robtex</a><br>
+                                - <a target="_blank" :href="'https://apility.io/search/'+row.item.fname">Apility.io</a>
 															</b-popover>
 															<span :id="'tip-bad_requests'+row.item.fname">{{row.item.fname}}</span>
 														</template>			
@@ -169,12 +171,21 @@
 												</div>
 											</b-card>
 
+											<b-card header="TopX Servers" body-class="p-2">
+												<div>
+													<b-table id="dash_topX_server" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_server&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter='type='+item.fname;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
+														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+													</b-table>
+												</div>
+											</b-card>
+
+<!--
 											<b-card header="" body-class="p-2" border-variant="light" :v-show="false">
 												<div>
 
 												</div>
 											</b-card>
-
+-->
 										</b-card-group>
 									</div>
 									<div class="v-spacer"></div>							
@@ -306,7 +317,8 @@
 																- <a target="_blank" :href="'https://www.virustotal.com/gui/search/'+row.item.fqdn">VirusTotal</a><br>
 																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fqdn">RiskIQ Community</a><br>
 																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fqdn">DomainTools Whois</a><br>
-																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fqdn">Robtex</a>
+																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fqdn">Robtex</a><br>
+                                - <a target="_blank" :href="'https://apility.io/search/'+row.item.fqdn">Apility.io</a>
 															</b-popover>
 															<span :id="'tip-hits'+row.item.rowid">{{row.item.fqdn}}</span>
 														</template>
@@ -447,7 +459,8 @@
 																- <a target="_blank" :href="'https://www.virustotal.com/gui/search/'+row.item.fqdn">VirusTotal</a><br>
 																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fqdn">RiskIQ Community</a><br>
 																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fqdn">DomainTools Whois</a><br>
-																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fqdn">Robtex</a>
+																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fqdn">Robtex</a><br>
+																- <a target="_blank" :href="'https://apility.io/search/'+row.item.fqdn">Apility.io</a>
 															</b-popover>
 															<span :id="'tip-hits'+row.item.rowid">{{row.item.fqdn}}</span>
 														</template>
@@ -464,7 +477,8 @@
 																	- <a target="_blank" :href="'https://www.virustotal.com/gui/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">VirusTotal</a><br>
 																	- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">RiskIQ Community</a><br>
 																	- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">DomainTools Whois</a><br>
-																	- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">Robtex</a>														
+																	- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">Robtex</a><br>														
+                                  - <a target="_blank" :href="'https://apility.io/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">Apility.io</a>
 																</b-popover>
 																<span :id="'tip-hits-rule'+row.item.rowid">{{row.item.rule}}</span>
 															</template>
