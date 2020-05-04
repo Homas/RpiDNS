@@ -51,8 +51,21 @@ The widget shows topX clients which requests were blocked.
 The widget shows topX feeds which were used to block requests.
 #### TopX Servers
 The widget shows information about total number requests received by a DNS server (per IP) per reporting period.
-### Query logs
+### Query log
+Query log report provide access to the all DNS queries received by RpiDNSs in your network.  
 <p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_qlog.png"></p>
+You can switch between raw logs ("Logs" switch) and statistics ("Stats" switch). On the statistics table there is no time field and you can check/uncheck fields used for aggeregation.
+The report has the following fields:
+- Local time - time in your timezone. RpiDNS should be condfigured with UTC timezone. Requests are aggregated by 5 minutes, 1 hour, 1 day;
+- Client - client name or IP if the client was not registered;
+- Server - server IP;
+- Request - requested fqdn;
+- Type - request type;
+- Class - request class;
+- Options - request options;
+- Count - number of requests aggregated in a single record;
+- Action - action taken: Allow or Block.
+
 ### RPZ Hits
 ### Administration
 #### Assets
