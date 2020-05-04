@@ -12,7 +12,7 @@ The RpiDNS project on github is a web-interface for RpiDNS. It can be used with 
 <p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_onprem.png"></p>
 
 ### Reporting periods
-Reporting period iss defined by a selector located in top right corner.
+Reporting period is defined by a selector located in top right corner.
 You can select:
 - 30m - 30 minutes;
 - 1h - 1 hour;
@@ -23,9 +23,9 @@ You can select:
 Depending on the period different tables will be used. 30m and 1d based on raw log messages, other reports on a mix of raw data and aggregated data (per 5 minutes, 1 hour, 1 day). 
 ### Tools
 Widgets on the dashboard and reports offers various tools depending on the context. From the dashboard you can drill-down to the reports by using "show queries" or "show hits" tools. A relevant report will be opened with a defined filter based on data type in a widget.  
-For threat hunting, invistigation of false positives RpiDNS offers multiple research tools. When you click on a tool a new browser window is opened and an indicator is passed to a 3rd party web-site.  
+For threat hunting, investigation of false positives RpiDNS offers multiple research tools. When you click on a tool a new browser window is opened and an indicator is passed to a 3rd party web-site.  
 The research tools include:
-- DuckDuckGo - search engine conserned about privacy;
+- DuckDuckGo - search engine concerned about privacy;
 - Google - generic search engine;
 - VirusTotal - service which allows to validate if a domain, IP, URL, file, file hash is malicious or not.
 - RiskIQ Community - service which provides access to passive DNS data and other digital footprint (PassiveTotal and Digital Footprint community editions).
@@ -36,13 +36,21 @@ The research tools include:
 
 ### Dashboard
 #### TopX Allowed Requests
+The widget shows topX DNS requests which were not blocked.
 #### TopX Allowed Clients
+The widget shows topX clients which requests were not blocked.
 #### TopX Allowed Request Types
+The widget shows topX request types (e.g. A, AAAA, MX).
 #### RpiDNS
+The widget shows information about RpiDNS: CPU utilization, Memory utilization, Disk utilization, Uptime, GPU temperature
 #### TopX Blocked Requests
+The widget shows topX DNS requests which were blocked.
 #### TopX Blocked Clients
+The widget shows topX clients which requests were blocked.
 #### TopX Feeds
+The widget shows topX feeds which were used to block requests.
 #### TopX Servers
+The widget shows information about total number requests received by a DNS server (per IP) per reporting period.
 ### Query logs
 ### RPZ Hits
 ### Administration
