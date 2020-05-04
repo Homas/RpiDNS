@@ -8,11 +8,22 @@ RpiDNS on the [ioc2rpz community](https://ioc2rpz.net) web-site provides simplif
 The RpiDNS project on github is a web-interface for RpiDNS. It can be used with a standalone ISC Bind instance. In that case some configuration changes may be required on ISC Bind side and/or RpiDNS.
 
 ## User interface
-### Common elements
-#### Reporting periods
-#### Logs
-#### Stats
+
+<p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_onprem.png"></p>
+
+### Reporting periods
+Reporting period iss defined by a selector located in top right corner. You can select: 30m - 30 minutes, 1h - 1 hour, 1d - 1 day, 1w - 1 week, 30d - 30 days and custom (not implemented).
+Depending on the period different tables will be used. 30m and 1d based on raw log messages, other reports on a mix of raw data and aggregated data (per 5 minutes, 1 hour, 1 day). 
+### Tools
 ### Dashboard
+#### TopX Allowed Requests
+#### TopX Allowed Clients
+#### TopX Allowed Request Types
+#### RpiDNS
+#### TopX Blocked Requests
+#### TopX Blocked Clients
+#### TopX Feeds
+#### TopX Servers
 ### Query logs
 ### RPZ Hits
 ### Administration
