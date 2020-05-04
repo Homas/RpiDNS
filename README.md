@@ -52,6 +52,7 @@ The widget shows topX feeds which were used to block requests.
 #### TopX Servers
 The widget shows information about total number requests received by a DNS server (per IP) per reporting period.
 ### Query logs
+<p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_qlog.png"></p>
 ### RPZ Hits
 ### Administration
 #### Assets
