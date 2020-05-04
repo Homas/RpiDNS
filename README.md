@@ -22,6 +22,19 @@ You can select:
 - custom (not implemented).
 Depending on the period different tables will be used. 30m and 1d based on raw log messages, other reports on a mix of raw data and aggregated data (per 5 minutes, 1 hour, 1 day). 
 ### Tools
+Widgets on the dashboard and reports offers various tools depending on the context.
+From the dashboard you can drill-down to the reports by using "show queries" or "show hits" tools. A relevant report will be opened with a defined filter based on data type in a widget.
+For threat hunting, invistigation of false positives RpiDNS offers multiple research tools. When you click on a tool a new browser window is opened and an indicator is passed to a 3rd party web-site.
+The research tools include:
+- DuckDuckGo - search engine conserned about privacy;
+- Google - generic search engine;
+- VirusTotal - service which allows to validate if a domain, IP, URL, file, file hash is malicious or not.
+- RiskIQ Community - service which provides access to passive DNS data and other digital footprint (PassiveTotal and Digital Footprint community editions).
+- DomainTools Whois - domain and IP registration information.
+- Robtex - provides public information about IP numbers, domain names, host names, Autonomous systems, routes etc. 
+- Apility.io - threat intelligence SaaS for developers and product companies that want to know in realtime if their existing or potential users have been classified as 'abusers'​ by one or more of these lists.
+- ThreatMiner - ThreatMiner is a threat intelligence portal that provides information on indicators of compromise (IOC) such as domains, IP address, malware samples etc.
+
 ### Dashboard
 #### TopX Allowed Requests
 #### TopX Allowed Clients

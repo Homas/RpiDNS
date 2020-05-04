@@ -68,7 +68,8 @@
 																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fname">RiskIQ Community</a><br>
 																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fname">DomainTools Whois</a><br>
 																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fname">Robtex</a><br>
-                                - <a target="_blank" :href="'https://apility.io/search/'+row.item.fname">Apility.io</a>
+                                - <a target="_blank" :href="'https://apility.io/search/'+row.item.fname">Apility.io</a><br>
+                                - <a target="_blank" :href="'https://www.threatminer.org/domain.php?q='+row.item.fname">ThreatMiner</a>
 															</b-popover>
 															<span :id="'tip-good_requests'+row.item.fname">{{row.item.fname}}</span>
 														</template>								
@@ -142,7 +143,8 @@
 																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fname">RiskIQ Community</a><br>
 																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fname">DomainTools Whois</a><br>
 																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fname">Robtex</a><br>
-                                - <a target="_blank" :href="'https://apility.io/search/'+row.item.fname">Apility.io</a>
+                                - <a target="_blank" :href="'https://apility.io/search/'+row.item.fname">Apility.io</a><br>
+                                - <a target="_blank" :href="'https://www.threatminer.org/domain.php?q='+row.item.fname">ThreatMiner</a>
 															</b-popover>
 															<span :id="'tip-bad_requests'+row.item.fname">{{row.item.fname}}</span>
 														</template>			
@@ -318,7 +320,8 @@
 																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fqdn">RiskIQ Community</a><br>
 																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fqdn">DomainTools Whois</a><br>
 																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fqdn">Robtex</a><br>
-                                - <a target="_blank" :href="'https://apility.io/search/'+row.item.fqdn">Apility.io</a>
+                                - <a target="_blank" :href="'https://apility.io/search/'+row.item.fqdn">Apility.io</a><br>
+                                - <a target="_blank" :href="'https://www.threatminer.org/domain.php?q='+row.item.fqdn">ThreatMiner</a>
 															</b-popover>
 															<span :id="'tip-hits'+row.item.rowid">{{row.item.fqdn}}</span>
 														</template>
@@ -460,7 +463,8 @@
 																- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.fqdn">RiskIQ Community</a><br>
 																- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.fqdn">DomainTools Whois</a><br>
 																- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.fqdn">Robtex</a><br>
-																- <a target="_blank" :href="'https://apility.io/search/'+row.item.fqdn">Apility.io</a>
+																- <a target="_blank" :href="'https://apility.io/search/'+row.item.fqdn">Apility.io</a><br>
+                                - <a target="_blank" :href="'https://www.threatminer.org/domain.php?q='+row.item.fqdn">ThreatMiner</a>
 															</b-popover>
 															<span :id="'tip-hits'+row.item.rowid">{{row.item.fqdn}}</span>
 														</template>
@@ -478,7 +482,9 @@
 																	- <a target="_blank" :href="'https://community.riskiq.com/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">RiskIQ Community</a><br>
 																	- <a target="_blank" :href="'http://whois.domaintools.com/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">DomainTools Whois</a><br>
 																	- <a target="_blank" :href="'https://www.robtex.com/dns-lookup/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">Robtex</a><br>														
-                                  - <a target="_blank" :href="'https://apility.io/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">Apility.io</a>
+                                  - <a target="_blank" :href="'https://apility.io/search/'+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">Apility.io</a><br>
+                                  - <a target="_blank" :href="'https://www.threatminer.org/domain.php?q='+row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) )">ThreatMiner</a>
+                                  
 																</b-popover>
 																<span :id="'tip-hits-rule'+row.item.rowid">{{row.item.rule}}</span>
 															</template>
