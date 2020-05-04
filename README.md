@@ -22,9 +22,8 @@ You can select:
 - custom (not implemented).
 Depending on the period different tables will be used. 30m and 1d based on raw log messages, other reports on a mix of raw data and aggregated data (per 5 minutes, 1 hour, 1 day). 
 ### Tools
-Widgets on the dashboard and reports offers various tools depending on the context.
-From the dashboard you can drill-down to the reports by using "show queries" or "show hits" tools. A relevant report will be opened with a defined filter based on data type in a widget.
-For threat hunting, invistigation of false positives RpiDNS offers multiple research tools. When you click on a tool a new browser window is opened and an indicator is passed to a 3rd party web-site.
+Widgets on the dashboard and reports offers various tools depending on the context. From the dashboard you can drill-down to the reports by using "show queries" or "show hits" tools. A relevant report will be opened with a defined filter based on data type in a widget.  
+For threat hunting, invistigation of false positives RpiDNS offers multiple research tools. When you click on a tool a new browser window is opened and an indicator is passed to a 3rd party web-site.  
 The research tools include:
 - DuckDuckGo - search engine conserned about privacy;
 - Google - generic search engine;
