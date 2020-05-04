@@ -52,7 +52,7 @@ The widget shows topX feeds which were used to block requests.
 #### TopX Servers
 The widget shows information about total number requests received by a DNS server (per IP) per reporting period.
 ### Query log
-Query log report provide access to the all DNS queries received by RpiDNSs in your network.  
+Query log report provide information about all DNS queries received by RpiDNSs in your network.  
 
 <p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_qlog.png"></p>
 
@@ -68,6 +68,10 @@ You can switch between raw logs ("Logs" switch) and statistics ("Stats" switch).
 - Action - action taken: Allow or Block.
 
 ### RPZ Hits
+RPZ hits report 
+
+<p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_hits.png"></p>
+
 ### Administration
 #### Assets
 #### Blacklist
