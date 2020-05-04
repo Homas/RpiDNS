@@ -12,7 +12,14 @@ The RpiDNS project on github is a web-interface for RpiDNS. It can be used with 
 <p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_onprem.png"></p>
 
 ### Reporting periods
-Reporting period iss defined by a selector located in top right corner. You can select: 30m - 30 minutes, 1h - 1 hour, 1d - 1 day, 1w - 1 week, 30d - 30 days and custom (not implemented).
+Reporting period iss defined by a selector located in top right corner.
+You can select:
+- 30m - 30 minutes;
+- 1h - 1 hour;
+- 1d - 1 day;
+- 1w - 1 week;
+- 30d - 30 days;
+- custom (not implemented).
 Depending on the period different tables will be used. 30m and 1d based on raw log messages, other reports on a mix of raw data and aggregated data (per 5 minutes, 1 hour, 1 day). 
 ### Tools
 ### Dashboard
