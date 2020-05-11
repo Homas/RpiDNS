@@ -68,9 +68,10 @@ You can switch between raw logs ("Logs" switch) and statistics ("Stats" switch).
 - Action - action taken: Allow or Block.
 
 ### RPZ Hits
-RPZ hits report 
+RPZ hits report provide information about blocked requests only.
 
 <p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_hits.png"></p>
+
 
 ### Administration
 
