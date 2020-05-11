@@ -73,6 +73,9 @@ RPZ hits report
 <p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_hits.png"></p>
 
 ### Administration
+
+<p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_settings.png"></p>
+
 #### Assets
 On this tab you can define you assets. Depending on the settings assets can be trackeed by IP or MAC address. RpiDNS doesn't have integrations with DHCP servers and can track MAC addresses only in the same LAN (arp).
 For home users it is usually not an issue but provide you flexibility to track a device even if it changes an IP. The device names are used on the dashboard and in the reports.
