@@ -56,8 +56,8 @@ Query log report provide information about all DNS queries received by RpiDNSs i
 
 <p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_qlog.png"></p>
 
-You can switch between raw logs ("Logs" switch) and statistics ("Stats" switch). On the statistics table there is no time field and you can check/uncheck fields used for aggeregation. The report has the following fields:  
-- Local time - time in your timezone. RpiDNS should be condfigured with UTC timezone. Requests are aggregated by 5 minutes, 1 hour, 1 day;
+You can switch between raw logs ("Logs" switch) and statistics ("Stats" switch). On the statistics table there is no time field and you can check/uncheck fields used for aggregation. The report has the following fields:  
+- Local time - time in your timezone. RpiDNS should be configured with UTC timezone. Requests are aggregated by 5 minutes, 1 hour, 1 day;
 - Client - client name or IP if the client was not registered;
 - Server - server IP;
 - Request - requested fqdn;
@@ -74,12 +74,23 @@ RPZ hits report
 
 ### Administration
 #### Assets
+On this tab you can define you assets. Depending on the settings assets can be trackeed by IP or MAC address. RpiDNS doesn't have integrations with DHCP servers and can track MAC addresses only in the same LAN (arp).
+For home users it is usually not an issue but provide you flexibility to track a device even if it changes an IP. The device names are used on the dashboard and in the reports.
 #### Blacklist
+Blacklist is a local response policy zone which is used to block/redirect requests to defined domains/fqdns. To generate wildcard rules - toggle "include subdomains". You may enable/disable individual rules.
 #### Whitelist
+Whitelist is a local response policy zone which is used to allow requests to defined domains/fqdns in case if there is a falsoo posiive in the feeds. To generate wildcard rules - toggle "include subdomains". You may enable/disable individual rules.
 #### Settings
+On this tab you can:  
+- define data retenion policy;
+- enable/disable automatic assets creation;
+- define how to ttrack assets (IP or MAC);
+- define maximum entries for dashboards.
 #### Downloads
-
-## Settings
+Download tab contains allow you to download:  
+- bind log files;
+- the RpiDNS Database;
+- a local root CA certificate. You need to install the certificate on your devices if you want to avoid "SSL Error" warings in browsers if a request was blocked.
 
 ## Scripts
 ### rpidns_install.sh

@@ -9,6 +9,7 @@
  - [ ] New block page for blocked clients
 
 ## Backend
+ - [ ] Wait until DB will be unlocked
  - [ ] Optimize pagination (replace LIMIT) and SQL
  - [ ] Advanced filtering
 
