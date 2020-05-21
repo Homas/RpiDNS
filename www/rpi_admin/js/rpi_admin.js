@@ -279,6 +279,7 @@ const io2c_app = new Vue({
 			this.$root.$emit('bv::refresh::table', 'dash_topX_breq');
 			this.$root.$emit('bv::refresh::table', 'dash_topX_bclient');
 			this.$root.$emit('bv::refresh::table', 'dash_topX_feeds');
+			this.$root.$emit('bv::refresh::table', 'dash_topX_server');
 		},
 
     getSettings(){

@@ -68,10 +68,18 @@ You can switch between raw logs ("Logs" switch) and statistics ("Stats" switch).
 - Action - action taken: Allow or Block.
 
 ### RPZ Hits
-RPZ hits report provide information about blocked requests only.
+RPZ hits report provide information about blocked requests.
 
 <p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_hits.png"></p>
 
+You can switch between raw logs ("Logs" switch) and statistics ("Stats" switch). On the statistics table there is no time field and you can check/uncheck fields used for aggregation. The report has the following fields:  
+- Local time - time in your timezone. RpiDNS should be configured with UTC timezone. Requests are aggregated by 5 minutes, 1 hour, 1 day;
+- Client - client name or IP if the client was not registered;
+- Request - requested fqdn;
+- Action - performed action e.g. NXDOMAIN, CNAME (redirect) etc;
+- Rule - rule which was used to block the request. If i was a wildcard rule a full fqdn will be shown. The rule also contains a feed name;
+- Type - rule type. E.gg. QNAME means blocked by a requested hostname/domain.
+- Count - number of requests aggregated in a single record.
 
 ### Administration
 
