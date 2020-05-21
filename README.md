@@ -86,23 +86,23 @@ You can switch between raw logs ("Logs" switch) and statistics ("Stats" switch).
 <p align="center"><img src="https://ioc2rpz.net/img/RpiDNS_settings.png"></p>
 
 #### Assets
-On this tab you can define you assets. Depending on the settings assets can be trackeed by IP or MAC address. RpiDNS doesn't have integrations with DHCP servers and can track MAC addresses only in the same LAN (arp).
+On this tab you can define you assets. Depending on the settings assets can be tracked by IP or MAC address. RpiDNS doesn't have integrations with DHCP servers and can track MAC addresses only in the same LAN (arp).
 For home users it is usually not an issue but provide you flexibility to track a device even if it changes an IP. The device names are used on the dashboard and in the reports.
 #### Blacklist
 Blacklist is a local response policy zone which is used to block/redirect requests to defined domains/fqdns. To generate wildcard rules - toggle "include subdomains". You may enable/disable individual rules.
 #### Whitelist
-Whitelist is a local response policy zone which is used to allow requests to defined domains/fqdns in case if there is a falsoo posiive in the feeds. To generate wildcard rules - toggle "include subdomains". You may enable/disable individual rules.
+Whitelist is a local response policy zone which is used to allow requests to defined domains/fqdns in case if there is a false positive in the feeds. To generate wildcard rules - toggle "include subdomains". You may enable/disable individual rules.
 #### Settings
 On this tab you can:  
-- define data retenion policy;
+- define data retention policy;
 - enable/disable automatic assets creation;
-- define how to ttrack assets (IP or MAC);
+- define how to track assets (IP or MAC);
 - define maximum entries for dashboards.
 #### Downloads
 Download tab contains allow you to download:  
 - bind log files;
 - the RpiDNS Database;
-- a local root CA certificate. You need to install the certificate on your devices if you want to avoid "SSL Error" warings in browsers if a request was blocked.
+- a local root CA certificate. You need to install the certificate on your devices if you want to avoid "SSL Error" warnings in browsers if a request was blocked.
 
 ## Scripts
 ### rpidns_install.sh
@@ -116,7 +116,7 @@ The DB initialization script.
 The script is executed by crontab and removes old log messages from the DB. The DB is cleaned up by native sqlite3 "VACUUM" command.
 
 ### parce_bind_logs.php
-The script parces bind's query and rpz log files, saved logs in the DB and performs data aggregation. The script is executed by cron every minute.
+The script parses bind's query and rpz log files, saved logs in the DB and performs data aggregation. The script is executed by cron every minute.
 
 ## ISC Bind configuration
 To work with RpiDNS ISC Bind should:
