@@ -1,3 +1,6 @@
+## Bugs
+ - [ ] Drill-down from TopX Servers - wrong filter.
+
 ## Widgets
  - [ ] CHR (cache hit rate)
  - [ ] RpiDNS (servers) total statistics
