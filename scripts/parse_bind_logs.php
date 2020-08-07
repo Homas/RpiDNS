@@ -59,6 +59,9 @@
 #07-Mar-2020 04:33:15.862 queries: info: client @0xb1229b10 2601:646:8f00:20b0::5#61401 (ss-prod-ue1-notif-16.aws.adobess.com): query: ss-prod-ue1-notif-16.aws.adobess.com IN A + (2601:646:8f00:20b0::3)
 #07-Mar-2020 04:34:54.331 rpz: info: client @0xb1241678 2601:646:8f00:20b0::1#60800 (mobile.pipe.aria.microsoft.com): rpz QNAME CNAME rewrite mobile.pipe.aria.microsoft.com via mobile.pipe.aria.microsoft.com.notracking.ioc2rpz (CNAME to: pi-dev.rpidns.ioc2rpz.local)
 #07-Mar-2020 21:24:43.315 rpz: info: client @0x79ad6e18 192.168.43.12#55362 (zillow.pages.zgtools.net): rpz IP CNAME rewrite zillow.pages.zgtools.net via 8.0.0.0.10.rpz-ip.local.ioc2rpz (CNAME to: pi-dev.rpidns.ioc2rpz.local)
+
+#06-Aug-2020 17:13:45.647 rpz: info: client @0x36fe0830 192.168.43.16#58416 (007girl.com): disabled rpz QNAME NXDOMAIN rewrite 007girl.com via 007girl.com.adultfree.ioc2rpz
+
 ###syslog logs
 #2020-02-02T13:28:42+00:00 raspberrypi named[5317]: info  queries: client @0xb2b42618 127.0.0.1#39475 (rpidns.ioc2rpz.local): query: rpidns.ioc2rpz.local IN A + (127.0.0.1)
 
@@ -72,11 +75,18 @@
 			};
 
 			$rpz=[];
-			if (preg_match("/^(\d+[a-zA-Z0-9\-]+[ |T][^ ]+).*rpz:.*client (@0x[0-9A-Za-z]+ )?([0-9a-fA-F\.\:]+)#([0-9]+) \(([^\)]+)\): rpz ([^ ]+) ([^ ]+) ([^ ]+) ([^ ]+) via ([^ ]+)/",$line,$rpz)){
+			if (preg_match("/^(\d+[a-zA-Z0-9\-]+[ |T][^ ]+).*rpz:.*client (@0x[0-9A-Za-z]+ )?([0-9a-fA-F\.\:]+)#([0-9]+) \(([^\)]+)\):( disabled)? rpz ([^ ]+) ([^ ]+) ([^ ]+) ([^ ]+) via ([^ ]+).*$/",$line,$rpz)){
 				# get rpz hits
-				# 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - request, 6 - policy type, 7 - action, 9 - domain, 10 - rpz rule*
+				# w/o disabled
+				## 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - request, 6 - policy type, 7 - action, 9 - domain, 10 - rpz rule*
+				#$hits[] = [$rpz[1],$rpz[3],$rpz[4],$rpz[5],$rpz[6],$rpz[7],$rpz[8],$rpz[9],$rpz[10]];
+
+				# with disabled
+				## 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - request, 6 - disabled, 7 - policy type, 8 - action, 10 - domain, 11 - rpz rule*
+								
 				#echo "$line \n-----\n";print_r($rpz);
-				$hits[] = [$rpz[1],$rpz[3],$rpz[4],$rpz[5],$rpz[6],$rpz[7],$rpz[8],$rpz[9],$rpz[10]];
+				
+				$hits[] = array_map('trim',[$rpz[1],$rpz[3],$rpz[4],$rpz[5],$rpz[7],$rpz[6]?'Log':$rpz[8],$rpz[9],$rpz[10],$rpz[11]]);
 				$hits_unique[$rpz[3].' '.$rpz[5]]=true;
 				if (array_key_exists($rpz[3],$macs)) $devices[$rpz[3]]=$macs[$rpz[3]];
 			};
