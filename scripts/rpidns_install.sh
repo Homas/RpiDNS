@@ -3,11 +3,11 @@ SYSUSER=`who am i | awk '{print $1}'`
 apt-get -q -y install php-fpm sqlite php-sqlite3 unzip
 #init DB
 mkdir -p /opt/rpidns/www/db
-chown $SYSUSER:www-data /opt/rpidns/www/db
+chown $SUDO_USER:www-data /opt/rpidns/www/db
 chmod 775 /opt/rpidns/www/db
 
 touch /opt/rpidns/www/db/rpidns.sqlite
-chown $SYSUSER:www-data /opt/rpidns/www/db/rpidns.sqlite
+chown $SUDO_USER:www-data /opt/rpidns/www/db/rpidns.sqlite
 chmod 660 /opt/rpidns/www/db/rpidns.sqlite
 /usr/bin/php /opt/rpidns/scripts/init_db.php
 
@@ -23,7 +23,7 @@ cat /tmp/$SYSUSER | crontab -u $SYSUSER -
 rm -rf /tmp/$SYSUSER
 
 chmod 664 /opt/rpidns/www/rpisettings.php
-chown pi:www-data /opt/rpidns/www/rpisettings.php
+chown $SUDO_USER:www-data /opt/rpidns/www/rpisettings.php
 
 #Install MAC DB
 curl https://gitlab.com/wireshark/wireshark/raw/master/manuf -o /opt/rpidns/scripts/mac.db
