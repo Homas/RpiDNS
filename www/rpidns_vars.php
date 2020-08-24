@@ -1,5 +1,5 @@
 <?php
-  $rpiver='0.9.0.0';// - 2020-03-29.01';
+  $rpiver='1.0.0.0';
 	$RpiPath="/opt/rpidns";
 	define("DBFile", "rpidns.sqlite");
 	const DB="sqlite";

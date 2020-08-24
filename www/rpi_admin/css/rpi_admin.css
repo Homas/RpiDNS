@@ -81,6 +81,8 @@ html,body {height: 100%;}
 .width300{width: 300px;}
 .width350{width: 350px;}
 
+.mw050{max-width: 50px;}
+.mw150{max-width: 100px;}
 .mw150{max-width: 150px;}
 .mw200{max-width: 200px;}
 .mw250{max-width: 250px;}

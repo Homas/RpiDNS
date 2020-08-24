@@ -571,6 +571,18 @@
 												</b-col>
 											</b-row>
 										</b-tab>
+										<b-tab title="RPZ Feeds" lazy>
+											<b-row>
+												<b-col cols="12" lg="12">
+													<b-table id="rpz_feeds"  :sticky-header="`${logs_height}px`" :sort-icon-left='true' no-border-collapse striped hover small :no-provider-paging=true :no-provider-sorting=true :no-provider-filtering=true  :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=rpz_feeds'" :fields="rpz_feeds_fields" :filter="rpz_feeds_Filter">
+														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
+														<template v-slot:cell(act)="row">
+															<b-button v-b-tooltip.hover title="Retransfer" variant="outline-secondary" size="sm" @click.stop="retransferRPZ(row)"><i class="fas fa-redo"></i></b-button>
+														</template>
+													</b-table>
+												</b-col>
+											</b-row>
+										</b-tab>
 										<b-tab title="Blacklist" lazy>
 											
 											<b-row class='d-none d-sm-flex'>

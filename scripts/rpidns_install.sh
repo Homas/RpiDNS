@@ -1,6 +1,6 @@
 #!/bin/sh
 SYSUSER=`who am i | awk '{print $1}'`
-apt-get -q -y install php-fpm sqlite php-sqlite3 
+apt-get -q -y install php-fpm sqlite php-sqlite3 unzip
 #init DB
 mkdir -p /opt/rpidns/www/db
 chown $SYSUSER:www-data /opt/rpidns/www/db
@@ -50,4 +50,8 @@ rm -R /tmp/fontawesome-free-5.12.1-web /tmp/fontawesome-free-5.12.1-web.zip
 
 #pi@pi-dev:/opt/rpidns/www $ cat /etc/php/7.3/fpm/pool.d/www.conf |grep limit_extension
 #;security.limit_extensions = .php .php3 .php4 .php5 .php7
-#pi@pi-dev:/opt/rpidns/www $ 
+#pi@pi-dev:/opt/rpidns/www $
+
+### 2020-07-07 Manage bind from apache
+adduser www-data bind
+adduser pi bind

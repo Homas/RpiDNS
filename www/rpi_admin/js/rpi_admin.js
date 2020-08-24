@@ -210,6 +210,15 @@ const io2c_app = new Vue({
 			{ key: 'subdomains', label: '*.', sortable: true,  'tdClass':'width050 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell' },
 			{ key: 'comment', label: 'Comment', sortable: true, 'tdClass':'mw150 d-none d-lg-table-cell', 'thClass': 'd-none d-lg-table-cell'},
     ],
+
+    rpz_feeds_fields: [
+			{ key: 'feed', label: 'Feed', sortable: true, 'tdClass':'mw150 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
+			{ key: 'action', label: 'Feed action', sortable: true, 'tdClass':'mw150'},
+			{ key: 'desc', label: 'Description', sortable: true, 'tdClass':'mw400 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell'},
+			{ key: 'act', label: 'Actions', sortable: true, 'tdClass':'mw050'}, //text-center
+    ],
+		rpz_feeds_Filter:'', //RPZ Feeds filter
+
 	},
 
   mounted: function () {
@@ -443,7 +452,17 @@ const io2c_app = new Vue({
       setTimeout(function(){
 				self.$bvModal.hide('infoMsgBox'+id)
       }, time * 1000);
-    },   
+    },
+    
+    retransferRPZ: function(row) {
+			let doc=this;
+			data={feed:row.item.feed};
+			axios.put('/rpi_admin/rpidata.php?req=retransfer_feed',data).then((data) => {
+				if (data.data.status!="success") doc.showInfo(data.data.reason,3); else doc.showInfo("Retransfer requested",3);		
+			}).catch(error => {
+				doc.showInfo('Unknown error!!!',3);
+			});
+    },
 		
 	},
 	

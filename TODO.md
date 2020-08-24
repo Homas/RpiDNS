@@ -1,6 +1,6 @@
 ## Bugs
  - [ ] Drill-down from TopX Servers - wrong filter.
- - [ ] Disabled (log only) feeds are not parsed.
+ - [x] Disabled (log only) feeds are not parsed.
 
 ## Widgets
  - [ ] CHR (cache hit rate)
@@ -21,7 +21,7 @@
  - [ ] Advanced filtering
 
 ## Tools
- - [ ] Upgrade script (download RpiDNS from github andd execure upgrade script)
+ - [ ] Upgrade script (download RpiDNS from github and execute upgrade script)
  - [ ] Import DB tool
  
 ## Logs

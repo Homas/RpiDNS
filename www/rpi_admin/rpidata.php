@@ -419,7 +419,7 @@ RpiDNS powered by https://ioc2rpz.net
 					$file = popen( "/bin/gzip -q -c -5 /opt/rpidns/logs/bind_rpz.log", "rb");
 					$file_type="gzip";
 					break;
-		endswitch;
+			endswitch;
 				
 				header("Content-Type: application/$file_type");
 				header("Content-Transfer-Encoding: Binary"); 
@@ -514,7 +514,34 @@ RpiDNS powered by https://ioc2rpz.net
 			$temp=exec('/opt/vc/bin/vcgencmd measure_temp | awk -F "=" \'{print $2}\'');
 			$server_stats[4]["fname"]='Temp'; $server_stats[4]["cnt"]=$temp; 
 			$response='{"status":"ok", "records":"4","data":'.json_encode($server_stats).'}';
-      break;			
+		break;
+	case "GET rpz_feeds":
+			$feeds=[];
+			exec('/bin/grep "zone.*policy" /etc/bind/named.conf.options',$out);
+			#zone "wl-ip.ioc2rpz.local" policy passthru log no;#local whitelist ip-based
+			foreach ($out as $line){
+				if (preg_match('/^zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
+					$feeds[]=["feed"=>trim($rpz[1]), "action"=>trim($rpz[2]), "desc"=>trim($rpz[3])];
+				};			
+			};
+
+			$response='{"status":"ok", "records":"'.count($feeds).'","data":'.json_encode($feeds).'}';		
+		break;
+		//
+	case "PUT retransfer_feed":
+		exec('/bin/grep "zone.*policy" /etc/bind/named.conf.options',$out);
+		#zone "wl-ip.ioc2rpz.local" policy passthru log no;#local whitelist ip-based
+		foreach ($out as $line){
+			if (preg_match('/^zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
+				$feeds[trim($rpz[1])]=["feed"=>trim($rpz[1]), "action"=>trim($rpz[2]), "desc"=>trim($rpz[3])];
+			};			
+		};
+		if (array_key_exists($REQUEST['feed'],$feeds)) {
+			exec('/usr/sbin/rndc -Vr retransfer '.escapeshellcmd($REQUEST['feed']),$out2,$exres);
+			$response='{"status":"success","details":"feed retransfer was requested"}'; #'.$REQUEST['feed'].implode($out2).' result:'.$exres.'
+			} else $response='{"status":"failed", "reason":"feed was not provisioned"}'; 
+		break;
+		
 		
     default:
       $response='{"status":"failed", "records":"0", "reason":"not supported API call:'.$REQUEST['method'].' '.$REQUEST["req"].'"}';
