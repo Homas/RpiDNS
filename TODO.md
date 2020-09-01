@@ -23,6 +23,7 @@
 ## Backend
  - [ ] Optimize pagination (replace LIMIT) and SQL
  - [ ] Advanced filtering
+ - [ ] Add RPZ Request Type/Class fields support (from Bind 9.16)
 
 ## Tools
  - [ ] Upgrade script (download RpiDNS from github and execute upgrade script)

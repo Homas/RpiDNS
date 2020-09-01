@@ -10,7 +10,7 @@
 			$qlog_files[$qfn]="$qfn.pos";
 			#echo "file $qfn\n";
 	};
-	
+
 	//set PID file and check PID
 	if (file_exists( $root_dir."/logs/rpidns_parser.pid" )){
 		$pid=file_get_contents($root_dir."/logs/rpidns_parser.pid");
@@ -18,7 +18,7 @@
 		echo "rpidns_parser pid: $pid died\n";
 	};
 	file_put_contents($root_dir."/logs/rpidns_parser.pid",getmypid());
-	
+
 	$qlogs=array();
 	$hits=array();
 	$hits_unique=array();
@@ -28,7 +28,7 @@
 	//ip neigh show
 	//https://regauth.standards.ieee.org/standards-ra-web/pub/view.html#registries
 	//https://macaddress.io/database-download
-	
+
 	exec('/bin/ip neigh show',$out);
 	foreach ($out as $neigh){
 		//192.168.43.1 dev wlan0 lladdr a0:63:91:5b:1c:82 STALE
@@ -44,7 +44,7 @@
 	};
 	//var_dump($macs);
 	//var_dump($vendors);
-	
+
 	foreach ($qlog_files as $qlog=>$fpos){
 		if (file_exists($fpos)) {$pos=intval(file_get_contents($fpos));}else{$pos=0;};
 		$reset_pos=0;
@@ -68,25 +68,25 @@
 			$query=[];
 			if (preg_match("/^(\d+[a-zA-Z0-9\-]+[ |T][^ ]+).*client (@0x[0-9a-zA-Z]+ )?([0-9a-fA-F\.\:]+)#([0-9]+) \([^\)]+\): query: ([^ ]+) ([^ ]+) ([^ ]+) ([^ ]+) \(([^ ]+)\)/",$line,$query)){
 				# get queries
-				# 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - fqdn, 7 - class, 6 - type, 8 - options, 9 - server				
+				# 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - fqdn, 7 - class, 6 - type, 8 - options, 9 - server
 				#echo "$line \n-----\n";print_r($query);
 				$qlogs[] = [$query[1],$query[3],$query[4],$query[5],$query[7],$query[6],$query[8],$query[9]];
 				if (array_key_exists($query[3],$macs)) $devices[$query[3]]=$macs[$query[3]];
 			};
 
 			$rpz=[];
-			if (preg_match("/^(\d+[a-zA-Z0-9\-]+[ |T][^ ]+).*rpz:.*client (@0x[0-9A-Za-z]+ )?([0-9a-fA-F\.\:]+)#([0-9]+) \(([^\)]+)\):( disabled)? rpz ([^ ]+) ([^ ]+) ([^ ]+) ([^ ]+) via ([^ ]+).*$/",$line,$rpz)){
+			if (preg_match("/^(\d+[a-zA-Z0-9\-]+[ |T][^ ]+).*rpz:.*client (@0x[0-9A-Za-z]+ )?([0-9a-fA-F\.\:]+)#([0-9]+) \(([^\)]+)\):( disabled)? rpz ([^ ]+) ([^ ]+) ([^ ]+) ([^ ]+)(\/([^\/]+)\/([^\/]+))? via ([^ ]+).*$/",$line,$rpz)){
 				# get rpz hits
 				# w/o disabled
 				## 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - request, 6 - policy type, 7 - action, 9 - domain, 10 - rpz rule*
 				#$hits[] = [$rpz[1],$rpz[3],$rpz[4],$rpz[5],$rpz[6],$rpz[7],$rpz[8],$rpz[9],$rpz[10]];
 
 				# with disabled
-				## 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - request, 6 - disabled, 7 - policy type, 8 - action, 10 - domain, 11 - rpz rule*
-								
+				## 1 - date/time, 2 - id, 3 - client IP, 4 - client port, 5 - request, 6 - disabled, 7 - policy type, 8 - action, 10 - domain, 12 - request type, 13 - request class, 14 - rpz rule*
+
 				#echo "$line \n-----\n";print_r($rpz);
-				
-				$hits[] = array_map('trim',[$rpz[1],$rpz[3],$rpz[4],$rpz[5],$rpz[7],$rpz[6]?'Log':$rpz[8],$rpz[9],$rpz[10],$rpz[11]]);
+				if (preg_match("/^([^\/]+)\/[^\/]+\/.*/",$rpz[10],$dom)) $rpz[10]=$dom[1];
+				$hits[] = array_map('trim',[$rpz[1],$rpz[3],$rpz[4],$rpz[5],$rpz[7],$rpz[6]?'Log':$rpz[8],$rpz[9],$rpz[10],$rpz[14]]);
 				$hits_unique[$rpz[3].' '.$rpz[5]]=true;
 				if (array_key_exists($rpz[3],$macs)) $devices[$rpz[3]]=$macs[$rpz[3]];
 			};
@@ -172,14 +172,14 @@ group by dtz, client_ip, mac, fqdn, action, rule_type, rule, feed;
 		//		$sql.="
 		//		insert or ignore into assets(address, vendor, added_dt) values('$ip','${vendors[$mac]}',".time().");
 		//		";
-		//	};				
 		//	};
-		
+		//	};
+
 		foreach ($devices as $ip => $mac){
 			if ($assets_by=="mac" and $mac!='') $sql.="
 			insert or ignore into assets(address, vendor, added_dt) values('".($assets_by=="mac"?$mac:$ip)."','${vendors[$mac]}',".time().");
 			";
-		};				
+		};
 
 		$db->exec($sql);
 		$db->close();
@@ -187,7 +187,7 @@ group by dtz, client_ip, mac, fqdn, action, rule_type, rule, feed;
 		$hits=[];
 		$hits_unique=[];
 
-	};	
+	};
 	unlink($root_dir."/logs/rpidns_parser.pid");
-		
+
 ?>
