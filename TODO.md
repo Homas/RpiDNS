@@ -27,11 +27,11 @@
 
 ## Tools
  - [ ] Upgrade script (download RpiDNS from github and execute upgrade script)
- - [ ] Import DB tool
+ - [ ] Export/Import configuration
 
 ## Logs
  - [ ] Add server or file to RPZ logs
 
 ## Documentation
- - [ ] Update readme.md
+ - [ ] Update Readme.md
  - [ ] Add comments

@@ -15,30 +15,30 @@
 	if (array_key_exists("sortBy",$REQUEST)) $sortBy=(in_array($REQUEST["sortBy"], array('dtz', 'client_ip', 'mac', 'fqdn', 'action', 'rule_type', 'rule', 'feed', 'cnt','type', 'class', 'options', 'server'),true))?(($REQUEST["sortBy"]=='dtz' and $default_sortBy=='cnt')?$default_sortBy:$REQUEST["sortBy"]):$default_sortBy; else $sortBy=$default_sortBy;
 	if (array_key_exists("pp",$REQUEST)) $perPage=(intval($REQUEST["pp"])>1 and intval($REQUEST["pp"])<=500)?$REQUEST["pp"]:100; else $perPage=0;
 	if (array_key_exists("cp",$REQUEST)) $currentPage=intval($REQUEST["cp"]); else $currentPage=0;
-	
+
 	if (array_key_exists("filter",$REQUEST)) {
-		
+
 			$filter=explode("=",$REQUEST["filter"],2);
-			
+
 			if (!array_key_exists(1,$filter)){
 				$filter_queries=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or type like "%'.($db->escapeString($REQUEST["filter"])).'%" or class like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%")':'';
-	
-				$filter_hits=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or rule like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%" )':'';				
+
+				$filter_hits=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or rule like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%" )':'';
 			}else{
 				$filter_queries=in_array($filter[0],$filter_fields_q)?" and ".($db->escapeString($filter[0])).' = "'.($db->escapeString($filter[1])).'" ':'';
 				$filter_hits=in_array($filter[0],$filter_fields_h)?" and ".($db->escapeString($filter[0])).' = "'.($db->escapeString($filter[1])).'" ':'';
 			};
-			
+
 		} else {
 			$filter_queries='';
 			$filter_hits='';
 		}; //not really safe but should be Ok for home usage
 
-	
+
 	$order="order by $sortBy $sort LIMIT $perPage OFFSET ".($perPage*($currentPage-1));
 	$qps_pref='';$qps_post='';
 
-	$fields_h=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='hits_raw')?($REQUEST["fields"]?", ":"").$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":"").(preg_match('/rule[^_]/',$REQUEST["fields"])==1?", feed ":""):"client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment";	
+	$fields_h=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='hits_raw')?($REQUEST["fields"]?", ":"").$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":"").(preg_match('/rule[^_]/',$REQUEST["fields"])==1?", feed ":""):"client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment";
 	$fields_q=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='queries_raw')?($REQUEST["fields"]?", ":"").$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":""):"client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment";
 
 	if (array_key_exists("period",$REQUEST))  switch ($REQUEST["period"]):
@@ -48,22 +48,22 @@
 				$table="_raw";$period=1800;
 			}else{
 				$table="_5m";$period=3600;
-				$qps_pref='';$qps_post='';				
+				$qps_pref='';$qps_post='';
 			};
 			if (array_key_exists("ltype",$REQUEST) and $REQUEST["ltype"] == 'stats' ){
-				$sql_hits="select 'st' as tbl, rowid $fields_h, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, action, rule_type, rule, feed, count(*) as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits group by client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment) group by tbl $fields_h";				
+				$sql_hits="select 'st' as tbl, rowid $fields_h, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, action, rule_type, rule, feed, count(*) as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits group by client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment) group by tbl $fields_h";
 				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
 				$sql_hits.=" $order;";
-				
+
 				$sql_queries="select 'st' as tbl,  rowid $fields_q, sum(cnt) as cnt from (select row_number() over (order by client_ip) as rowid, client_ip, mac, fqdn, type, class, options, server, action, ifnull(a.name,client_ip) as cname, vendor, comment, count(*) as cnt from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment) group by tbl $fields_q";
 				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
 				$sql_queries.=" $order;";
-								
+
 			}else{
 				$sql_hits="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits";
 				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
 				$sql_hits.=" $order;";
-				
+
 				$sql_queries="select qr.rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, '1' as cnt, ifnull(a.name,client_ip) as cname, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries";
 				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
 				$sql_queries.=" $order;";
@@ -95,10 +95,10 @@
 				union
 				select client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment,ifnull(name,client_ip) as cname, sum(cnt) as cnt from queries_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment, cname
 				) group by tbl $fields_q";
-	
+
 				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
-				$sql_queries.=" $order;";			
-			
+				$sql_queries.=" $order;";
+
 			}else{
 
 				$sql_hits="
@@ -112,7 +112,7 @@
 				";
 				$sql_hits_count="select count(*) as cnt from ($sql_hits)";
 				$sql_hits.=" $order;";
-	
+
 				$sql_queries="
 				select *, ifnull(name,client_ip) as cname from (
 				select max(qr.rowid) as rowid, 'raw' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',max(dt), 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, count(qr.rowid) as cnt, name, vendor, comment from queries_raw qr left join assets a on qr.$join=a.address where dt>ifnull((select max(dt) from queries_5m),0) $filter_queries group by client_ip, mac, fqdn, type, class, options, server, action, name, vendor, comment
@@ -121,9 +121,9 @@
 				union
 				select qr.rowid, '1h' as tbl,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, type, class, options, server, action, cnt, name, vendor, comment from queries_1h qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_queries
 				)";
-	
+
 				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
-				$sql_queries.=" $order;";				
+				$sql_queries.=" $order;";
 			};
 			break;
 		case "1w":
@@ -133,7 +133,7 @@
 				$qps_pref='select (dtz - dtz % 21600) as dtx, max(cnt) as cntx from (';$qps_post=') group by dtx';
 			}else{
 				$table="_1d";$period=86400*30;
-				$qps_pref='select (dtz - dtz % 86400) as dtx,max(cnt) as cntx from (';$qps_post=') group by dtx';				
+				$qps_pref='select (dtz - dtz % 86400) as dtx,max(cnt) as cntx from (';$qps_post=') group by dtx';
 			};
 
 
@@ -164,8 +164,8 @@
 				) group by tbl $fields_q";
 
 				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
-				$sql_queries.=" $order;";				
-			
+				$sql_queries.=" $order;";
+
 
 			}else{
 				$sql_hits="
@@ -193,12 +193,12 @@
 				)";
 
 				$sql_queries_count="select count(*) as cnt from ($sql_queries)";
-				$sql_queries.=" $order;";				
+				$sql_queries.=" $order;";
 			};
 		break;
 		default:
 			$table="_raw";$period=1800;
-			
+
 
 			$sql_hits="select rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, cnt from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits $order;";
 			$sql_hits_count="select count(qr.rowid) as cnt from hits_raw qr left join assets a on qr.$join=a.address where dt>=strftime('%s', 'now')-$period $filter_hits;";
@@ -221,7 +221,7 @@
 				$sql="select fqdn as fname, count(rowid) as cnt from queries_raw where dt>=strftime('%s', 'now')-$period and action='allowed' group by fname order by cnt desc limit $dash_topx";
 				else $sql="
 				select fname, sum(cnt2) as cnt from (
-					select fname, cnt2 from (select fqdn as fname, count(rowid) as cnt2 from queries_raw where dt>=strftime('%s', 'now')-strftime('%s', 'now')%86400 and action='allowed' group by fqdn  order by cnt2 desc limit $dash_topx) 
+					select fname, cnt2 from (select fqdn as fname, count(rowid) as cnt2 from queries_raw where dt>=strftime('%s', 'now')-strftime('%s', 'now')%86400 and action='allowed' group by fqdn  order by cnt2 desc limit $dash_topx)
 				union
 					select fname, cnt2 from (select fqdn as fname, sum(cnt) as cnt2 from queries_1d where dt>=strftime('%s', 'now')-strftime('%s', 'now')%86400-$period and action='allowed' group by fqdn order by cnt2 desc limit $dash_topx)
 				)  group by fname order by cnt desc limit $dash_topx
@@ -382,7 +382,7 @@ RpiDNS powered by https://ioc2rpz.net
 	$retention["queries_1h"]='.(intval($REQUEST['queries_1h'])>0?intval($REQUEST['queries_1h']):90).'; //retention in days
 	$retention["queries_1d"]='.(intval($REQUEST['queries_1d'])>0?intval($REQUEST['queries_1d']):365).'; //retention in days
 	$dash_topx='.(intval($REQUEST['dash_topx'])>0?intval($REQUEST['dash_topx']):100).';
-?>			
+?>
 			';
 			if (file_put_contents("/opt/rpidns/www/rpisettings.php",$settings,LOCK_EX) === false) $response='{"status":"error", "reason","can not save settings"}'; else $response='{"status":"success"}';
 			break;
@@ -420,37 +420,37 @@ RpiDNS powered by https://ioc2rpz.net
 					$file_type="gzip";
 					break;
 			endswitch;
-				
+
 				header("Content-Type: application/$file_type");
-				header("Content-Transfer-Encoding: Binary"); 
+				header("Content-Transfer-Encoding: Binary");
 				header("Content-Disposition: attachment; filename=\"$file_name\"");
 				header('Expires: 0');
-	
+
 				ob_end_clean();
 				fpassthru($file);
 				if ($zip) pclose($file); else fclose($file);
-	
-		break;			
+
+		break;
 
     case "GET assets":
 			$sql="select rowid, strftime('%Y-%m-%dT%H:%M:%SZ',added_dt, 'unixepoch', 'utc') as dtz, name, address, vendor, comment from assets;";
 			$sql_count="select count(rowid) as cnt from assets;";
 			$response='{"status":"ok", "records":"'.(DB_fetchRecord($db,$sql_count)['cnt']).'","data":'.json_encode(DB_selectArray($db,$sql)).'}';
       break;
-		
+
     case "POST assets":
       $sql="insert into assets(name, address, vendor, comment, added_dt) values('".DB_escape($db,$REQUEST['name'])."','".DB_escape($db,$REQUEST['address'])."','".DB_escape($db,$REQUEST['vendor'])."','".DB_escape($db,$REQUEST['comment'])."',".time().")";
-      if (DB_execute($db,$sql)) $response='{"status":"success"}'; else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}'; 
+      if (DB_execute($db,$sql)) $response='{"status":"success"}'; else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
-		
+
     case "PUT assets":
 			$sql="update assets set name='".DB_escape($db,$REQUEST['name'])."',address='".DB_escape($db,$REQUEST['address'])."',vendor='".DB_escape($db,$REQUEST['vendor'])."',comment='".DB_escape($db,$REQUEST['comment'])."' where rowid=".intval($REQUEST['id']);
-      if (DB_execute($db,$sql)) $response='{"status":"success"}'; else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}'; 
+      if (DB_execute($db,$sql)) $response='{"status":"success"}'; else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
 
     case "DELETE assets":
 			$sql="delete from assets where rowid=".intval($REQUEST['id']);
-      if (DB_execute($db,$sql)) $response='{"status":"success"}'; else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}'; 
+      if (DB_execute($db,$sql)) $response='{"status":"success"}'; else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
 
     case "GET blacklist":
@@ -470,8 +470,8 @@ RpiDNS powered by https://ioc2rpz.net
 				$out=[];
 				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
 				$response='{"status":"success","details":'.json_encode($out).'}';
-			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}'; 
-			break;			
+			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
+			break;
 
     case "PUT blacklist":
     case "PUT whitelist":
@@ -481,12 +481,12 @@ RpiDNS powered by https://ioc2rpz.net
       $sql="update localzone set ioc='".DB_escape($db,$ioc)."', active=".($REQUEST['active']=='true'?'true':'false').", subdomains=".($REQUEST['subdomains']=='true'?'true':'false').", comment='".DB_escape($db,$REQUEST['comment'])."' where rowid=".intval($REQUEST['id']);
       if (DB_execute($db,$sql)) {
 				$response='{"status":"success"}';
-				$out=[];			
+				$out=[];
 				if (($rec['active']=='1' and $REQUEST['active']!='true') or ($ioc != $rec['active'])) exec('echo "server 127.0.0.1\nupdate delete '.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
 				if (($rec['subdomains']=='1' and $REQUEST['subdomains']!='true')) exec('echo "server 127.0.0.1\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
 				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
-			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}'; 
-			break;	
+			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
+			break;
 
     case "DELETE blacklist":
     case "DELETE whitelist":
@@ -494,25 +494,26 @@ RpiDNS powered by https://ioc2rpz.net
 			$ioc=DB_fetchRecord($db,"select ioc from localzone where rowid=".intval($REQUEST['id']))['ioc'];
 			$sql="delete from localzone where rowid=".intval($REQUEST['id']);
       if (DB_execute($db,$sql)) {
-				$out=[];			
+				$out=[];
 				exec('echo "server 127.0.0.1\nupdate delete '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate delete *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
 				$response='{"status":"success","details":'.json_encode($out).'}';
-			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}'; 
+			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
 
-			
+
     case "GET server_stats":
 			$server_stats=[];
 			$cores=intval(trim(exec('/usr/bin/nproc')));
 			$load=sys_getloadavg();
 			$server_stats[0]["fname"]='CPU load';$server_stats[0]["cnt"]="".round(($load[0] * 100) / $cores,2).'%, '.round(($load[1] * 100) / $cores,2).'%, '.round(($load[2] * 100) / $cores,2).'%';
-			$memory=preg_split('/\s+/',trim(exec('/usr/bin/free | /bin/grep Mem')));			
+			$memory=preg_split('/\s+/',trim(exec('/usr/bin/free | /bin/grep Mem')));
 			$server_stats[1]["fname"]='Memory usage';$server_stats[1]["cnt"]=round(intval($memory[2])/intval($memory[1])*100,2)."%";
 			$server_stats[2]["fname"]='Disk usage';$server_stats[2]["cnt"]=round (100 - ((disk_free_space  ($RpiPath) / disk_total_space ($RpiPath)) * 100)) .'%';
 			$uptime=floatval(@file_get_contents('/proc/uptime'));
 			$server_stats[3]["fname"]='Uptime'; $server_stats[3]["cnt"] = intdiv($uptime, 86400).' days '.(intdiv($uptime, 3600) % 24).' hours '.(intdiv($uptime, 60) % 60).' min '.($uptime % 60).' sec';
-			$temp=exec('/opt/vc/bin/vcgencmd measure_temp | awk -F "=" \'{print $2}\'');
-			$server_stats[4]["fname"]='Temp'; $server_stats[4]["cnt"]=$temp; 
+			#$temp=exec('/opt/vc/bin/vcgencmd measure_temp | awk -F "=" \'{print $2}\'');
+			$temp=rount(intval(trim(exec('cat /sys/class/thermal/thermal_zone0/temp')))/1000,2)."'C";
+			$server_stats[4]["fname"]='Temp'; $server_stats[4]["cnt"]=$temp;
 			$response='{"status":"ok", "records":"4","data":'.json_encode($server_stats).'}';
 		break;
 	case "GET rpz_feeds":
@@ -522,10 +523,10 @@ RpiDNS powered by https://ioc2rpz.net
 			foreach ($out as $line){
 				if (preg_match('/^zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
 					$feeds[]=["feed"=>trim($rpz[1]), "action"=>trim($rpz[2]), "desc"=>trim($rpz[3])];
-				};			
+				};
 			};
 
-			$response='{"status":"ok", "records":"'.count($feeds).'","data":'.json_encode($feeds).'}';		
+			$response='{"status":"ok", "records":"'.count($feeds).'","data":'.json_encode($feeds).'}';
 		break;
 		//
 	case "PUT retransfer_feed":
@@ -534,24 +535,24 @@ RpiDNS powered by https://ioc2rpz.net
 		foreach ($out as $line){
 			if (preg_match('/^zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
 				$feeds[trim($rpz[1])]=["feed"=>trim($rpz[1]), "action"=>trim($rpz[2]), "desc"=>trim($rpz[3])];
-			};			
+			};
 		};
 		if (array_key_exists($REQUEST['feed'],$feeds)) {
 			exec('/usr/sbin/rndc -Vr retransfer '.escapeshellcmd($REQUEST['feed']),$out2,$exres);
 			$response='{"status":"success","details":"feed retransfer was requested"}'; #'.$REQUEST['feed'].implode($out2).' result:'.$exres.'
-			} else $response='{"status":"failed", "reason":"feed was not provisioned"}'; 
+			} else $response='{"status":"failed", "reason":"feed was not provisioned"}';
 		break;
-		
-		
+
+
     default:
       $response='{"status":"failed", "records":"0", "reason":"not supported API call:'.$REQUEST['method'].' '.$REQUEST["req"].'"}';
 	endswitch;
 
-	
+
   #close DB
   $db->close();
 	if (isset($response)) echo $response;
-	
-//phpinfo();	
-	
+
+//phpinfo();
+
 ?>
