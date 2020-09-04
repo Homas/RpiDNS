@@ -394,7 +394,7 @@ RpiDNS powered by https://ioc2rpz.net
 					$zip=true;
 					$file_name="rpidns.sqlite.gzip";
 					//$file = fopen( "/opt/rpidns/www/rpidns.sqlite", "rb");
-					$file = popen( "/bin/gzip -q -c -5 /opt/rpidns/www/rpidns.sqlite", "rb");
+					$file = popen( "/bin/gzip -q -c -5 "."/opt/rpidns/www/db/".DBFile, "rb");
 					$file_type="gzip";//"vnd.sqlite3";
 					break;
 				case "CA":
