@@ -512,7 +512,7 @@ RpiDNS powered by https://ioc2rpz.net
 			$uptime=floatval(@file_get_contents('/proc/uptime'));
 			$server_stats[3]["fname"]='Uptime'; $server_stats[3]["cnt"] = intdiv($uptime, 86400).' days '.(intdiv($uptime, 3600) % 24).' hours '.(intdiv($uptime, 60) % 60).' min '.($uptime % 60).' sec';
 			#$temp=exec('/opt/vc/bin/vcgencmd measure_temp | awk -F "=" \'{print $2}\'');
-			$temp=rount(intval(trim(exec('cat /sys/class/thermal/thermal_zone0/temp')))/1000,2)."'C";
+			$temp=round(intval(trim(exec('cat /sys/class/thermal/thermal_zone0/temp')))/1000,2)."'C";
 			$server_stats[4]["fname"]='Temp'; $server_stats[4]["cnt"]=$temp;
 			$response='{"status":"ok", "records":"4","data":'.json_encode($server_stats).'}';
 		break;
