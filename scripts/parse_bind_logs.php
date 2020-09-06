@@ -101,6 +101,8 @@
 			$cmm=",";
 		};
 		$db = new SQLite3("/opt/rpidns/www/db/".DBFile);
+		$db->busyTimeout(5000);
+
 		if ($sql !=""){
 			$sql="insert into queries_raw (dt, client_ip, client_port, fqdn, type, class, options, server, action, mac) values ".$sql;
 			$db->exec($sql);
