@@ -3,6 +3,8 @@
 	$root_dir="/opt/rpidns";
   require_once "$root_dir/www/rpidns_vars.php";
 	require_once "/opt/rpidns/www/rpisettings.php";
+	require_once "$root_dir/scripts/import_db.php";
+
 	$logs="$root_dir/logs/*_queries.log";
 
 	$qlog_files=[];
@@ -190,6 +192,14 @@ group by dtz, client_ip, mac, fqdn, action, rule_type, rule, feed;
 		$hits_unique=[];
 
 	};
-	unlink($root_dir."/logs/rpidns_parser.pid");
+
+ if (file_exists( TMPDir."/rpidns_import_ready" )){
+	 $params=explode("|",file_get_contents(TMPDir."/rpidns_import_ready"));
+	 echo "importing ${params[0]} with options ${params[1]}\n";
+	 importSQLiteDB("/opt/rpidns/www/db/".DBFile,$params[0],$params[1]);
+	 unlink(TMPDir."/rpidns_import_ready");
+ };
+
+ unlink($root_dir."/logs/rpidns_parser.pid");
 
 ?>

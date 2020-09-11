@@ -39,14 +39,14 @@ const io2c_app = new Vue({
 		qlogs_period:'30m',
 		hits_period:'30m',
 		dash_period:'30m',
-		
+
 
 		//hits_pFilter:'', //RPZ hits previous filter
 		//hits_feventts:0,
 		//hits_leventts:0,
 		//hits_psort:['dtz','desc'],
 		//hits_pcp:1,
-		
+
     qlogs_fields_logs: [
         { key: 'dtz', label: 'Local Time', sortable: true, formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
         { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
@@ -58,7 +58,7 @@ const io2c_app = new Vue({
         { key: 'options', label: 'Options', sortable: true, 'tdClass':'d-none d-xl-table-cell', 'thClass': 'd-none d-xl-table-cell'},
         { key: 'cnt', label: 'Count', sortable: true},
         { key: 'action', label: 'Action', sortable: true},
-    ],		
+    ],
 
     qlogs_fields_stats: [
         { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
@@ -70,10 +70,10 @@ const io2c_app = new Vue({
         { key: 'cnt', label: 'Count', sortable: true},
         { key: 'action', label: 'Action', sortable: true},
     ],
-		
+
 		qlogs_fields: [],
 		qlogs_select_fields:['cname','server','fqdn','type','class','options','action'],
-		
+
     hits_fields_logs: [
         { key: 'dtz', label: 'Local Time', sortable: true,   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
         { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
@@ -85,7 +85,7 @@ const io2c_app = new Vue({
 //        { key: 'feed', label: 'Feed', sortable: true},
         { key: 'cnt', label: 'Count', sortable: true},
     ],
-		
+
     hits_fields_stats: [
         { key: 'cname', label: 'Client', sortable: true, 'tdClass':'mw200 d-none d-sm-table-cell', 'thClass': 'd-none d-sm-table-cell'},
         { key: 'fqdn', label: 'Request', sortable: true, 'tdClass':'mw200'},
@@ -94,16 +94,16 @@ const io2c_app = new Vue({
 	      { key: 'rule_type', label: 'Type', sortable: true, 'tdClass':'d-none d-lg-table-cell', 'thClass': 'd-none d-lg-table-cell'},
         { key: 'cnt', label: 'Count', sortable: true},
     ],
-		
+
 		hits_fields: [],
 		hits_select_fields: ['cname','fqdn','action','rule','rule_type'],
-		
+
 		query_ltype:'logs',
 		hits_ltype:'logs',
-		
+
 		dash_stats_fields:[
 			{ key: 'fname', label: 'Name', 'tdClass':'mw350 mouseoverpointer'},
-			{ key: 'cnt', label: 'Count'},			
+			{ key: 'cnt', label: 'Count'},
 		],
 
 		period_options: [
@@ -130,7 +130,7 @@ const io2c_app = new Vue({
 				{name: 'qps', data: [[1564027200000,50],[1564030800000,100],[1564034400000,150],[1564038000000,100]]},
 				{name: 'hits', data: [[1564027200000,10],[1564030800000,50],[1564034400000,50],[1564038000000,30]]},
 			],
-			
+
 			qps_options: {
 				colors: ['#008FFB','#FA4443'],
         chart: {
@@ -174,7 +174,7 @@ const io2c_app = new Vue({
         { key: '3', label: 'From',  'tdClass':'d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell',   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
         { key: '4', label: 'To',  'tdClass':'d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell',   formatter: (value) => { var date = new Date(value); return date.toLocaleString(); }},
 				{ key: '5', label: 'Retention','tdClass':'width050','thClass':'width050' },
-	
+
 			],
 
     assets_fields: [
@@ -199,9 +199,9 @@ const io2c_app = new Vue({
 		addIOCsubd: true,
 		addBLRowID:0,
 		bl_Filter:'', //blacklist filter
-		bl_selected:0,		
+		bl_selected:0,
 		wl_Filter:'', //whitelist filter
-		wl_selected:0,		
+		wl_selected:0,
     lists_fields: [
 			{ key: 'rowid', label: '',  'tdClass':'width050 d-none d-md-table-cell', 'thClass': 'd-none d-md-table-cell' },
 			{ key: 'ioc', label: 'Domain/IP', sortable: true, 'tdClass':'mw150'},
@@ -218,6 +218,12 @@ const io2c_app = new Vue({
 			{ key: 'act', label: 'Actions', sortable: true, 'tdClass':'mw050'}, //text-center
     ],
 		rpz_feeds_Filter:'', //RPZ Feeds filter
+		upload_file: null,
+		db_import_type: [],
+		upload_progress: 0,
+		upload_cancel_token: null,
+		fUpInd: true,
+		fImpInd: false,
 
 	},
 
@@ -228,21 +234,21 @@ const io2c_app = new Vue({
       var a=window.location.hash.split(/#|\//).filter(String);
       switch (a[0]){
         case "i2r":
-          this.cfgTab=parseInt(a[1]);        
+          this.cfgTab=parseInt(a[1]);
       };
 			if (window.localStorage.getItem('toggleMenu')){
 					this.toggleMenu=parseInt(window.localStorage.getItem('toggleMenu'));
 			}
     };
-		update_window_size(this);		
+		update_window_size(this);
     this.$nextTick(() => {
       window.addEventListener('resize', () => {update_window_size(this);});
     });
 		this.refreshDashQPS();
 		this.getSettings();
 	},
-	
-  methods: {	
+
+  methods: {
     changeTab: function(tab){
       history.pushState(null, null, '#i2r/'+tab);
 			this.cfgTab=tab;
@@ -266,15 +272,15 @@ const io2c_app = new Vue({
         return []
       })
     },
-		
+
     refreshTbl(tbl){
-			if ((tbl=='qlogs'||tbl=='hits')) { //update once a minute 
+			if ((tbl=='qlogs'||tbl=='hits')) { //update once a minute
 	      if ((Date.now()-this.logs_updatetime)>60*1000) {this.$root.$emit('bv::refresh::table', tbl);this.logs_updatetime=Date.now();};
 			}else{
-	      this.$root.$emit('bv::refresh::table', tbl);				
+	      this.$root.$emit('bv::refresh::table', tbl);
 			};
     },
-		
+
     refreshDashQPS(){
 			let doc=this;
 			axios.get('/rpi_admin/rpidata.php?req=qps_chart&period='+this.dash_period).then((data) => {doc.$root.qps_series=data.data});
@@ -302,41 +308,41 @@ const io2c_app = new Vue({
 				doc.dashboard_topx=parseInt(data.data.dashboard_topx);
 			});
 		},
-		
+
 		setSettings(){
 			let doc=this;
 			data={dash_topx:this.dashboard_topx, assets_by:this.assets_by, assets_autocreate:this.assets_autocreate,
 						queries_raw:this.$refs.ret_queries_raw.localValue,queries_5m:this.$refs.ret_queries_5m.localValue,queries_1h:this.$refs.ret_queries_1h.localValue,queries_1d:this.$refs.ret_queries_1d.localValue,
 						hits_raw:this.$refs.ret_hits_raw.localValue,hits_5m:this.$refs.ret_hits_5m.localValue,hits_1h:this.$refs.ret_hits_1h.localValue,hits_1d:this.$refs.ret_hits_1d.localValue};
 			axios.put('/rpi_admin/rpidata.php?req=RPIsettings',data).then((data) => {
-				if (data.data.status!="success") doc.showInfo(data.data.reason,3); else doc.showInfo("Settings were saved",3);		
+				if (data.data.status!="success") doc.showInfo(data.data.reason,3); else doc.showInfo("Settings were saved",3);
 			}).catch(error => {
 				doc.showInfo('Unknown error!!!',3);
 			});
 		},
-		
+
 		//dashDrilldown(tab,item){
 		//	this.qlogs_Filter=item.name;
 		//	this.cfgTab=tab;
 		//},
-		
+
 		add_asset($ev){
 			let doc=this;
 			data={id:this.addAssetRowID, name: this.addAssetName, address: this.addAssetAddr, vendor: this.addAssetVendor, comment: this.addAssetComment};
-			if (this.addAssetRowID==0) promise = axios.post('/rpi_admin/rpidata.php?req=assets',data); else promise = axios.put('/rpi_admin/rpidata.php?req=assets',data);					
+			if (this.addAssetRowID==0) promise = axios.post('/rpi_admin/rpidata.php?req=assets',data); else promise = axios.put('/rpi_admin/rpidata.php?req=assets',data);
 			var items=promise.then((data) => {
 				if (data.data.status=="success") {
 					doc.$root.$emit('bv::refresh::table', 'assets');
 				}else{
-					doc.showInfo(data.data.reason,3);					
+					doc.showInfo(data.data.reason,3);
 				}
 			}).catch(error => {
 				doc.showInfo('Unknown error!!!',3);
 			})
 		},
-		
-		delete_asset(asset,tbl){
 
+		delete_asset(asset,tbl){
+			let lasset=asset;
 			this.$bvModal.msgBoxConfirm('You are about to delete the selected asset. This action is irreversible!', {
 				title: 'Please confirm the action',
 				size: 'md',
@@ -353,23 +359,22 @@ const io2c_app = new Vue({
 
 					if (value) {
 						let doc=this;
-						var data={id: asset.rowid};
 						let table=tbl;
-						let promise = axios.delete('/rpi_admin/rpidata.php?req='+table,{data});
+						let promise = axios.delete('/rpi_admin/rpidata.php?req='+table+'&id='+lasset.rowid);
 						var items=promise.then((data) => {
 							if (data.data.status=="success") {
 								doc.$root.$emit('bv::refresh::table', table);
 							}else{
-								doc.showInfo(data.data.reason,3);						
+								doc.showInfo(data.data.reason,3);
 							}
 						}).catch(error => {
 							doc.showInfo('Unknown error!!!',3);
 						})
-		
+
 					};
-					
+
 			});
-			
+
 		},
 
 
@@ -393,7 +398,7 @@ const io2c_app = new Vue({
 						ioc.comment=doc.addIOCcomment;
 					};
 				}else{
-					doc.showInfo(data.data.reason,3);					
+					doc.showInfo(data.data.reason,3);
 				}
 			}).catch(error => {
 				doc.showInfo('Unknown error!!!',3);
@@ -406,21 +411,21 @@ const io2c_app = new Vue({
 			let iocs=table=='whitelist'?this.$refs.whitelist.$data.localItems:this.$refs.blacklist.$data.localItems;
 			let ioc;
 			for (let i in iocs) if (iocs[i].rowid == id) ioc = iocs[i];
-			
+
 			let data={id:ioc.rowid, ioc: ioc.ioc, ltype: table, active: field=='active'?(ioc.active?false:true):(ioc.active?true:false), subdomains: field=='subdomains'?(ioc.subdomains?false:true):(ioc.subdomains?true:false), comment: ioc.comment};
-			promise = axios.put('/rpi_admin/rpidata.php?req='+table,data);					
+			promise = axios.put('/rpi_admin/rpidata.php?req='+table,data);
 			var items=promise.then((data) => {
 				if (data.data.status=="success") {
 					ioc[field]=ioc[field]?0:1;
 				}else{
-					doc.showInfo(data.data.reason,3);					
+					doc.showInfo(data.data.reason,3);
 				}
 			}).catch(error => {
 				doc.showInfo('Unknown error!!!',3);
-			})			
-			
+			})
+
 		},
-		
+
 		switch_stats(table){
 			switch (table) {
 				case 'hits':
@@ -433,7 +438,7 @@ const io2c_app = new Vue({
 				break;
 			}
 		},
-	
+
     showInfo: function (msg,time) {
 			let size='sm';
 			if (msg.length>30) size='md';
@@ -453,24 +458,63 @@ const io2c_app = new Vue({
 				self.$bvModal.hide('infoMsgBox'+id)
       }, time * 1000);
     },
-    
+
     retransferRPZ: function(row) {
 			let doc=this;
 			data={feed:row.item.feed};
 			axios.put('/rpi_admin/rpidata.php?req=retransfer_feed',data).then((data) => {
-				if (data.data.status!="success") doc.showInfo(data.data.reason,3); else doc.showInfo("Retransfer requested",3);		
+				if (data.data.status!="success") doc.showInfo(data.data.reason,3); else doc.showInfo("Retransfer requested",3);
 			}).catch(error => {
 				doc.showInfo('Unknown error!!!',3);
 			});
     },
-		
+
+		import_db: function($ev){
+			let doc=this;
+			let formData = new FormData();
+			this.upload_progress=0;
+			formData.append('type','DB');
+			formData.append('req', 'import');
+			formData.append('objects',this.db_import_type);
+			formData.append('file', this.upload_file);
+			this.$emit('bv::show::modal', 'mUploadPr');
+
+			this.upload_cancel_token=axios.CancelToken.source();
+			this.fUpInd=true;
+			this.fImpInd=false;
+			axios.post('/rpi_admin/rpidata.php?req=import',formData, {
+				cancelToken: this.upload_cancel_token.token,
+				headers: {'Content-Type': 'multipart/form-data'},
+				onUploadProgress: function( progressEvent ) {
+					this.upload_progress = parseInt( Math.round( ( progressEvent.loaded / progressEvent.total ) * 100 ));
+					if (this.upload_progress>=100){this.fUpInd=false;this.fImpInd=true;};
+				}.bind(this)
+			}).then((data) => {
+				if (data.data.status=="success") {
+					this.$emit('bv::hide::modal', 'mUploadPr');
+					doc.showInfo('The DB will be imported soon',3);
+				}else{
+					this.$emit('bv::hide::modal', 'mUploadPr');
+					doc.showInfo(data.data.reason,3);
+				}
+			}).catch(error => {
+				this.$emit('bv::hide::modal', 'mUploadPr');
+        if (axios.isCancel(error)) {doc.showInfo('Upload canceled',3);}else{doc.showInfo('Unknown error!!!',3);};
+			});
+		},
+
+		cancel_upload: function($ev){
+			if (this.upload_cancel_token) this.upload_cancel_token.cancel()
+		},
+
+
 	},
-	
+
 });
 
 function update_window_size(obj){
 	if (obj.$refs  === undefined) {obj = io2c_app;};
 	obj.logs_pp = window.innerHeight>500 && window.innerWidth>1000?Math.floor((window.innerHeight -350)/28):5;
 	obj.logs_height = window.innerHeight>400?(window.innerHeight - 240):150; //250
-	obj.windowInnerWidth = window.innerWidth;	
+	obj.windowInnerWidth = window.innerWidth;
 };

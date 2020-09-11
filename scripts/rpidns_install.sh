@@ -55,3 +55,4 @@ rm -R /tmp/fontawesome-free-5.12.1-web /tmp/fontawesome-free-5.12.1-web.zip
 ### 2020-07-07 Manage bind from apache
 adduser www-data bind
 adduser $SUDO_USER bind
+adduser $SUDO_USER www-data

@@ -3,6 +3,8 @@
 	$RpiPath="/opt/rpidns";
 	define("DBFile", "rpidns.sqlite");
 	const DB="sqlite";
+  const TMPDir="/tmp/rpidns";
+  const DBVersion=1;
 	$filter_fields_q=['client_ip','fqdn','mac','type', 'class', 'server', 'options', 'action'];
 	$filter_fields_h=['client_ip','fqdn','mac','rule_type', 'rule', 'feed', 'action'];
 
@@ -30,11 +32,11 @@ function getProto(){
 
 function secHeaders(){
     header("Content-Security-Policy: frame-ancestors 'self';");
-};	
+};
 
 
-function DB_open($file) 
-{ 
+function DB_open($file)
+{
   switch (DB){
     case "sqlite":
       $db = new SQLite3($file);
@@ -42,11 +44,11 @@ function DB_open($file)
       $db->exec('PRAGMA journal_mode = wal;'); //PRAGMA foreign_keys = ON;
     break;
   }
-  return $db; 
+  return $db;
 }
 
-function DB_close($db) 
-{ 
+function DB_close($db)
+{
   switch (DB){
     case "sqlite":
       $db->close();
@@ -158,5 +160,5 @@ function DB_lasterror($db){
   }
   return $result;
 };
-	
+
 ?>

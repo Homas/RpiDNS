@@ -11,6 +11,7 @@
  - [ ] IoC input validation
  - [ ] IP rules auto generation
  - [ ] Blocking clients
+ - [ ] Bypass list
  - [ ] New block page for blocked clients
  - [ ] List of RPZ feeds (from Bind's config)
    - [ ] reload zone ```sudo rndc retransfer phishtank.ioc2rpz```

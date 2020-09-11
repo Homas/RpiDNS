@@ -5,8 +5,8 @@ require_once "/opt/rpidns/www/rpidns_vars.php";
 
 function initSQLiteDB($DBF){
   $db = new SQLite3($DBF);
-						
-  $sql="".
+	$sql="PRAGMA user_version=".DBVersion.";\n";
+  $sql.="".
 //			 "drop table if exists queries_raw;\ndrop table if exists queries_5m;\ndrop table if exists queries_1h;\ndrop table if exists queries_1d; drop table if exists hits_raw;\n drop table if exists hits_5m;\n drop table if exists hits_1h;\n drop table if exists hits_1d;\n".
 		   "create table if not exists queries_raw (dt integer, client_ip text, client_port text, mac text, fqdn text, type text, class text, options text, server text, action text);\n".
 			 "create index if not exists queries_raw_dt on queries_raw(dt);\n".
@@ -20,7 +20,7 @@ function initSQLiteDB($DBF){
 			 "create index if not exists hits_raw_client_ip on queries_raw(client_ip);\n".
 			 "create index if not exists hits_raw_fqdn on hits_raw(fqdn);\n".
 			 "create index if not exists hits_raw_feed on hits_raw(feed);\n".
-			 
+
 		   "create table if not exists queries_5m (dt integer, client_ip text, mac text, fqdn text, type text, class text, options text, server text, action text, cnt integer);\n".
 			 "create index if not exists queries_5m_dt on queries_5m(dt);\n".
 			 "create index if not exists queries_5m_client_ip on queries_5m(client_ip);\n".
@@ -33,8 +33,8 @@ function initSQLiteDB($DBF){
 			 "create index if not exists hits_5m_client_ip on hits_5m(client_ip);\n".
 			 "create index if not exists hits_5m_fqdn on hits_5m(fqdn);\n".
 			 "create index if not exists hits_5m_feed on hits_5m(feed);\n".
-			 
-			 
+
+
 		   "create table if not exists queries_1h (dt integer, client_ip text, mac text, fqdn text, type text, class text, options text, server text, action text, cnt integer);\n".
 			 "create index if not exists queries_1h_dt on queries_1h(dt);\n".
 			 "create index if not exists queries_1h_client_ip on queries_1h(client_ip);\n".
@@ -47,8 +47,8 @@ function initSQLiteDB($DBF){
 			 "create index if not exists hits_1h_client_ip on hits_1h(client_ip);\n".
 			 "create index if not exists hits_1h_fqdn on hits_1h(fqdn);\n".
 			 "create index if not exists hits_1h_feed on hits_1h(feed);\n".
-			 
-			 
+
+
 		   "create table if not exists queries_1d (dt integer, client_ip text, mac text, fqdn text, type text, class text, options text, server text, action text, cnt integer);\n".
 			 "create index if not exists queries_1d_dt on queries_1d(dt);\n".
 			 "create index if not exists queries_1d_client_ip on queries_1d(client_ip);\n".
@@ -68,9 +68,9 @@ function initSQLiteDB($DBF){
 
 		   "create table if not exists localzone (ioc text, type text, ltype text, comment text, active boolean, subdomains boolean, added_dt integer, provisioned text, unique(ioc));\n".
 			 "create index if not exists assets_itype on localzone(ltype);\n".
-			 
+
 //blacklist and whitelist
-			 
+
 			 "";
   $db->exec($sql);
 

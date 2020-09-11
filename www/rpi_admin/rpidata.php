@@ -543,6 +543,33 @@ RpiDNS powered by https://ioc2rpz.net
 			} else $response='{"status":"failed", "reason":"feed was not provisioned"}';
 		break;
 
+  case "POST import":
+			$import_db_file="";
+			$postfix = bin2hex(random_bytes(10));
+			if (!file_exists(TMPDir)) {$oldumask=umask(0);mkdir(TMPDir, 0775, true);umask($oldumask);};
+			switch (exec("/usr/bin/file ".$_FILES['file']['tmp_name']." | /usr/bin/awk '{print $2}'")):
+				case "SQLite":
+					if (move_uploaded_file($_FILES['file']['tmp_name'],TMPDir."/import_db_".$postfix.".sqlite")) $import_db_file=TMPDir."/import_db_".$postfix.".sqlite";
+				break;
+				case "gzip":
+					exec("gzip -dc ".$_FILES['file']['tmp_name']. " > ".TMPDir."/import_db_".$postfix.".sqlite");
+					$import_db_file=exec("/usr/bin/file ".TMPDir."/import_db_".$postfix.".sqlite"." | /usr/bin/awk '{print $2}'")=="SQLite"?TMPDir."/import_db_".$postfix.".sqlite":"";
+				break;
+				case "Zip":
+					exec("unzip -p ".$_FILES['file']['tmp_name']. ">".TMPDir."/import_db_".$postfix.".sqlite");
+					$import_db_file=exec("/usr/bin/file ".TMPDir."/import_db_".$postfix.".sqlite"." | /usr/bin/awk '{print $2}'")=="SQLite"?TMPDir."/import_db_".$postfix.".sqlite":"";
+				break;
+			endswitch;
+			if ($import_db_file!=""){
+				chmod(TMPDir."/import_db_".$postfix.".sqlite",0660);
+				file_put_contents(TMPDir."/rpidns_import_ready",TMPDir."/import_db_".$postfix.".sqlite"."|".$REQUEST['objects']);
+				chmod(TMPDir."/rpidns_import_ready",0660);
+				$response='{"status":"success","details":"import started","file_data":'.json_encode($_FILES).',"debug":"'.TMPDir."/import_db_".$postfix.'.sqlite|'.$REQUEST['objects'].'"}';
+			} else $response='{"status":"error","details":"bad file","file_data":'.json_encode($_FILES).'}';
+			if (is_uploaded_file($_FILES['file']['tmp_name'])) unlink($_FILES['file']['tmp_name']);
+
+		break;
+
 
     default:
       $response='{"status":"failed", "records":"0", "reason":"not supported API call:'.$REQUEST['method'].' '.$REQUEST["req"].'"}';
