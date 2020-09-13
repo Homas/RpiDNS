@@ -59,7 +59,7 @@
 														<template v-slot:cell(fname)="row">
 															<b-popover title="Actions" :target="'tip-good_requests'+row.item.fname" triggers="hover">
 																<a href="javascript:{}" @click.stop="qlogs_Filter='fqdn='+row.item.fname;qlogs_period=dash_period;cfgTab=1;">Show queries</a><br>
-																<a href="javascript:{}" @click.stop="addIOC=row.item.fname;addIOCtype='bl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Blacklist</a>
+																<a href="javascript:{}" @click.stop="addIOC=row.item.fname;addIOCtype='bl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Block</a>
 																<hr class="m-1">
 																<strong>Research:</strong><br>
 																- <a target=_blank :href="'https://duckduckgo.com/?q=%22'+row.item.fname+'%22'">DuckDuckGo</a><br>
@@ -134,7 +134,7 @@
 															<b-popover title="Actions" :target="'tip-bad_requests'+row.item.fname" triggers="hover">
 																Show <a href="javascript:{}" @click.stop="qlogs_Filter='fqdn='+row.item.fname;qlogs_period=dash_period;cfgTab=1;">queries</a>&nbsp;|&nbsp;
 																<a href="javascript:{}" @click.stop="hits_Filter='fqdn='+row.item.fname;hits_period=dash_period;cfgTab=2;">hits</a><br>
-																<a href="javascript:{}" @click.stop="addIOC=row.item.fname;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a>
+																<a href="javascript:{}" @click.stop="addIOC=row.item.fname;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Allow</a>
 																<hr class="m-1">
 																<strong>Research:</strong><br>
 																- <a target=_blank :href="'https://duckduckgo.com/?q=%22'+row.item.fname+'%22'">DuckDuckGo</a><br>
@@ -309,8 +309,8 @@
 														</template>
 														<template v-slot:cell(fqdn)="row">
 															<b-popover title="Actions" :target="'tip-hits'+row.item.rowid" triggers="hover">
-																<div v-if="row.item.action == 'blocked'"><a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a></div>
-																<div v-else><a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='bl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Blacklist</a></div>
+																<div v-if="row.item.action == 'blocked'"><a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Allow</a></div>
+																<div v-else><a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='bl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Block</a></div>
 																<a href="javascript:{}" @click.stop="qlogs_Filter='fqdn='+row.item.fqdn">Filter by</a>
 																<hr class="m-1">
 																<strong>Research:</strong><br>
@@ -453,7 +453,7 @@
 
 														<template v-slot:cell(fqdn)="row">
 															<b-popover title="Actions" :target="'tip-hits'+row.item.rowid" triggers="hover">
-																<a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a><br>
+																<a href="javascript:{}" @click.stop="addIOC=row.item.fqdn;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Allow</a><br>
 																<a href="javascript:{}" @click.stop="hits_Filter='fqdn='+row.item.fqdn">Filter by</a>
 																<hr class="m-1">
 																<strong>Research:</strong><br>
@@ -472,7 +472,7 @@
 														<template v-slot:cell(rule)="row">
 															<template  v-if="typeof row.item.rule !== 'undefined'">
 																<b-popover title="Actions" :target="'tip-hits-rule'+row.item.rowid" triggers="hover">
-																	<a href="javascript:{}" @click.stop="addIOC=row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) ) ;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Whitelist</a><br>
+																	<a href="javascript:{}" @click.stop="addIOC=row.item.rule.substring( 0, row.item.rule.indexOf('.'+row.item.feed) ) ;addIOCtype='wl';addIOCcomment='';addBLRowID=0;addIOCactive=true;addIOCsubd=true;$emit('bv::show::modal', 'mAddIOC')">Allow</a><br>
 																	<a href="javascript:{}" @click.stop="hits_Filter='rule='+row.item.rule">Filter by</a>
 																	<hr class="m-1">
 																	<strong>Research:</strong><br>
