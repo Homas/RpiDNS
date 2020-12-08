@@ -238,7 +238,7 @@
 											<b-form-group label-cols-md="4" label-size="sm" >
 												<b-input-group>
 													<b-input-group-text slot="prepend" size="sm"><i class="fas fa-filter fa-fw" size="sm"></i></b-input-group-text>
-													<b-form-input v-model="qlogs_Filter" placeholder="Type to search" size="sm"></b-form-input>
+													<b-form-input v-model="qlogs_Filter" placeholder="Type to search" size="sm" debounce="300"></b-form-input>
 													<b-button size="sm" slot="append" :disabled="!qlogs_Filter" @click="qlogs_Filter = ''">Clear</b-button>
 												</b-input-group>
 											</b-form-group>
@@ -583,7 +583,7 @@
 												</b-col>
 											</b-row>
 										</b-tab>
-										<b-tab title="Blacklist" lazy>
+										<b-tab title="Block" lazy>
 
 											<b-row class='d-none d-sm-flex'>
 												<b-col cols="3" lg="3">
@@ -635,7 +635,7 @@
 											</b-row>
 
 										</b-tab>
-										<b-tab title="Whitelist" lazy>
+										<b-tab title="Allow" lazy>
 
 
 											<b-row class='d-none d-sm-flex'>
@@ -653,7 +653,7 @@
 													<b-form-group label-cols-md="4" label-size="sm" >
 														<b-input-group>
 															<b-input-group-text slot="prepend" size="sm"><i class="fas fa-filter fa-fw" size="sm"></i></b-input-group-text>
-															<b-form-input v-model="wl_Filter" placeholder="Type to search" size="sm"></b-form-input>
+															<b-form-input v-model="wl_Filter" placeholder="Type to search" size="sm" debounce="300"></b-form-input>
 															<b-button size="sm" slot="append" :disabled="!wl_Filter" @click="wl_Filter = ''">Clear</b-button>
 														</b-input-group>
 													</b-form-group>
@@ -841,10 +841,10 @@
 							        <b-form-checkbox value="assets">Assets</b-form-checkbox>
 										</b-col>
 										<b-col md="4" class="p-0">
-							        <b-form-checkbox value="bl">Blacklist</b-form-checkbox>
+							        <b-form-checkbox value="bl">Block</b-form-checkbox>
 										</b-col>
 										<b-col md="4" class="p-0">
-							        <b-form-checkbox value="wl">Whitelist</b-form-checkbox><br>
+							        <b-form-checkbox value="wl">Allow</b-form-checkbox><br>
 										</b-col>
 									</b-row>
 									<b-row class="pb-1">
