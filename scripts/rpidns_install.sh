@@ -1,5 +1,7 @@
 #!/bin/sh
 SYSUSER=`who am i | awk '{print $1}'`
+#TODO
+#check $SYSUSER vs $SUDO_USER
 apt-get -q -y install php-fpm sqlite php-sqlite3 unzip
 #init DB
 mkdir -p /opt/rpidns/www/db
@@ -12,15 +14,15 @@ chmod 660 /opt/rpidns/www/db/rpidns.sqlite
 /usr/bin/php /opt/rpidns/scripts/init_db.php
 
 #install crontabs
-crontab -l > /tmp/$SYSUSER
-cat >> /tmp/$SYSUSER  << EOF
+crontab -l > /tmp/$SUDO_USER
+cat >> /tmp/$SUDO_USER  << EOF
 ##Non-root cron scripts
 * * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php
 42 2 * * *	sleep 25;/usr/bin/php /opt/rpidns/scripts/clean_db.php
 42 3 * * *	sleep 25;/usr/bin/sqlite3 /opt/rpidns/www/db/rpidns.sqlite 'VACUUM;'
 EOF
-cat /tmp/$SYSUSER | crontab -u $SYSUSER -
-rm -rf /tmp/$SYSUSER
+cat /tmp/$SUDO_USER | crontab -u $SUDO_USER -
+rm -rf /tmp/$SUDO_USER
 
 chmod 664 /opt/rpidns/www/rpisettings.php
 chown $SUDO_USER:www-data /opt/rpidns/www/rpisettings.php
