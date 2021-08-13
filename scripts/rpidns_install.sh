@@ -31,7 +31,7 @@ chown $SUDO_USER:www-data /opt/rpidns/www/rpisettings.php
 curl https://gitlab.com/wireshark/wireshark/raw/master/manuf -o /opt/rpidns/scripts/mac.db
 
 #Download libs
-curl -L https://unpkg.com/bootstrap/dist/css/bootstrap.min.css -o /opt/rpidns/www/rpi_admin/css/bootstrap.min.css
+curl -L https://unpkg.com/bootstrap@4.5.3/dist/css/bootstrap.min.css -o /opt/rpidns/www/rpi_admin/css/bootstrap.min.css
 curl -L https://unpkg.com/bootstrap-vue@latest/dist/bootstrap-vue.min.css -o /opt/rpidns/www/rpi_admin/css/bootstrap-vue.min.css
 curl -L https://cdn.jsdelivr.net/npm/vue@latest/dist/vue.min.js -o /opt/rpidns/www/rpi_admin/js/vue.min.js
 curl -L https://unpkg.com/babel-polyfill@latest/dist/polyfill.min.js -o /opt/rpidns/www/rpi_admin/js/polyfill.min.js

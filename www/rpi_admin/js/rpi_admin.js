@@ -228,30 +228,31 @@ const io2c_app = new Vue({
 	},
 
   mounted: function () {
-		this.hits_fields = this.hits_fields_logs;
-		this.qlogs_fields = this.qlogs_fields_logs;
-    if (window.location.hash) {
-      var a=window.location.hash.split(/#|\//).filter(String);
-      switch (a[0]){
-        case "i2r":
-          this.cfgTab=parseInt(a[1]);
-      };
-			if (window.localStorage.getItem('toggleMenu')){
-					this.toggleMenu=parseInt(window.localStorage.getItem('toggleMenu'));
-			}
-    };
 		update_window_size(this);
     this.$nextTick(() => {
       window.addEventListener('resize', () => {update_window_size(this);});
+			this.hits_fields = this.hits_fields_logs;
+			this.qlogs_fields = this.qlogs_fields_logs;
+			if (window.localStorage.getItem('toggleMenu')){
+					this.toggleMenu=parseInt(window.localStorage.getItem('toggleMenu'));
+			}
+	    if (window.location.hash) {
+	      var a=window.location.hash.split(/#|\//).filter(String);
+	      switch (a[0]){
+	        case "i2r":
+	          this.cfgTab=parseInt(a[1]);
+	      };
+				if (a[2]=='hidemenu') this.toggleMenu=2;
+	    };
+			if (this.cfgTab == 0) this.refreshDashQPS();
+			this.getSettings();
     });
-		this.refreshDashQPS();
-		this.getSettings();
 	},
 
   methods: {
     changeTab: function(tab){
       history.pushState(null, null, '#i2r/'+tab);
-			this.cfgTab=tab;
+			//this.cfgTab=tab;
 //      if (this.$refs.i2r.$children[tab].$attrs.table) this.$root.$emit('bv::refresh::table', this.$refs.i2r.$children[tab].$attrs.table);
     },
 
