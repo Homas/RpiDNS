@@ -175,7 +175,7 @@
 
 											<b-card header="TopX Servers" body-class="p-2">
 												<div>
-													<b-table id="dash_topX_server" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_server&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter='type='+item.fname;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
+													<b-table id="dash_topX_server" sticky-header="150px" no-border-collapse striped hover small :items="get_tables" :api-url="'/rpi_admin/rpidata.php?req=dash_topX_server&period='+this.dash_period" :fields="dash_stats_fields" thead-class="hidden" @row-clicked="(item, index, event) =>  {this.qlogs_Filter='server='+item.fname;this.qlogs_period=this.dash_period;this.cfgTab=1;}">
 														<template v-slot:table-busy><div class="text-center text-second m-0 p-0"><b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong></div></template>
 													</b-table>
 												</div>
