@@ -2,7 +2,7 @@
 SYSUSER=`who am i | awk '{print $1}'`
 #TODO
 #check $SYSUSER vs $SUDO_USER
-apt-get -q -y install php-fpm sqlite php-sqlite3 unzip
+apt-get -q -y install php-fpm sqlite3 php-sqlite3 unzip
 #init DB
 mkdir -p /opt/rpidns/www/db
 chown $SUDO_USER:www-data /opt/rpidns/www/db

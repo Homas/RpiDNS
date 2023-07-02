@@ -468,7 +468,7 @@ RpiDNS powered by https://ioc2rpz.net
       $sql="insert into localzone(ioc, active, subdomains, comment, added_dt, ltype) values('".DB_escape($db,$ioc)."',".($REQUEST['active']=='true'?'true':'false').",".($REQUEST['subdomains']=='true'?'true':'false').",'".DB_escape($db,$REQUEST['comment'])."',".time().",'$list')";
       if (DB_execute($db,$sql)) {
 				$out=[];
-				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
+				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('printf "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('printf "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
 				$response='{"status":"success","details":'.json_encode($out).'}';
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
@@ -482,9 +482,9 @@ RpiDNS powered by https://ioc2rpz.net
       if (DB_execute($db,$sql)) {
 				$response='{"status":"success"}';
 				$out=[];
-				if (($rec['active']=='1' and $REQUEST['active']!='true') or ($ioc != $rec['active'])) exec('echo "server 127.0.0.1\nupdate delete '.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
-				if (($rec['subdomains']=='1' and $REQUEST['subdomains']!='true')) exec('echo "server 127.0.0.1\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
-				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('echo "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
+				if (($rec['active']=='1' and $REQUEST['active']!='true') or ($ioc != $rec['active'])) exec('printf "server 127.0.0.1\nupdate delete '.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+				if (($rec['subdomains']=='1' and $REQUEST['subdomains']!='true')) exec('printf "server 127.0.0.1\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('printf "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('printf "server 127.0.0.1\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
 
@@ -495,7 +495,7 @@ RpiDNS powered by https://ioc2rpz.net
 			$sql="delete from localzone where rowid=".intval($REQUEST['id']);
       if (DB_execute($db,$sql)) {
 				$out=[];
-				exec('echo "server 127.0.0.1\nupdate delete '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate delete *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+				exec('printf "server 127.0.0.1\nupdate delete '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate delete *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
 				$response='{"status":"success","details":'.json_encode($out).'}';
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
