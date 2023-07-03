@@ -902,7 +902,7 @@
 
 	</div>
 
-	<div class="copyright"><p>Copyright © 2020 Vadim Pavlov</p></div>
+	<div class="copyright"><p>Copyright © 2020-2023 Vadim Pavlov</p></div>
 <!--
 		<script src="https://cdn.jsdelivr.net/npm/vue@latest/dist/vue.js"></script>
 		<script src="//unpkg.com/babel-polyfill@latest/dist/polyfill.min.js"></script>
