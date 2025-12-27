@@ -41,7 +41,7 @@
 			exec('grep -i -e "'.$mac_search.'" /opt/rpidns/scripts/mac.db | awk -F"\t" '."'\$3{print \$3} !\$3{print \$2}'",$out2);
 			//echo "$mac_search\n";
 			//var_dump($out2);
-			$vendors[$mac[2]]=$out2[0];
+			$vendors[$mac[2]]=$out2[0] ?? '';
 		};
 	};
 	//var_dump($macs);

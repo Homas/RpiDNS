@@ -13,3 +13,12 @@
 
 # Clean up old compressed logs older than 30 days (at 5:00 AM daily)
 0 5 * * * find /opt/rpidns/logs -name "*.log.gz" -mtime +30 -delete 2>/dev/null
+
+# process the Bind's logs
+* * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php
+
+# Clean up DB
+42 2 * * *	sleep 25;/usr/bin/php /opt/rpidns/scripts/clean_db.php
+
+# Vacuum the DB
+42 3 * * *	sleep 25;/usr/bin/sqlite3 /opt/rpidns/www/db/rpidns.sqlite 'VACUUM;'

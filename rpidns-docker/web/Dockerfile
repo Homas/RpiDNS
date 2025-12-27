@@ -30,6 +30,7 @@ RUN apk add --no-cache \
     apache2-utils \
     bash \
     curl \
+    iproute2 \
     && rm -rf /var/cache/apk/*
 
 # Create www-data user/group (matching common web server conventions)
@@ -46,7 +47,8 @@ RUN mkdir -p /opt/rpidns/www \
     && mkdir -p /opt/rpidns/scripts \
     && mkdir -p /run/php \
     && mkdir -p /run/openresty \
-    && mkdir -p /var/log/rsyslog
+    && mkdir -p /var/log/rsyslog \
+    && ln -s /sbin/ip /bin/ip
 
 # Set ownership
 RUN chown -R www-data:www-data /opt/rpidns \

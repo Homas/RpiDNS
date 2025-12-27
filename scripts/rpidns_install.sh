@@ -1,4 +1,10 @@
 #!/bin/sh
+###
+### 2025-12-27
+### Most stuff should be moved to Dockerfile or entrypoint.sh (web). The entrypoint.sh should validate if DB exists
+### This script should build a website with vite
+###
+
 SYSUSER=`who am i | awk '{print $1}'`
 SUDO_USER=${SUDO_USER:-$SYSUSER}
 apt-get -q -y install php-fpm sqlite3 php-sqlite3 unzip
@@ -13,15 +19,16 @@ chmod 660 /opt/rpidns/www/db/rpidns.sqlite
 /usr/bin/php /opt/rpidns/scripts/init_db.php
 
 #install crontabs
-crontab -l > /tmp/$SUDO_USER
-cat >> /tmp/$SUDO_USER  << EOF
-##Non-root cron scripts
-* * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php
-42 2 * * *	sleep 25;/usr/bin/php /opt/rpidns/scripts/clean_db.php
-42 3 * * *	sleep 25;/usr/bin/sqlite3 /opt/rpidns/www/db/rpidns.sqlite 'VACUUM;'
-EOF
-cat /tmp/$SUDO_USER | crontab -u $SUDO_USER -
-rm -rf /tmp/$SUDO_USER
+### 2025-12-27 Crontabs are moved to the docker
+# crontab -l > /tmp/$SUDO_USER
+# cat >> /tmp/$SUDO_USER  << EOF
+# ##Non-root cron scripts
+# * * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php
+# 42 2 * * *	sleep 25;/usr/bin/php /opt/rpidns/scripts/clean_db.php
+# 42 3 * * *	sleep 25;/usr/bin/sqlite3 /opt/rpidns/www/db/rpidns.sqlite 'VACUUM;'
+# EOF
+# cat /tmp/$SUDO_USER | crontab -u $SUDO_USER -
+# rm -rf /tmp/$SUDO_USER
 
 chmod 664 /opt/rpidns/www/rpisettings.php
 chown $SUDO_USER:www-data /opt/rpidns/www/rpisettings.php

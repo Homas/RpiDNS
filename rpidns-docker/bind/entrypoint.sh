@@ -23,7 +23,7 @@ fi
 # Ensure proper ownership on mounted volumes
 # These directories need to be writable by the named user
 chown -R named:named /var/cache/bind 2>/dev/null || true
-chown -R named:named /opt/rpidns/logs 2>/dev/null || true
+chown -R named:named /opt/rpidns/logs/bind* 2>/dev/null || true
 
 # Verify permissions on cache directory
 if [ -w /var/cache/bind ]; then
@@ -73,4 +73,4 @@ echo "Starting named in foreground..."
 # Start named in foreground with logging to stdout
 # -g runs in foreground and logs to stderr
 # -u named ensures we run as named user
-exec /usr/sbin/named -g -u named -c /etc/bind/named.conf
+exec /usr/sbin/named -f -u named -c /etc/bind/named.conf
