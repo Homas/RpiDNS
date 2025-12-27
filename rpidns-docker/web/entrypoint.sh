@@ -114,7 +114,7 @@ mkdir -p /opt/rpidns/logs/nginx
 mkdir -p /opt/rpidns/www/db
 
 ### Init DB
-if [ -f "/opt/rpidns/www/db/rpidns.sqlite" ]; then
+if [ -f /opt/rpidns/www/db/rpidns.sqlite ]; then
     echo "/opt/rpidns/www/db/rpidns.sqlite exists, skiping DB init."
 else
     echo "Init DB"
