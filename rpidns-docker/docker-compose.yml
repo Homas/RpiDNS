@@ -62,6 +62,8 @@ services:
       - ./logs:/opt/rpidns/logs
       # Maintenance scripts (bind mount for host access)
       - ./scripts:/opt/rpidns/scripts
+      # Bind cache for nsupdate keys (read-only access to TSIG keys)
+      - ./bind-cache:/var/cache/bind:ro
     environment:
       - RPIDNS_HOSTNAME=${RPIDNS_HOSTNAME:-rpidns.local}
       - RPIDNS_LOGGING=${RPIDNS_LOGGING:-local}

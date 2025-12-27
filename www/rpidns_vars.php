@@ -5,6 +5,7 @@
 	const DB="sqlite";
   const TMPDir="/tmp/rpidns";
   const DBVersion=1;
+  $bind_host="bind"; #TODO 2025-12-27 127.0.0.1 for scripts
 	$filter_fields_q=['client_ip','fqdn','mac','type', 'class', 'server', 'options', 'action'];
 	$filter_fields_h=['client_ip','fqdn','mac','rule_type', 'rule', 'feed', 'action'];
 

@@ -31,6 +31,7 @@ RUN apk add --no-cache \
     bash \
     curl \
     iproute2 \
+    bind-tools \
     && rm -rf /var/cache/apk/*
 
 # Create www-data user/group (matching common web server conventions)

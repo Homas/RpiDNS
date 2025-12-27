@@ -37,6 +37,7 @@ EOF
     adduser www-data bind
     adduser $SUDO_USER bind
     adduser $SUDO_USER www-data
+    sed -i 's/\$bind_host="bind"/\$bind_host="127.0.0.1"/' /opt/rpidns/www/rpidns_vars.php    
 else
     echo "Skiping local DB and cron setup in container's env"
     #pull named root hints
