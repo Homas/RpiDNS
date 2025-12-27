@@ -1,0 +1,88 @@
+# RpiDNS Web Container
+# OpenResty (nginx with Lua) + PHP-FPM + RSyslog for RpiDNS web UI
+FROM alpine:3.21
+
+LABEL maintainer="Vadim Pavlov"
+LABEL description="OpenResty web server with PHP-FPM and RSyslog for RpiDNS"
+
+# Enable community repository for openresty
+RUN echo "http://dl-cdn.alpinelinux.org/alpine/v3.21/community" >> /etc/apk/repositories
+
+# Install required packages
+RUN apk add --no-cache \
+    openresty \
+    lua-resty-openssl \
+    lua-resty-lock \
+    php83 \
+    php83-fpm \
+    php83-sqlite3 \
+    php83-openssl \
+    php83-session \
+    php83-pdo \
+    php83-pdo_sqlite \
+    php83-json \
+    php83-curl \
+    rsyslog \
+    dcron \
+    git \
+    openssl \
+    sqlite \
+    apache2-utils \
+    bash \
+    curl \
+    && rm -rf /var/cache/apk/*
+
+# Create www-data user/group (matching common web server conventions)
+RUN addgroup -g 82 -S www-data 2>/dev/null || true \
+    && adduser -u 82 -D -S -G www-data www-data 2>/dev/null || true
+
+# Create directory structure
+RUN mkdir -p /opt/rpidns/www \
+    && mkdir -p /opt/rpidns/www/db \
+    && mkdir -p /opt/rpidns/conf/ssl \
+    && mkdir -p /opt/rpidns/conf/ssl_sign \
+    && mkdir -p /opt/rpidns/conf/ssl_cache \
+    && mkdir -p /opt/rpidns/logs \
+    && mkdir -p /opt/rpidns/scripts \
+    && mkdir -p /run/php \
+    && mkdir -p /run/openresty \
+    && mkdir -p /var/log/rsyslog
+
+# Set ownership
+RUN chown -R www-data:www-data /opt/rpidns \
+    && chown -R www-data:www-data /run/php \
+    && chown -R www-data:www-data /run/openresty
+
+# Copy configuration files
+COPY nginx.conf.template /etc/nginx/nginx.conf
+COPY rsyslog.conf /etc/rsyslog.conf
+COPY crontab /etc/crontabs/root
+COPY entrypoint.sh /entrypoint.sh
+
+# Set permissions
+RUN chmod +x /entrypoint.sh \
+    && chmod 0600 /etc/crontabs/root
+
+# Create a simple blocked.php for health check
+RUN echo '<?php echo "blocked"; ?>' > /opt/rpidns/www/blocked.php \
+    && chown www-data:www-data /opt/rpidns/www/blocked.php
+
+# Expose ports
+# 80 - HTTP
+# 443 - HTTPS
+# 10514 - Syslog (for remote RpiDNS log collection)
+EXPOSE 80
+EXPOSE 443
+EXPOSE 10514
+
+# Health check - verify web server is responding
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD wget -q --spider http://127.0.0.1/blocked.php || exit 1
+
+# Set environment variables
+ENV RPIDNS_HOSTNAME="rpidns.local"
+ENV RPIDNS_LOGGING="local"
+ENV RPIDNS_LOGGING_HOST=""
+ENV PHP_FPM_VERSION="83"
+
+ENTRYPOINT ["/entrypoint.sh"]

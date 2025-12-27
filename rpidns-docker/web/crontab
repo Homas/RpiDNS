@@ -1,0 +1,15 @@
+# RpiDNS Web Container Crontab
+# Scheduled maintenance tasks
+
+# SSL certificate cache cleanup
+# Remove certificates older than 30 days (at 2:00 AM daily)
+0 2 * * * find /opt/rpidns/conf/ssl/cache -type f -mtime +30 -delete 2>/dev/null
+
+# Remove unused certificates after 7 days (at 3:00 AM daily)
+0 3 * * * find /opt/rpidns/conf/ssl/cache -type f -atime +7 -delete 2>/dev/null
+
+# Log rotation - compress logs older than 1 day (at 4:00 AM daily)
+0 4 * * * find /opt/rpidns/logs -name "*.log" -mtime +1 -exec gzip {} \; 2>/dev/null
+
+# Clean up old compressed logs older than 30 days (at 5:00 AM daily)
+0 5 * * * find /opt/rpidns/logs -name "*.log.gz" -mtime +30 -delete 2>/dev/null

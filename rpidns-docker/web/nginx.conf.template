@@ -1,0 +1,262 @@
+# RpiDNS OpenResty Configuration
+# nginx with Lua support for dynamic SSL certificate generation
+
+worker_processes auto;
+error_log /opt/rpidns/logs/nginx_error.log warn;
+pid /run/openresty/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    # Lua package paths - include both openresty bundled and Alpine lua-resty packages
+    lua_package_path "/usr/lib/nginx/lualib/?.lua;/usr/share/lua/common/?.lua;/usr/share/lua/5.1/?.lua;;";
+    lua_package_cpath "/usr/lib/nginx/lualib/?.so;/usr/lib/lua/5.1/?.so;;";
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /opt/rpidns/logs/nginx_access.log main;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types text/plain text/css text/xml application/json application/javascript application/xml;
+
+    # PHP-FPM upstream
+    upstream php-fpm {
+        server 127.0.0.1:9000;
+    }
+
+    # Lua shared dictionaries for SSL certificate caching and locks
+    lua_shared_dict ssl_cert_cache 10m;
+    lua_shared_dict ioc2rpz_locks 1m;
+
+    # Fallback SSL certificates (used to start nginx, replaced dynamically)
+    ssl_certificate /opt/rpidns/conf/ssl_sign/ioc2rpz.fallback.crt;
+    ssl_certificate_key /opt/rpidns/conf/ssl_sign/ioc2rpz.fallback.pkey;
+
+    # HTTP server - serve block page for DNS blocked domains
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        server_name _;
+
+        root /opt/rpidns/www;
+        index blocked.php index.php index.html;
+
+        # Block page location
+        location = /blocked.php {
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_pass php-fpm;
+        }
+
+        # Serve block page for all requests (DNS blocked domains)
+        location / {
+            try_files $uri $uri/ /blocked.php?$query_string;
+        }
+    }
+
+    # HTTPS server - dynamic SSL certificate generation for blocked domains
+    server {
+        listen 443 ssl default_server;
+        listen [::]:443 ssl default_server;
+        http2 on;
+        server_name _;
+
+        root /opt/rpidns/www;
+        index blocked.php index.php index.html;
+
+        # SSL configuration
+        ssl_session_cache builtin:1000 shared:SSL:10m;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+        ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+        ssl_prefer_server_ciphers on;
+
+        # Dynamic SSL certificate generation using Lua
+        ssl_certificate_by_lua_block {
+            -- Lua script to dynamically generate certificates
+            local ssl = require "ngx.ssl"
+            ssl.clear_certs() -- clear fallback certificates
+            local common_name = ssl.server_name() -- get requested domain
+            if common_name == nil then
+                common_name = "unknown"
+            end
+
+            -- Try to load previously generated certificate and private key from cache files
+            local pkey_pem = nil
+            local f = io.open(string.format("/opt/rpidns/conf/ssl_cache/%s.pkey", common_name), "r")
+            if f then
+                pkey_pem = f:read("*a")
+                f:close()
+            end
+
+            local cert_pem = nil
+            local f = io.open(string.format("/opt/rpidns/conf/ssl_cache/%s.crt", common_name), "r")
+            if f then
+                cert_pem = f:read("*a")
+                f:close()
+            end
+
+            -- If the private key and certificate were loaded, use them
+            if pkey_pem and cert_pem then
+                assert(ssl.set_priv_key(assert(ssl.parse_pem_priv_key(pkey_pem))))
+                assert(ssl.set_cert(assert(ssl.parse_pem_cert(cert_pem))))
+                return -- exit if key and cert chain were successfully set
+            end
+
+            -- Generate new certificate signed with intermediate certificate
+            -- Load private key for the intermediate cert
+            local IntKey = nil
+            local f = io.open("/opt/rpidns/conf/ssl_sign/ioc2rpzInt.pkey", "r")
+            if f then
+                IntKey = assert(require("resty.openssl.pkey").new(f:read("*a"), {format = "PEM"}))
+                f:close()
+            end
+
+            -- Load the intermediate certificate
+            local f = io.open("/opt/rpidns/conf/ssl_sign/ioc2rpzInt.crt", "r")
+            local IntCert = nil
+            local IntCert_pem = ""
+            if f then
+                IntCert_pem = f:read("*a")
+                IntCert = assert(require("resty.openssl.x509").new(IntCert_pem))
+                f:close()
+            end
+
+            -- Load the CA certificate (added to certificate chain)
+            local CAcert_pem = ""
+            local f = io.open("/opt/rpidns/conf/ssl_sign/ioc2rpzCA.crt", "r")
+            if f then
+                CAcert_pem = f:read("*a")
+                f:close()
+            end
+
+            -- Prevent generating the same certificate multiple times in parallel
+            local lock = require("resty.lock"):new("ioc2rpz_locks")
+            assert(lock:lock(common_name))
+
+            -- Generate new ECC keys (faster than RSA, important for Raspberry Pi)
+            local pk = assert(require("resty.openssl.pkey").new({
+                type = "EC",
+                curve = "secp384r1",
+            }))
+
+            local x509 = require("resty.openssl.x509").new()
+            local name = require("resty.openssl.x509.name").new()
+            local altname = assert(require("resty.openssl.x509.altname").new())
+
+            -- Add subject and common names
+            assert(name:add("CN", common_name):add("C", "US"):add("ST", "California"):add("L", "San Jose"):add("O", "ioc2rpz Community"))
+            assert(altname:add("DNS", common_name):add("DNS", "*." .. common_name))
+
+            assert(x509:set_version(3))
+            assert(x509:get_serial_number(42))
+            assert(x509:set_not_before(ngx.time()))
+            assert(x509:set_not_after(ngx.time() + 820 * 86400)) -- Valid for 820 days
+            assert(x509:set_subject_name(name))
+            local issuer = assert(IntCert:get_subject_name())
+            assert(x509:set_issuer_name(issuer))
+            assert(x509:set_subject_alt_name(altname))
+            assert(x509:set_pubkey(pk))
+            assert(x509:set_basic_constraints({ cA = false, pathlen = 0 }))
+
+            assert(x509:sign(IntKey)) -- Sign with intermediate certificate private key
+
+            cert_pem = assert(x509:to_PEM())
+            local cert = assert(ssl.parse_pem_cert(cert_pem .. IntCert_pem .. CAcert_pem))
+            pkey_pem = assert(pk:to_PEM("private"))
+
+            -- Save certificate to cache
+            local f = assert(io.open(string.format("/opt/rpidns/conf/ssl_cache/%s.crt", common_name), "w"))
+            f:write(cert_pem)
+            f:write(IntCert_pem)
+            f:write(CAcert_pem)
+            f:close()
+
+            -- Save private key to cache
+            local f = assert(io.open(string.format("/opt/rpidns/conf/ssl_cache/%s.pkey", common_name), "w"))
+            f:write(pkey_pem)
+            f:close()
+
+            -- Set the private key and certificate for the session
+            assert(ssl.set_priv_key(ssl.parse_pem_priv_key(pkey_pem)))
+            assert(ssl.set_cert(cert))
+
+            assert(lock:unlock())
+        }
+
+        # Blocked content - serve appropriate block files
+        location ~* \.(jpg|jpeg)$ {
+            rewrite ^.*$ /blocked/blocked.jpg break;
+        }
+
+        location ~* \.(png)$ {
+            rewrite ^.*$ /blocked/blocked.png break;
+        }
+
+        location ~* \.(js)$ {
+            rewrite ^.*$ /blocked/blocked.js break;
+        }
+
+        location ~* \.(css)$ {
+            rewrite ^.*$ /blocked/blocked.css break;
+        }
+
+        # Block page
+        location = /blocked.php {
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_pass php-fpm;
+        }
+
+        # PHP files
+        location ~ \.php$ {
+            include fastcgi_params;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_pass php-fpm;
+            fastcgi_index index.php;
+        }
+
+        # Admin interface with basic auth
+        location /admin {
+            auth_basic "RpiDNS Admin";
+            auth_basic_user_file /opt/rpidns/conf/.htpasswd;
+            
+            location ~ \.php$ {
+                include fastcgi_params;
+                fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                fastcgi_pass php-fpm;
+            }
+        }
+
+        # Default location - serve block page
+        location / {
+            try_files $uri $uri/ /blocked.php?$query_string;
+        }
+
+        # Deny access to hidden files
+        location ~ /\. {
+            deny all;
+        }
+
+        # Deny access to database files
+        location ~ \.db$ {
+            deny all;
+        }
+    }
+}
