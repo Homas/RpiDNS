@@ -8,7 +8,7 @@
 SYSUSER=`who am i | awk '{print $1}'`
 SUDO_USER=${SUDO_USER:-$SYSUSER}
 
-if [ -z "$DOCKER_COMPOSE" ]; then
+if [ -z "$RPIDNS_INSTALL_TYPE" ]; then
     apt-get -q -y install php-fpm sqlite3 php-sqlite3 unzip
     #init DB
     mkdir -p /opt/rpidns/www/db
