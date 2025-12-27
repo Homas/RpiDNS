@@ -107,12 +107,32 @@ if [ ! -f "${HTPASSWD_FILE}" ]; then
     chmod 644 "${HTPASSWD_FILE}"
 fi
 
-
-# Ensure directories exist and have correct permissions
+# Ensure directories exist
 mkdir -p /run/php
 mkdir -p /run/openresty
 mkdir -p /opt/rpidns/logs/nginx
 mkdir -p /opt/rpidns/www/db
+
+### Init DB
+if [ -f "/opt/rpidns/www/db/rpidns.sqlite" ]; then
+    echo "/opt/rpidns/www/db/rpidns.sqlite exists, skiping DB init."
+else
+    echo "Init DB"
+    chmod 775 /opt/rpidns/www/db
+    touch /opt/rpidns/www/db/rpidns.sqlite
+    chown www-data:www-data /opt/rpidns/www/db/rpidns.sqlite
+    chmod 660 /opt/rpidns/www/db/rpidns.sqlite
+    if [ -f "/opt/rpidns/www/db/rpidns.sqlite" ]; then
+        /usr/bin/php /opt/rpidns/scripts/init_db.php
+        chmod 664 /opt/rpidns/www/rpisettings.php
+        chown www-data:www-data /opt/rpidns/www/rpisettings.php
+    else
+        echo "DB init script is missing!!!"
+    fi
+fi
+### End Init DB
+
+# Ensure directories have correct permissions
 chown -R www-data:www-data /run/php
 chown -R www-data:www-data /run/openresty
 chown -R www-data:www-data /opt/rpidns/www

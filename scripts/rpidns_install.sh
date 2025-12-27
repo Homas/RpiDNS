@@ -7,31 +7,41 @@
 
 SYSUSER=`who am i | awk '{print $1}'`
 SUDO_USER=${SUDO_USER:-$SYSUSER}
-apt-get -q -y install php-fpm sqlite3 php-sqlite3 unzip
-#init DB
-mkdir -p /opt/rpidns/www/db
-chown $SUDO_USER:www-data /opt/rpidns/www/db
-chmod 775 /opt/rpidns/www/db
 
-touch /opt/rpidns/www/db/rpidns.sqlite
-chown $SUDO_USER:www-data /opt/rpidns/www/db/rpidns.sqlite
-chmod 660 /opt/rpidns/www/db/rpidns.sqlite
-/usr/bin/php /opt/rpidns/scripts/init_db.php
+if [ -z "$DOCKER_COMPOSE" ]; then
+    apt-get -q -y install php-fpm sqlite3 php-sqlite3 unzip
+    #init DB
+    mkdir -p /opt/rpidns/www/db
+    chown $SUDO_USER:www-data /opt/rpidns/www/db
+    chmod 775 /opt/rpidns/www/db
 
-#install crontabs
-### 2025-12-27 Crontabs are moved to the docker
-# crontab -l > /tmp/$SUDO_USER
-# cat >> /tmp/$SUDO_USER  << EOF
-# ##Non-root cron scripts
-# * * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php
-# 42 2 * * *	sleep 25;/usr/bin/php /opt/rpidns/scripts/clean_db.php
-# 42 3 * * *	sleep 25;/usr/bin/sqlite3 /opt/rpidns/www/db/rpidns.sqlite 'VACUUM;'
-# EOF
-# cat /tmp/$SUDO_USER | crontab -u $SUDO_USER -
-# rm -rf /tmp/$SUDO_USER
+    touch /opt/rpidns/www/db/rpidns.sqlite
+    chown $SUDO_USER:www-data /opt/rpidns/www/db/rpidns.sqlite
+    chmod 660 /opt/rpidns/www/db/rpidns.sqlite
+    /usr/bin/php /opt/rpidns/scripts/init_db.php
 
-chmod 664 /opt/rpidns/www/rpisettings.php
-chown $SUDO_USER:www-data /opt/rpidns/www/rpisettings.php
+    #install crontabs
+    ### 2025-12-27 Crontabs are moved to the docker
+    crontab -l > /tmp/$SUDO_USER
+    cat >> /tmp/$SUDO_USER  << EOF
+##Non-root cron scripts
+* * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php
+42 2 * * *	sleep 25;/usr/bin/php /opt/rpidns/scripts/clean_db.php
+42 3 * * *	sleep 25;/usr/bin/sqlite3 /opt/rpidns/www/db/rpidns.sqlite 'VACUUM;'
+EOF
+    cat /tmp/$SUDO_USER | crontab -u $SUDO_USER -
+    rm -rf /tmp/$SUDO_USER
+    chmod 664 /opt/rpidns/www/rpisettings.php
+    chown $SUDO_USER:www-data /opt/rpidns/www/rpisettings.php
+    ### 2020-07-07 Manage bind from apache
+    adduser www-data bind
+    adduser $SUDO_USER bind
+    adduser $SUDO_USER www-data
+else
+    echo "Skiping local DB and cron setup in container's env"
+    #pull named root hints
+    curl https://www.internic.net/domain/named.root -o /opt/rpidns/config/bind/named.root
+fi
 
 #Install MAC DB
 curl https://gitlab.com/wireshark/wireshark/raw/master/manuf -o /opt/rpidns/scripts/mac.db
@@ -60,7 +70,3 @@ rm -R /tmp/fontawesome-free-5.12.1-web /tmp/fontawesome-free-5.12.1-web.zip
 #;security.limit_extensions = .php .php3 .php4 .php5 .php7
 #pi@pi-dev:/opt/rpidns/www $
 
-### 2020-07-07 Manage bind from apache
-adduser www-data bind
-adduser $SUDO_USER bind
-adduser $SUDO_USER www-data
