@@ -233,7 +233,7 @@ http {
         }
 
         # Admin interface with basic auth
-        location /admin {
+        location /rpi_admin {
             auth_basic "RpiDNS Admin";
             auth_basic_user_file /opt/rpidns/conf/.htpasswd;
             
