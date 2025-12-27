@@ -37,6 +37,10 @@ RUN apk add --no-cache \
 RUN addgroup -g 82 -S www-data 2>/dev/null || true \
     && adduser -u 82 -D -S -G www-data www-data 2>/dev/null || true
 
+# Configure php-fpm to run as www-data
+RUN sed -i 's/^user = .*/user = www-data/' /etc/php83/php-fpm.d/www.conf \
+    && sed -i 's/^group = .*/group = www-data/' /etc/php83/php-fpm.d/www.conf
+
 # Create directory structure
 RUN mkdir -p /opt/rpidns/www \
     && mkdir -p /opt/rpidns/www/db \

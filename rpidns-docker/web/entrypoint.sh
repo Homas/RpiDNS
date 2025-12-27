@@ -114,21 +114,22 @@ mkdir -p /opt/rpidns/logs/nginx
 mkdir -p /opt/rpidns/www/db
 
 ### Init DB
+DB_VERSION=0
 if [ -f /opt/rpidns/www/db/rpidns.sqlite ]; then
-    echo "/opt/rpidns/www/db/rpidns.sqlite exists, skiping DB init."
+    DB_VERSION=$(sqlite3 /opt/rpidns/www/db/rpidns.sqlite "PRAGMA user_version;" 2>/dev/null || echo "0")
+fi
+
+if [ "$DB_VERSION" -gt 0 ]; then
+    echo "/opt/rpidns/www/db/rpidns.sqlite exists and initialized (version: $DB_VERSION), skipping DB init."
 else
     echo "Init DB"
     chmod 775 /opt/rpidns/www/db
     touch /opt/rpidns/www/db/rpidns.sqlite
     chown www-data:www-data /opt/rpidns/www/db/rpidns.sqlite
     chmod 660 /opt/rpidns/www/db/rpidns.sqlite
-    if [ -f "/opt/rpidns/www/db/rpidns.sqlite" ]; then
-        /usr/bin/php /opt/rpidns/scripts/init_db.php
-        chmod 664 /opt/rpidns/www/rpisettings.php
-        chown www-data:www-data /opt/rpidns/www/rpisettings.php
-    else
-        echo "DB init script is missing!!!"
-    fi
+    /usr/bin/php /opt/rpidns/scripts/init_db.php
+    chmod 664 /opt/rpidns/www/rpisettings.php
+    chown www-data:www-data /opt/rpidns/www/rpisettings.php
 fi
 ### End Init DB
 
