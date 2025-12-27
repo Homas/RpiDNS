@@ -2,7 +2,7 @@
 # nginx with Lua support for dynamic SSL certificate generation
 
 worker_processes auto;
-error_log /opt/rpidns/logs/nginx_error.log warn;
+error_log /opt/rpidns/logs/nginx/nginx_error.log warn;
 pid /run/openresty/nginx.pid;
 
 events {
@@ -21,7 +21,7 @@ http {
                     '$status $body_bytes_sent "$http_referer" '
                     '"$http_user_agent" "$http_x_forwarded_for"';
 
-    access_log /opt/rpidns/logs/nginx_access.log main;
+    access_log /opt/rpidns/logs/nginx/nginx_access.log main;
 
     sendfile on;
     tcp_nopush on;

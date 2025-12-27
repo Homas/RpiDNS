@@ -111,12 +111,12 @@ fi
 # Ensure directories exist and have correct permissions
 mkdir -p /run/php
 mkdir -p /run/openresty
-mkdir -p /opt/rpidns/logs
+mkdir -p /opt/rpidns/logs/nginx
 mkdir -p /opt/rpidns/www/db
 chown -R www-data:www-data /run/php
 chown -R www-data:www-data /run/openresty
 chown -R www-data:www-data /opt/rpidns/www
-chown -R www-data:www-data /opt/rpidns/logs/nginx*
+chown -R www-data:www-data /opt/rpidns/logs/nginx
 
 # Configure rsyslog based on logging mode (Requirements: 11.1, 11.2, 11.5, 11.6)
 RSYSLOG_CONF="/etc/rsyslog.conf"
