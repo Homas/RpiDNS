@@ -23,7 +23,8 @@ fi
 # Ensure proper ownership on mounted volumes
 # These directories need to be writable by the named user
 chown -R named:named /var/cache/bind 2>/dev/null || true
-chown -R named:named /opt/rpidns/logs/bind* 2>/dev/null || true
+chown named:named /opt/rpidns/logs 2>/dev/null || true
+chown named:named /opt/rpidns/logs/bind* 2>/dev/null || true
 
 # Verify permissions on cache directory
 if [ -w /var/cache/bind ]; then
