@@ -24,7 +24,7 @@
     "@vitejs/plugin-vue2": "^2.3.4",
     "apexcharts": "^5.3.6",
     "axios": "^1.13.2",
-    "bootstrap": "^5.3.8",
+    "bootstrap": "^4.6.2",
     "bootstrap-vue": "^2.23.1",
     "vite": "^7.3.0",
     "vue": "^2.7.16",
