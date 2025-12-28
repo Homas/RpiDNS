@@ -12,30 +12,25 @@
 		$manifest = json_decode(file_get_contents($manifestPath), true);
 	}
 
-	// Helper function to get asset path from manifest
-	function getAssetPath($manifest, $key) {
-		if (isset($manifest[$key]) && isset($manifest[$key]['file'])) {
-			return '/rpi_admin/dist/' . $manifest[$key]['file'];
-		}
-		return '';
-	}
-
-	// Get main entry point assets
-	$mainJs = getAssetPath($manifest, 'index.html');
+	// Get main entry point assets from manifest
+	$mainJs = '';
 	$mainCss = '';
-	if (isset($manifest['index.html']['css'][0])) {
-		$mainCss = '/rpi_admin/dist/' . $manifest['index.html']['css'][0];
-	}
-
-	// Get vendor assets for preloading
-	$vendorVueJs = getAssetPath($manifest, '_vendor-vue-BkyXSOm9.js');
-	$vendorBootstrapJs = getAssetPath($manifest, '_vendor-bootstrap-Dm1xJeC8.js');
 	$vendorBootstrapCss = '';
-	if (isset($manifest['_vendor-bootstrap-Bl5lLFHa.css']['file'])) {
-		$vendorBootstrapCss = '/rpi_admin/dist/' . $manifest['_vendor-bootstrap-Bl5lLFHa.css']['file'];
+	
+	if (isset($manifest['index.html'])) {
+		$mainJs = '/rpi_admin/dist/' . $manifest['index.html']['file'];
+		if (isset($manifest['index.html']['css'][0])) {
+			$mainCss = '/rpi_admin/dist/' . $manifest['index.html']['css'][0];
+		}
 	}
-	$vendorChartsJs = getAssetPath($manifest, '_vendor-charts-C2ogHOKZ.js');
-	$vendorUtilsJs = getAssetPath($manifest, '_vendor-utils-B9ygI19o.js');
+	
+	// Find vendor-bootstrap CSS dynamically by searching manifest keys
+	foreach ($manifest as $key => $value) {
+		if (strpos($key, 'vendor-bootstrap') !== false && strpos($key, '.css') !== false) {
+			$vendorBootstrapCss = '/rpi_admin/dist/' . $value['file'];
+			break;
+		}
+	}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -51,20 +46,6 @@
 	<?php endif; ?>
 	<?php if ($mainCss): ?>
 	<link rel="stylesheet" href="<?= $mainCss ?>">
-	<?php endif; ?>
-
-	<!-- Preload vendor chunks for better performance -->
-	<?php if ($vendorVueJs): ?>
-	<link rel="modulepreload" href="<?= $vendorVueJs ?>">
-	<?php endif; ?>
-	<?php if ($vendorBootstrapJs): ?>
-	<link rel="modulepreload" href="<?= $vendorBootstrapJs ?>">
-	<?php endif; ?>
-	<?php if ($vendorChartsJs): ?>
-	<link rel="modulepreload" href="<?= $vendorChartsJs ?>">
-	<?php endif; ?>
-	<?php if ($vendorUtilsJs): ?>
-	<link rel="modulepreload" href="<?= $vendorUtilsJs ?>">
 	<?php endif; ?>
 </head>
 <body>
@@ -87,6 +68,6 @@
 	<script type="module" src="/rpi_admin/dist/assets/main.js"></script>
 	<?php endif; ?>
 
-	<div class="copyright"><p>Copyright © 2020-2023 Vadim Pavlov</p></div>
+	<div class="copyright"><p>Copyright © 2020-2026 Vadim Pavlov</p></div>
 </body>
 </html>

@@ -487,10 +487,6 @@ export default {
 </script>
 
 <style scoped>
-.v-spacer {
-  height: 10px;
-}
-
 .salmon {
   color: salmon;
 }

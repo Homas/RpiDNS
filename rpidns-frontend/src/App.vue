@@ -425,8 +425,4 @@ export default {
 .placeholder-content {
   padding: 1rem;
 }
-
-.v-spacer {
-  height: 10px;
-}
 </style>
