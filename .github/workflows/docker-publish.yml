@@ -8,6 +8,9 @@ on:
       - vue3migration
     paths:
       - 'rpidns-docker/**'
+      - 'rpidns-frontend/**'
+      - 'www/**'
+      - 'scripts/**'
       - '.github/workflows/docker-publish.yml'
   pull_request:
     branches:
@@ -16,6 +19,9 @@ on:
       - vue3migration
     paths:
       - 'rpidns-docker/**'
+      - 'rpidns-frontend/**'
+      - 'www/**'
+      - 'scripts/**'
   workflow_dispatch:
     inputs:
       tag:
