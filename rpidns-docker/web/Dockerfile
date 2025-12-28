@@ -92,10 +92,10 @@ RUN chown -R www-data:www-data /opt/rpidns \
     && chown -R www-data:www-data /run/openresty
 
 # Copy configuration files
-COPY nginx.conf.template /etc/nginx/nginx.conf
-COPY rsyslog.conf /etc/rsyslog.conf
-COPY crontab /etc/crontabs/root
-COPY entrypoint.sh /entrypoint.sh
+COPY rpidns-docker/web/nginx.conf.template /etc/nginx/nginx.conf
+COPY rpidns-docker/web/rsyslog.conf /etc/rsyslog.conf
+COPY rpidns-docker/web/crontab /etc/crontabs/root
+COPY rpidns-docker/web/entrypoint.sh /entrypoint.sh
 
 # Set permissions
 RUN chmod +x /entrypoint.sh \

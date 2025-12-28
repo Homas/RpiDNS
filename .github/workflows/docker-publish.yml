@@ -41,7 +41,7 @@ jobs:
             context: ./rpidns-docker/bind
             dockerfile: ./rpidns-docker/bind/Dockerfile
           - image: rpidns-web
-            context: ./rpidns-docker/web
+            context: .
             dockerfile: ./rpidns-docker/web/Dockerfile
 
     steps:
