@@ -3,13 +3,17 @@ name: Build and Publish RpiDNS Docker Images
 on:
   push:
     branches:
+      - master
       - dev
+      - vue3migration
     paths:
       - 'rpidns-docker/**'
       - '.github/workflows/docker-publish.yml'
   pull_request:
     branches:
+      - master
       - dev
+      - vue3migration
     paths:
       - 'rpidns-docker/**'
   workflow_dispatch:

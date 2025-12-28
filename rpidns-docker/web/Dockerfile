@@ -1,5 +1,32 @@
 # RpiDNS Web Container
 # OpenResty (nginx with Lua) + PHP-FPM + RSyslog for RpiDNS web UI
+# Multi-stage build: Stage 1 builds frontend with Vite, Stage 2 creates final image
+
+#############################
+# Stage 1: Build Frontend
+#############################
+FROM node:20-alpine AS frontend-builder
+
+LABEL maintainer="Vadim Pavlov"
+LABEL description="Frontend build stage for RpiDNS"
+
+WORKDIR /build
+
+# Copy frontend source files
+COPY rpidns-frontend/package*.json ./
+
+# Install npm dependencies
+RUN npm install
+
+# Copy the rest of the frontend source
+COPY rpidns-frontend/ ./
+
+# Build production assets with Vite
+RUN npm run build
+
+#############################
+# Stage 2: Final Image
+#############################
 FROM alpine:3.21
 
 LABEL maintainer="Vadim Pavlov"
@@ -45,6 +72,7 @@ RUN sed -i 's/^user = .*/user = www-data/' /etc/php83/php-fpm.d/www.conf \
 # Create directory structure
 RUN mkdir -p /opt/rpidns/www \
     && mkdir -p /opt/rpidns/www/db \
+    && mkdir -p /opt/rpidns/www/rpi_admin/dist \
     && mkdir -p /opt/rpidns/conf/ssl \
     && mkdir -p /opt/rpidns/conf/ssl_sign \
     && mkdir -p /opt/rpidns/conf/ssl_cache \
@@ -54,6 +82,9 @@ RUN mkdir -p /opt/rpidns/www \
     && mkdir -p /run/openresty \
     && mkdir -p /var/log/rsyslog \
     && ln -s /sbin/ip /bin/ip
+
+# Copy built frontend assets from builder stage
+COPY --from=frontend-builder /build/dist /opt/rpidns/www/rpi_admin/dist
 
 # Set ownership
 RUN chown -R www-data:www-data /opt/rpidns \

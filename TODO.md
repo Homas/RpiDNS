@@ -1,3 +1,8 @@
+# Migration to VUE3
+[ ] Root hints provision for bind
+
+
+
 ## Bugs
  - [ ] Drill-down from TopX Servers - wrong filter.
  - [x] Disabled (log only) feeds are not parsed.

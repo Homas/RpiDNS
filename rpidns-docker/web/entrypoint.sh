@@ -1,12 +1,24 @@
 #!/bin/bash
 # RpiDNS Web Container Entrypoint
 # Initializes SSL certificates, starts rsyslog, cron, php-fpm, and openresty
+# Note: Frontend assets are pre-built during Docker image creation (multi-stage build)
+# and served directly as static files - no runtime build required
 
 set -e
 
 echo "Starting RpiDNS Web container..."
 echo "Hostname: ${RPIDNS_HOSTNAME}"
 echo "Logging Mode: ${RPIDNS_LOGGING}"
+
+# Verify frontend assets exist (built during Docker image creation)
+FRONTEND_DIST="/opt/rpidns/www/rpi_admin/dist"
+if [ ! -d "${FRONTEND_DIST}" ] || [ -z "$(ls -A ${FRONTEND_DIST} 2>/dev/null)" ]; then
+    echo "WARNING: Frontend assets not found at ${FRONTEND_DIST}"
+    echo "The frontend should be pre-built during Docker image creation."
+    echo "Please rebuild the Docker image to include frontend assets."
+else
+    echo "Frontend assets found at ${FRONTEND_DIST}"
+fi
 
 # Initialize SSL certificates if not present
 SSL_DIR="/opt/rpidns/conf/ssl"

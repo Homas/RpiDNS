@@ -1,0 +1,37 @@
+{
+  "name": "rpidns-frontend",
+  "version": "1.0.0",
+  "description": "RpiDNS Web UI - Vue frontend with Vite build system",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "copy:dist": "rm -rf ../www/rpi_admin/dist && cp -r dist ../www/rpi_admin/dist",
+    "build:deploy": "npm run build && npm run copy:dist",
+    "test": "vitest"
+  },
+  "keywords": [
+    "rpidns",
+    "dns",
+    "vue",
+    "vite"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.1.0",
+    "@vitejs/plugin-vue2": "^2.3.4",
+    "apexcharts": "^5.3.6",
+    "axios": "^1.13.2",
+    "bootstrap": "^5.3.8",
+    "bootstrap-vue": "^2.23.1",
+    "vite": "^7.3.0",
+    "vue": "^2.7.16",
+    "vue-apexcharts": "^1.7.0"
+  },
+  "devDependencies": {
+    "fast-check": "^4.5.2",
+    "vitest": "^3.2.4"
+  }
+}
