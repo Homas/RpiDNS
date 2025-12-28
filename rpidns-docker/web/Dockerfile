@@ -86,6 +86,14 @@ RUN mkdir -p /opt/rpidns/www \
 # Copy built frontend assets from builder stage
 COPY --from=frontend-builder /build/dist /opt/rpidns/www/rpi_admin/dist
 
+# Copy PHP application files from source
+COPY www/rpidns_vars.php /opt/rpidns/www/rpidns_vars.php
+COPY www/rpisettings.php /opt/rpidns/www/rpisettings.php
+COPY www/rpi_admin/index.php /opt/rpidns/www/rpi_admin/index.php
+COPY www/rpi_admin/rpidata.php /opt/rpidns/www/rpi_admin/rpidata.php
+COPY www/blocked /opt/rpidns/www/blocked
+COPY scripts /opt/rpidns/scripts
+
 # Set ownership
 RUN chown -R www-data:www-data /opt/rpidns \
     && chown -R www-data:www-data /run/php \

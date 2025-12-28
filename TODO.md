@@ -1,5 +1,5 @@
 # Migration to VUE3
-[ ] Root hints provision for bind
+- [ ] Root hints provision for bind
 
 
 
