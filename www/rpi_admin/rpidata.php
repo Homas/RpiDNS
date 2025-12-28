@@ -455,7 +455,7 @@ RpiDNS powered by https://ioc2rpz.net
 
     case "GET blacklist":
     case "GET whitelist":
-			$list=$REQUEST["req"]=='blacklist'?'bl':'wl';
+			$list=$REQUEST["req"]=='blacklist'?'block':'allow';
 			$sql="select rowid, strftime('%Y-%m-%dT%H:%M:%SZ',added_dt, 'unixepoch', 'utc') as dtz, ioc, comment, subdomains, active from localzone where ltype='$list';";
 			$sql_count="select count(rowid) as cnt from localzone where ltype='$list';";
 			$response='{"status":"ok", "records":"'.(DB_fetchRecord($db,$sql_count)['cnt']).'","data":'.json_encode(DB_selectArray($db,$sql)).'}';
@@ -463,39 +463,39 @@ RpiDNS powered by https://ioc2rpz.net
 
     case "POST blacklist":
     case "POST whitelist":
-			$list=$REQUEST["req"]=='blacklist'?'bl':'wl';
+			$list=$REQUEST["req"]=='blacklist'?'block':'allow';
 			$ioc=filter_var($REQUEST['ioc'], FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME);
       $sql="insert into localzone(ioc, active, subdomains, comment, added_dt, ltype) values('".DB_escape($db,$ioc)."',".($REQUEST['active']=='true'?'true':'false').",".($REQUEST['subdomains']=='true'?'true':'false').",'".DB_escape($db,$REQUEST['comment'])."',".time().",'$list')";
       if (DB_execute($db,$sql)) {
 				$out=[];
-				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
+				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
 				$response='{"status":"success","details":'.json_encode($out).'}';
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
 
     case "PUT blacklist":
     case "PUT whitelist":
-			$list=$REQUEST["req"]=='blacklist'?'bl':'wl';
+			$list=$REQUEST["req"]=='blacklist'?'block':'allow';
 			$rec=DB_fetchRecord($db,"select ioc,active,subdomains from localzone where rowid=".intval($REQUEST['id']));
 			$ioc=filter_var($REQUEST['ioc'], FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME);
       $sql="update localzone set ioc='".DB_escape($db,$ioc)."', active=".($REQUEST['active']=='true'?'true':'false').", subdomains=".($REQUEST['subdomains']=='true'?'true':'false').", comment='".DB_escape($db,$REQUEST['comment'])."' where rowid=".intval($REQUEST['id']);
       if (DB_execute($db,$sql)) {
 				$response='{"status":"success"}';
 				$out=[];
-				if (($rec['active']=='1' and $REQUEST['active']!='true') or ($ioc != $rec['active'])) exec('printf "server '.$bind_host.'\nupdate delete '.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
-				if (($rec['subdomains']=='1' and $REQUEST['subdomains']!='true')) exec('printf "server '.$bind_host.'\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
-				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
+				if (($rec['active']=='1' and $REQUEST['active']!='true') or ($ioc != $rec['active'])) exec('printf "server '.$bind_host.'\nupdate delete '.$rec['ioc'].'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+				if (($rec['subdomains']=='1' and $REQUEST['subdomains']!='true')) exec('printf "server '.$bind_host.'\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
 
     case "DELETE blacklist":
     case "DELETE whitelist":
-			$list=$REQUEST["req"]=='blacklist'?'bl':'wl';
+			$list=$REQUEST["req"]=='blacklist'?'block':'allow';
 			$ioc=DB_fetchRecord($db,"select ioc from localzone where rowid=".intval($REQUEST['id']))['ioc'];
 			$sql="delete from localzone where rowid=".intval($REQUEST['id']);
       if (DB_execute($db,$sql)) {
 				$out=[];
-				exec('printf "server '.$bind_host.'\nupdate delete '.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nupdate delete *.'.$ioc.'.'.$list.'.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+				exec('printf "server '.$bind_host.'\nupdate delete '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate delete *.'.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
 				$response='{"status":"success","details":'.json_encode($out).'}';
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
@@ -519,7 +519,7 @@ RpiDNS powered by https://ioc2rpz.net
 	case "GET rpz_feeds":
 			$feeds=[];
 			exec('/bin/grep "zone.*policy" /etc/bind/named.conf.options',$out);
-			#zone "wl-ip.ioc2rpz.local" policy passthru log no;#local whitelist ip-based
+			#zone "wl-ip.ioc2rpz.rpidns" policy passthru log no;#local whitelist ip-based
 			foreach ($out as $line){
 				if (preg_match('/^zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
 					$feeds[]=["feed"=>trim($rpz[1]), "action"=>trim($rpz[2]), "desc"=>trim($rpz[3])];
@@ -531,7 +531,7 @@ RpiDNS powered by https://ioc2rpz.net
 		//
 	case "PUT retransfer_feed":
 		exec('/bin/grep "zone.*policy" /etc/bind/named.conf.options',$out);
-		#zone "wl-ip.ioc2rpz.local" policy passthru log no;#local whitelist ip-based
+		#zone "wl-ip.ioc2rpz.rpidns" policy passthru log no;#local whitelist ip-based
 		foreach ($out as $line){
 			if (preg_match('/^zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
 				$feeds[trim($rpz[1])]=["feed"=>trim($rpz[1]), "action"=>trim($rpz[2]), "desc"=>trim($rpz[3])];
