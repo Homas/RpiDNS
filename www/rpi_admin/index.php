@@ -1,5 +1,5 @@
 <?php
-#(c) Vadim Pavlov 2020
+#(c) Vadim Pavlov 2020-2026
 #rpidns - Vite + Vue 2 build
 	require_once "/opt/rpidns/www/rpidns_vars.php";
 	require_once "/opt/rpidns/www/rpisettings.php";
