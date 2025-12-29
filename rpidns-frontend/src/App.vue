@@ -1,47 +1,44 @@
 <template>
   <div id="ConfApp" class="h-100 d-flex flex-column" v-cloak>
     <!-- Header -->
-    <div class="menu-bkgr white pl-4 pt-2">
+    <div class="menu-bkgr white ps-4 pt-2">
       <span style="font-size: 32px">RpiDNS</span> powered by 
       <a href="https://ioc2rpz.net" target="_blank">ioc2rpz.net</a>
     </div>
 
     <!-- Main Container with Tabs -->
-    <BContainer 
-      fluid 
-      class="flex-grow-1 d-flex flex-column p-0"
-    >
-      <div class="d-flex h-100 position-relative">
-        <!-- Menu Toggle Icons - positioned relative to nav -->
-        <div class="position-relative" :class="{ 'd-none': windowInnerWidth <= 500 }">
-          <i 
-            v-cloak 
-            class="fa fa-angle-double-left border rounded-end border-dark bg-light" 
-            style="position: absolute; right: -15px; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
-            :class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }" 
-            @click="collapseMenu"
-          ></i>
-          <i 
-            v-cloak 
-            class="fa fa-angle-double-right border rounded-end border-dark bg-light" 
-            style="position: absolute; right: -15px; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
-            :class="{ hidden: (toggleMenu != 2 && windowInnerWidth >= 992) || (toggleMenu != 1 && windowInnerWidth < 992) }" 
-            @click="expandMenu"
-          ></i>
-        </div>
-        
-        <BTabs 
-          ref="i2r" 
-          pills 
-          :vertical="windowInnerWidth > 500" 
-          lazy 
-          :nav-wrapper-class="{'menu-bkgr': true, 'h-100': windowInnerWidth > 500, 'p-1': windowInnerWidth > 500}" 
-          class="h-100 w-100 corners" 
-          content-class="curl_angels flex-grow-1" 
-          v-model="cfgTab" 
-          @update:model-value="changeTab"
-          :nav-class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }"
-        >
+    <BContainer fluid class="flex-grow-1 p-0 overflow-hidden">
+      <BTabs 
+        ref="i2r" 
+        pills 
+        :vertical="windowInnerWidth > 500" 
+        lazy 
+        :nav-wrapper-class="navWrapperClass" 
+        class="h-100 corners" 
+        content-class="curl_angels h-100 overflow-auto" 
+        v-model="cfgTab" 
+        @update:model-value="changeTab"
+        :nav-class="navClass"
+      >
+        <!-- Menu Toggle Icons - inside nav area -->
+        <template #tabs-start>
+          <div class="position-relative" style="width: 0; height: 0;">
+            <i 
+              v-cloak 
+              class="fa fa-angle-double-left border rounded-end border-secondary bg-light" 
+              style="position: absolute; left: 100%; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px; margin-left: 5px;" 
+              :class="{ hidden: shouldHideCollapseIcon }" 
+              @click="collapseMenu"
+            ></i>
+            <i 
+              v-cloak 
+              class="fa fa-angle-double-right border rounded-end border-secondary bg-light" 
+              style="position: absolute; left: 0; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
+              :class="{ hidden: shouldHideExpandIcon }" 
+              @click="expandMenu"
+            ></i>
+          </div>
+        </template>
 
         <!-- Dashboard Tab -->
         <BTab class="scroll_tab">
@@ -109,7 +106,7 @@
             <i class="fas fa-hands-helping"></i>
             <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Help</span>
           </template>
-          <div class="placeholder-content">
+          <div class="p-3">
             <BCard>
               <template #header>
                 <span class="bold"><i class="fas fa-hands-helping"></i>&nbsp;&nbsp;Help</span>
@@ -118,13 +115,12 @@
             </BCard>
           </div>
         </BTab>
-        </BTabs>
-      </div>
+      </BTabs>
     </BContainer>
 
     <!-- Copyright Footer -->
     <div class="copyright">
-      <p>Copyright © 2020-2023 Vadim Pavlov</p>
+      <p>Copyright © 2020-2026 Vadim Pavlov</p>
     </div>
 
     <!-- Modal Dialogs -->
@@ -177,7 +173,7 @@
       centered
       header-class="p-2 border-bottom-0"
       footer-class="p-2 border-top-0"
-      body-class="font-weight-bold text-center"
+      body-class="fw-bold text-center"
     >
       {{ infoModalMessage }}
     </BModal>
@@ -185,7 +181,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import Dashboard from './components/Dashboard.vue'
 import QueryLog from './components/QueryLog.vue'
 import RpzHits from './components/RpzHits.vue'
@@ -219,6 +215,30 @@ export default {
     const cfgTab = ref(0)
     const windowInnerWidth = ref(800)
     const logs_height = ref(150)
+
+    // Computed classes for nav
+    const navWrapperClass = computed(() => ({
+      'menu-bkgr': true, 
+      'h-100': windowInnerWidth.value > 500, 
+      'p-1': windowInnerWidth.value > 500
+    }))
+
+    const navClass = computed(() => ({ 
+      hidden: (toggleMenu.value == 2 && windowInnerWidth.value >= 992) || 
+              (toggleMenu.value == 1 && windowInnerWidth.value < 992) 
+    }))
+
+    const shouldHideCollapseIcon = computed(() => 
+      (toggleMenu.value == 2 && windowInnerWidth.value >= 992) || 
+      (toggleMenu.value == 1 && windowInnerWidth.value < 992) ||
+      windowInnerWidth.value <= 500
+    )
+
+    const shouldHideExpandIcon = computed(() => 
+      (toggleMenu.value != 2 && windowInnerWidth.value >= 992) || 
+      (toggleMenu.value != 1 && windowInnerWidth.value < 992) ||
+      windowInnerWidth.value <= 500
+    )
 
     // Query Logs state
     const qlogs_Filter = ref('')
@@ -323,7 +343,6 @@ export default {
         const result = await response.json()
 
         if (result.status === 'success') {
-          // Emit event to refresh the table - handled by child components
           window.dispatchEvent(new CustomEvent('refresh-table', { detail: { table } }))
         } else {
           showInfo(result.reason, 3)
@@ -476,6 +495,10 @@ export default {
       cfgTab,
       windowInnerWidth,
       logs_height,
+      navWrapperClass,
+      navClass,
+      shouldHideCollapseIcon,
+      shouldHideExpandIcon,
       qlogs_Filter,
       qlogs_period,
       hits_Filter,

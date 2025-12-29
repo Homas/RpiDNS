@@ -1,314 +1,209 @@
 <template>
-  <div fluid v-cloak>
+  <div>
     <div class="v-spacer"></div>
-    <b-card no-body class="d-flex flex-column" style="max-height:calc(100vh - 100px)">
+    <BCard>
       <!-- Header with Refresh and Period Selection -->
-      <template slot="header">
-        <b-row>
-          <b-col cols="0" class="d-none d-lg-block" lg="2">
+      <template #header>
+        <BRow>
+          <BCol cols="0" class="d-none d-lg-block" lg="2">
             <span class="bold"><i class="fas fa-tachometer-alt"></i>&nbsp;&nbsp;Dashboard</span>
-          </b-col>
-          <b-col cols="12" lg="10" class="text-right">
-            <b-form-group class="m-0">
-              <b-button 
-                v-b-tooltip.hover 
-                title="Refresh" 
-                variant="outline-secondary" 
-                size="sm" 
-                @click.stop="refreshDash"
+          </BCol>
+          <BCol cols="12" lg="10" class="text-end">
+            <BButton 
+              v-b-tooltip.hover 
+              title="Refresh" 
+              variant="outline-secondary" 
+              size="sm" 
+              @click.stop="refreshDash"
+            >
+              <i class="fa fa-sync"></i>
+            </BButton>&nbsp;&nbsp;&nbsp;
+            <BButtonGroup size="sm">
+              <BButton 
+                v-for="opt in period_options" 
+                :key="opt.value"
+                :variant="dash_period === opt.value ? 'secondary' : 'outline-secondary'"
+                :disabled="opt.disabled"
+                @click="selectPeriod(opt.value)"
               >
-                <i class="fa fa-sync"></i>
-              </b-button>&nbsp;&nbsp;&nbsp;
-              <b-form-radio-group 
-                v-model="dash_period" 
-                :options="period_options" 
-                buttons 
-                size="sm" 
-                @input="onPeriodChange"
-              ></b-form-radio-group>
-            </b-form-group>
-          </b-col>
-        </b-row>
+                {{ opt.text }}
+              </BButton>
+            </BButtonGroup>
+          </BCol>
+        </BRow>
       </template>
 
       <div class="v-spacer"></div>
 
       <!-- First Row: Allowed Stats -->
-      <div>
-        <b-card-group deck>
-          <!-- TopX Allowed Requests -->
-          <b-card header="TopX Allowed Requests" body-class="p-2">
-            <div>
-              <b-table 
-                id="dash_topX_req" 
-                sticky-header="150px" 
-                no-border-collapse 
-                striped 
-                hover 
-                small 
-                :items="getTables" 
-                :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req&period=' + dash_period" 
-                :fields="dash_stats_fields" 
-                thead-class="hidden" 
-                @row-clicked="onAllowedRequestClick"
-              >
-                <template v-slot:table-busy>
-                  <div class="text-center text-second m-0 p-0">
-                    <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong>
-                  </div>
-                </template>
-                <template v-slot:cell(fname)="row">
-                  <b-popover title="Actions" :target="'tip-good_requests' + row.item.fname" triggers="hover">
-                    <a href="javascript:{}" @click.stop="showQueries('fqdn=' + row.item.fname)">Show queries</a><br>
-                    <a href="javascript:{}" @click.stop="blockDomain(row.item.fname)">Block</a>
-                    <hr class="m-1">
-                    <strong>Research:</strong><br>
-                    <research-links :domain="row.item.fname" />
-                  </b-popover>
-                  <span :id="'tip-good_requests' + row.item.fname">{{ row.item.fname }}</span>
-                </template>
-              </b-table>
+      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-2 mb-2">
+        <!-- TopX Allowed Requests -->
+        <div class="col">
+          <BCard class="h-100">
+            <template #header><small>TopX Allowed Requests</small></template>
+            <BTableSimple striped hover small responsive class="mb-0">
+              <BTbody>
+                <BTr v-for="item in topXReq" :key="item.fname" class="mouseoverpointer" @click="onAllowedRequestClick(item)">
+                  <BTd class="mw350">{{ item.fname }}</BTd>
+                  <BTd>{{ item.cnt }}</BTd>
+                </BTr>
+              </BTbody>
+            </BTableSimple>
+            <div v-if="loading.topXReq" class="text-center m-0 p-0">
+              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
             </div>
-          </b-card>
+          </BCard>
+        </div>
 
-          <!-- TopX Allowed Clients -->
-          <b-card header="TopX Allowed Clients" body-class="p-2">
-            <div>
-              <b-table 
-                id="dash_topX_client" 
-                sticky-header="150px" 
-                no-border-collapse 
-                striped 
-                hover 
-                small 
-                :items="getTables" 
-                :api-url="'/rpi_admin/rpidata.php?req=dash_topX_client&period=' + dash_period" 
-                :fields="dash_stats_fields" 
-                thead-class="hidden" 
-                @row-clicked="onAllowedClientClick"
-              >
-                <template v-slot:table-busy>
-                  <div class="text-center text-second m-0 p-0">
-                    <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong>
-                  </div>
-                </template>
-                <template v-slot:cell(fname)="row">
-                  <b-popover title="Actions" :target="'tip-good_clients' + row.item.fname" triggers="hover">
-                    <a href="javascript:{}" @click.stop="showQueriesForClient(row.item)">Show queries</a><br>
-                    <a href="javascript:{}" @click.stop="showHitsForClient(row.item)">Show hits</a>
-                  </b-popover>
-                  <span :id="'tip-good_clients' + row.item.fname">{{ row.item.fname }}</span>
-                </template>
-              </b-table>
+        <!-- TopX Allowed Clients -->
+        <div class="col">
+          <BCard class="h-100">
+            <template #header><small>TopX Allowed Clients</small></template>
+            <BTableSimple striped hover small responsive class="mb-0">
+              <BTbody>
+                <BTr v-for="item in topXClient" :key="item.fname" class="mouseoverpointer" @click="onAllowedClientClick(item)">
+                  <BTd class="mw350">{{ item.fname }}</BTd>
+                  <BTd>{{ item.cnt }}</BTd>
+                </BTr>
+              </BTbody>
+            </BTableSimple>
+            <div v-if="loading.topXClient" class="text-center m-0 p-0">
+              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
             </div>
-          </b-card>
+          </BCard>
+        </div>
 
-          <!-- TopX Allowed Request Types -->
-          <b-card header="TopX Allowed Request Types" body-class="p-2">
-            <div>
-              <b-table 
-                id="dash_topX_req_type" 
-                sticky-header="150px" 
-                no-border-collapse 
-                striped 
-                hover 
-                small 
-                :items="getTables" 
-                :api-url="'/rpi_admin/rpidata.php?req=dash_topX_req_type&period=' + dash_period" 
-                :fields="dash_stats_fields" 
-                thead-class="hidden" 
-                @row-clicked="onRequestTypeClick"
-              >
-                <template v-slot:table-busy>
-                  <div class="text-center text-second m-0 p-0">
-                    <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong>
-                  </div>
-                </template>
-              </b-table>
+        <!-- TopX Allowed Request Types -->
+        <div class="col">
+          <BCard class="h-100">
+            <template #header><small>TopX Allowed Request Types</small></template>
+            <BTableSimple striped hover small responsive class="mb-0">
+              <BTbody>
+                <BTr v-for="item in topXReqType" :key="item.fname" class="mouseoverpointer" @click="onRequestTypeClick(item)">
+                  <BTd class="mw350">{{ item.fname }}</BTd>
+                  <BTd>{{ item.cnt }}</BTd>
+                </BTr>
+              </BTbody>
+            </BTableSimple>
+            <div v-if="loading.topXReqType" class="text-center m-0 p-0">
+              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
             </div>
-          </b-card>
+          </BCard>
+        </div>
 
-          <!-- RpiDNS Stats -->
-          <b-card header="RpiDNS" body-class="p-2">
-            <div>
-              <b-table 
-                id="dash_server_stats" 
-                sticky-header="150px" 
-                no-border-collapse 
-                striped 
-                hover 
-                small 
-                :items="getTables" 
-                :api-url="'/rpi_admin/rpidata.php?req=server_stats'" 
-                :fields="dash_stats_fields" 
-                thead-class="hidden"
-              >
-                <template v-slot:table-busy>
-                  <div class="text-center text-second m-0 p-0">
-                    <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong>
-                  </div>
-                </template>
-                <template v-slot:cell(cnt)="row">
-                  <div v-if="row.item.fname === 'CPU load'">
-                    <b-popover :target="'tip-RpiDNS' + row.item.fname" triggers="hover" placement="topright">
-                      Load in 1 minute, 5 minutes, 15 minutes
-                    </b-popover>
-                    <span :id="'tip-RpiDNS' + row.item.fname">{{ row.item.cnt }}</span>
-                  </div>
-                  <div v-else>{{ row.item.cnt }}</div>
-                </template>
-              </b-table>
+        <!-- RpiDNS Stats -->
+        <div class="col">
+          <BCard class="h-100">
+            <template #header><small>RpiDNS</small></template>
+            <BTableSimple striped hover small responsive class="mb-0">
+              <BTbody>
+                <BTr v-for="item in serverStats" :key="item.fname">
+                  <BTd class="mw350">{{ item.fname }}</BTd>
+                  <BTd>
+                    <span v-if="item.fname === 'CPU load'" v-b-tooltip.hover="'Load in 1 minute, 5 minutes, 15 minutes'">{{ item.cnt }}</span>
+                    <span v-else>{{ item.cnt }}</span>
+                  </BTd>
+                </BTr>
+              </BTbody>
+            </BTableSimple>
+            <div v-if="loading.serverStats" class="text-center m-0 p-0">
+              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
             </div>
-          </b-card>
-        </b-card-group>
+          </BCard>
+        </div>
       </div>
 
       <div class="v-spacer"></div>
 
       <!-- Second Row: Blocked Stats -->
-      <div>
-        <b-card-group deck>
-          <!-- TopX Blocked Requests -->
-          <b-card header="TopX Blocked Requests" body-class="p-2">
-            <div>
-              <b-table 
-                id="dash_topX_breq" 
-                sticky-header="150px" 
-                no-border-collapse 
-                striped 
-                hover 
-                small 
-                :items="getTables" 
-                :api-url="'/rpi_admin/rpidata.php?req=dash_topX_breq&period=' + dash_period" 
-                :fields="dash_stats_fields" 
-                thead-class="hidden" 
-                @row-clicked="onBlockedRequestClick"
-              >
-                <template v-slot:table-busy>
-                  <div class="text-center text-second m-0 p-0">
-                    <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong>
-                  </div>
-                </template>
-                <template v-slot:cell(fname)="row">
-                  <b-popover title="Actions" :target="'tip-bad_requests' + row.item.fname" triggers="hover">
-                    Show <a href="javascript:{}" @click.stop="showQueries('fqdn=' + row.item.fname)">queries</a>&nbsp;|&nbsp;
-                    <a href="javascript:{}" @click.stop="showHits('fqdn=' + row.item.fname)">hits</a><br>
-                    <a href="javascript:{}" @click.stop="allowDomain(row.item.fname)">Allow</a>
-                    <hr class="m-1">
-                    <strong>Research:</strong><br>
-                    <research-links :domain="row.item.fname" />
-                  </b-popover>
-                  <span :id="'tip-bad_requests' + row.item.fname">{{ row.item.fname }}</span>
-                </template>
-              </b-table>
+      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-2 mb-2">
+        <!-- TopX Blocked Requests -->
+        <div class="col">
+          <BCard class="h-100">
+            <template #header><small>TopX Blocked Requests</small></template>
+            <BTableSimple striped hover small responsive class="mb-0">
+              <BTbody>
+                <BTr v-for="item in topXBreq" :key="item.fname" class="mouseoverpointer" @click="onBlockedRequestClick(item)">
+                  <BTd class="mw350">{{ item.fname }}</BTd>
+                  <BTd>{{ item.cnt }}</BTd>
+                </BTr>
+              </BTbody>
+            </BTableSimple>
+            <div v-if="loading.topXBreq" class="text-center m-0 p-0">
+              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
             </div>
-          </b-card>
+          </BCard>
+        </div>
 
-          <!-- TopX Blocked Clients -->
-          <b-card header="TopX Blocked Clients" body-class="p-2">
-            <div>
-              <b-table 
-                id="dash_topX_bclient" 
-                sticky-header="150px" 
-                no-border-collapse 
-                striped 
-                hover 
-                small 
-                :items="getTables" 
-                :api-url="'/rpi_admin/rpidata.php?req=dash_topX_bclient&period=' + dash_period" 
-                :fields="dash_stats_fields" 
-                thead-class="hidden" 
-                @row-clicked="onBlockedClientClick"
-              >
-                <template v-slot:table-busy>
-                  <div class="text-center text-second m-0 p-0">
-                    <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong>
-                  </div>
-                </template>
-                <template v-slot:cell(fname)="row">
-                  <b-popover title="Actions" :target="'tip-bad_clients' + row.item.fname" triggers="hover">
-                    Show <a href="javascript:{}" @click.stop="showQueriesForClient(row.item)">queries</a>&nbsp;|&nbsp;
-                    <a href="javascript:{}" @click.stop="showHitsForClient(row.item)">hits</a>
-                  </b-popover>
-                  <span :id="'tip-bad_clients' + row.item.fname">{{ row.item.fname }}</span>
-                </template>
-              </b-table>
+        <!-- TopX Blocked Clients -->
+        <div class="col">
+          <BCard class="h-100">
+            <template #header><small>TopX Blocked Clients</small></template>
+            <BTableSimple striped hover small responsive class="mb-0">
+              <BTbody>
+                <BTr v-for="item in topXBclient" :key="item.fname" class="mouseoverpointer" @click="onBlockedClientClick(item)">
+                  <BTd class="mw350">{{ item.fname }}</BTd>
+                  <BTd>{{ item.cnt }}</BTd>
+                </BTr>
+              </BTbody>
+            </BTableSimple>
+            <div v-if="loading.topXBclient" class="text-center m-0 p-0">
+              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
             </div>
-          </b-card>
+          </BCard>
+        </div>
 
-          <!-- TopX Feeds -->
-          <b-card header="TopX Feeds" body-class="p-2">
-            <div>
-              <b-table 
-                id="dash_topX_feeds" 
-                sticky-header="150px" 
-                no-border-collapse 
-                striped 
-                hover 
-                small 
-                :items="getTables" 
-                :api-url="'/rpi_admin/rpidata.php?req=dash_topX_feeds&period=' + dash_period" 
-                :fields="dash_stats_fields" 
-                thead-class="hidden" 
-                @row-clicked="onFeedClick"
-              >
-                <template v-slot:table-busy>
-                  <div class="text-center text-second m-0 p-0">
-                    <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong>
-                  </div>
-                </template>
-              </b-table>
+        <!-- TopX Feeds -->
+        <div class="col">
+          <BCard class="h-100">
+            <template #header><small>TopX Feeds</small></template>
+            <BTableSimple striped hover small responsive class="mb-0">
+              <BTbody>
+                <BTr v-for="item in topXFeeds" :key="item.fname" class="mouseoverpointer" @click="onFeedClick(item)">
+                  <BTd class="mw350">{{ item.fname }}</BTd>
+                  <BTd>{{ item.cnt }}</BTd>
+                </BTr>
+              </BTbody>
+            </BTableSimple>
+            <div v-if="loading.topXFeeds" class="text-center m-0 p-0">
+              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
             </div>
-          </b-card>
+          </BCard>
+        </div>
 
-          <!-- TopX Servers -->
-          <b-card header="TopX Servers" body-class="p-2">
-            <div>
-              <b-table 
-                id="dash_topX_server" 
-                sticky-header="150px" 
-                no-border-collapse 
-                striped 
-                hover 
-                small 
-                :items="getTables" 
-                :api-url="'/rpi_admin/rpidata.php?req=dash_topX_server&period=' + dash_period" 
-                :fields="dash_stats_fields" 
-                thead-class="hidden" 
-                @row-clicked="onServerClick"
-              >
-                <template v-slot:table-busy>
-                  <div class="text-center text-second m-0 p-0">
-                    <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;<strong>Loading...</strong>
-                  </div>
-                </template>
-              </b-table>
+        <!-- TopX Servers -->
+        <div class="col">
+          <BCard class="h-100">
+            <template #header><small>TopX Servers</small></template>
+            <BTableSimple striped hover small responsive class="mb-0">
+              <BTbody>
+                <BTr v-for="item in topXServer" :key="item.fname" class="mouseoverpointer" @click="onServerClick(item)">
+                  <BTd class="mw350">{{ item.fname }}</BTd>
+                  <BTd>{{ item.cnt }}</BTd>
+                </BTr>
+              </BTbody>
+            </BTableSimple>
+            <div v-if="loading.topXServer" class="text-center m-0 p-0">
+              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
             </div>
-          </b-card>
-        </b-card-group>
+          </BCard>
+        </div>
       </div>
 
       <div class="v-spacer"></div>
 
       <!-- QPS Chart Row -->
-      <div>
-        <b-card-group deck>
-          <b-card header="Queries per Minute">
-            <apexchart 
-              type="area" 
-              height="200" 
-              width="99%" 
-              :options="qps_options" 
-              :series="qps_series"
-            ></apexchart>
-          </b-card>
-        </b-card-group>
-      </div>
-    </b-card>
+      <BCard>
+        <template #header><small>Queries per Minute</small></template>
+        <apexchart type="area" height="200" width="99%" :options="qps_options" :series="qps_series"></apexchart>
+      </BCard>
+    </BCard>
   </div>
 </template>
 
+
 <script>
+import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
 import ResearchLinks from './ResearchLinks.vue'
 
@@ -317,162 +212,143 @@ export default {
   components: {
     ResearchLinks
   },
-  data() {
-    return {
-      dash_period: '30m',
-      
-      // Table field definitions
-      dash_stats_fields: [
-        { key: 'fname', label: 'Name', tdClass: 'mw350 mouseoverpointer' },
-        { key: 'cnt', label: 'Count' }
-      ],
-      
-      // Period options for radio group
-      period_options: [
-        { text: '30m', value: '30m' },
-        { text: '1h', value: '1h' },
-        { text: '1d', value: '1d' },
-        { text: '1w', value: '1w' },
-        { text: '30d', value: '30d' },
-        { text: 'custom', value: 'custom', disabled: true }
-      ],
-      
-      // QPS Chart data
-      qps_series: [],
-      qps_options: {
-        colors: ['#008FFB', '#FA4443'],
-        chart: {
-          id: 'qps-stats'
-        },
-        dataLabels: {
-          enabled: false
-        },
-        xaxis: {
-          type: 'datetime',
-          labels: { datetimeUTC: false }
-        },
-        tooltip: {
-          x: {
-            format: 'dd MMM yyyy H:mm'
-          }
-        },
-        yaxis: {
-          min: 0
-        },
-        fill: {
-          type: 'gradient',
-          gradient: {
-            opacityFrom: 0.6,
-            opacityTo: 0.8
-          }
-        }
-      }
+  emits: ['navigate', 'add-ioc'],
+  setup(props, { emit }) {
+    const dash_period = ref('30m')
+
+    // Data for tables
+    const topXReq = ref([])
+    const topXClient = ref([])
+    const topXReqType = ref([])
+    const serverStats = ref([])
+    const topXBreq = ref([])
+    const topXBclient = ref([])
+    const topXFeeds = ref([])
+    const topXServer = ref([])
+
+    // Loading states
+    const loading = reactive({
+      topXReq: false,
+      topXClient: false,
+      topXReqType: false,
+      serverStats: false,
+      topXBreq: false,
+      topXBclient: false,
+      topXFeeds: false,
+      topXServer: false
+    })
+
+    // Period options for radio group
+    const period_options = [
+      { text: '30m', value: '30m' },
+      { text: '1h', value: '1h' },
+      { text: '1d', value: '1d' },
+      { text: '1w', value: '1w' },
+      { text: '30d', value: '30d' },
+      { text: 'custom', value: 'custom', disabled: true }
+    ]
+
+    // QPS Chart data
+    const qps_series = ref([])
+    const qps_options = {
+      colors: ['#008FFB', '#FA4443'],
+      chart: { id: 'qps-stats' },
+      dataLabels: { enabled: false },
+      xaxis: { type: 'datetime', labels: { datetimeUTC: false } },
+      tooltip: { x: { format: 'dd MMM yyyy H:mm' } },
+      yaxis: { min: 0 },
+      fill: { type: 'gradient', gradient: { opacityFrom: 0.6, opacityTo: 0.8 } }
     }
-  },
-  mounted() {
-    this.refreshDashQPS()
-  },
-  methods: {
+
     // Fetch table data from API
-    getTables(obj) {
-      const URL = obj.apiUrl
-      const promise = axios.get(obj.apiUrl + '&sortBy=' + obj.sortBy + '&sortDesc=' + obj.sortDesc)
-      return promise.then((data) => {
-        const items = data.data.data
+    const fetchTableData = async (endpoint, loadingKey, dataRef) => {
+      loading[loadingKey] = true
+      try {
+        const response = await axios.get(`/rpi_admin/rpidata.php?req=${endpoint}&period=${dash_period.value}&sortBy=cnt&sortDesc=true`)
+        const items = response.data.data
         if (/DOCTYPE html/.test(items)) {
           window.location.reload(false)
         }
-        return items
-      }).catch(() => {
-        return []
-      })
-    },
-    
+        dataRef.value = items || []
+      } catch (error) {
+        dataRef.value = []
+      } finally {
+        loading[loadingKey] = false
+      }
+    }
+
     // Refresh QPS chart data
-    refreshDashQPS() {
-      axios.get('/rpi_admin/rpidata.php?req=qps_chart&period=' + this.dash_period)
-        .then((data) => {
-          this.qps_series = data.data
-        })
-    },
-    
+    const refreshDashQPS = async () => {
+      try {
+        const response = await axios.get('/rpi_admin/rpidata.php?req=qps_chart&period=' + dash_period.value)
+        qps_series.value = response.data
+      } catch (error) {
+        console.error('Error fetching QPS data:', error)
+      }
+    }
+
     // Refresh all dashboard data
-    refreshDash() {
-      this.refreshDashQPS()
-      this.$root.$emit('bv::refresh::table', 'dash_topX_req')
-      this.$root.$emit('bv::refresh::table', 'dash_topX_req_type')
-      this.$root.$emit('bv::refresh::table', 'dash_topX_client')
-      this.$root.$emit('bv::refresh::table', 'dash_topX_breq')
-      this.$root.$emit('bv::refresh::table', 'dash_topX_bclient')
-      this.$root.$emit('bv::refresh::table', 'dash_topX_feeds')
-      this.$root.$emit('bv::refresh::table', 'dash_topX_server')
-    },
-    
-    // Handle period change
-    onPeriodChange() {
-      this.refreshDashQPS()
-    },
-    
-    // Navigation helpers - emit events to parent
-    showQueries(filter) {
-      this.$emit('navigate', { tab: 1, filter: filter, period: this.dash_period, type: 'qlogs' })
-    },
-    
-    showHits(filter) {
-      this.$emit('navigate', { tab: 2, filter: filter, period: this.dash_period, type: 'hits' })
-    },
-    
-    showQueriesForClient(item) {
-      const filter = (item.mac == null || item.mac === '') 
-        ? 'client_ip=' + item.fname 
-        : 'mac=' + item.mac
-      this.showQueries(filter)
-    },
-    
-    showHitsForClient(item) {
-      const filter = (item.mac == null || item.mac === '') 
-        ? 'client_ip=' + item.fname 
-        : 'mac=' + item.mac
-      this.showHits(filter)
-    },
-    
+    const refreshDash = () => {
+      refreshDashQPS()
+      fetchTableData('dash_topX_req', 'topXReq', topXReq)
+      fetchTableData('dash_topX_client', 'topXClient', topXClient)
+      fetchTableData('dash_topX_req_type', 'topXReqType', topXReqType)
+      fetchTableData('server_stats', 'serverStats', serverStats)
+      fetchTableData('dash_topX_breq', 'topXBreq', topXBreq)
+      fetchTableData('dash_topX_bclient', 'topXBclient', topXBclient)
+      fetchTableData('dash_topX_feeds', 'topXFeeds', topXFeeds)
+      fetchTableData('dash_topX_server', 'topXServer', topXServer)
+    }
+
+    const onPeriodChange = () => { refreshDash() }
+
+    const selectPeriod = (value) => {
+      if (value !== 'custom') {
+        dash_period.value = value
+        refreshDash()
+      }
+    }
+
+    // Navigation helpers
+    const showQueries = (filter) => { emit('navigate', { tab: 1, filter, period: dash_period.value, type: 'qlogs' }) }
+    const showHits = (filter) => { emit('navigate', { tab: 2, filter, period: dash_period.value, type: 'hits' }) }
+    const showQueriesForClient = (item) => {
+      const filter = (item.mac == null || item.mac === '') ? 'client_ip=' + item.fname : 'mac=' + item.mac
+      showQueries(filter)
+    }
+    const showHitsForClient = (item) => {
+      const filter = (item.mac == null || item.mac === '') ? 'client_ip=' + item.fname : 'mac=' + item.mac
+      showHits(filter)
+    }
+
     // Row click handlers
-    onAllowedRequestClick(item) {
-      this.showQueries('fqdn=' + item.fname)
-    },
-    
-    onAllowedClientClick(item) {
-      this.showQueriesForClient(item)
-    },
-    
-    onRequestTypeClick(item) {
-      this.showQueries('type=' + item.fname)
-    },
-    
-    onBlockedRequestClick(item) {
-      this.showHits('fqdn=' + item.fname)
-    },
-    
-    onBlockedClientClick(item) {
-      this.showHitsForClient(item)
-    },
-    
-    onFeedClick(item) {
-      this.showHits('feed=' + item.fname)
-    },
-    
-    onServerClick(item) {
-      this.showQueries('server=' + item.fname)
-    },
-    
-    // Block/Allow actions - emit events to parent for modal handling
-    blockDomain(domain) {
-      this.$emit('add-ioc', { ioc: domain, type: 'bl' })
-    },
-    
-    allowDomain(domain) {
-      this.$emit('add-ioc', { ioc: domain, type: 'wl' })
+    const onAllowedRequestClick = (item) => { showQueries('fqdn=' + item.fname) }
+    const onAllowedClientClick = (item) => { showQueriesForClient(item) }
+    const onRequestTypeClick = (item) => { showQueries('type=' + item.fname) }
+    const onBlockedRequestClick = (item) => { showHits('fqdn=' + item.fname) }
+    const onBlockedClientClick = (item) => { showHitsForClient(item) }
+    const onFeedClick = (item) => { showHits('feed=' + item.fname) }
+    const onServerClick = (item) => { showQueries('server=' + item.fname) }
+
+    // Block/Allow actions
+    const blockDomain = (domain) => { emit('add-ioc', { ioc: domain, type: 'bl' }) }
+    const allowDomain = (domain) => { emit('add-ioc', { ioc: domain, type: 'wl' }) }
+
+    onMounted(() => { refreshDash() })
+
+    return {
+      dash_period, period_options, topXReq, topXClient, topXReqType, serverStats,
+      topXBreq, topXBclient, topXFeeds, topXServer, loading, qps_series, qps_options,
+      refreshDash, refreshDashQPS, onPeriodChange, selectPeriod, showQueries, showHits,
+      showQueriesForClient, showHitsForClient, onAllowedRequestClick, onAllowedClientClick,
+      onRequestTypeClick, onBlockedRequestClick, onBlockedClientClick, onFeedClick,
+      onServerClick, blockDomain, allowDomain
     }
   }
 }
 </script>
+
+<style scoped>
+.mw350 { max-width: 350px; }
+.mouseoverpointer { cursor: pointer; }
+</style>
