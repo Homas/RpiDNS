@@ -47,6 +47,7 @@
             @click="expandMenu"
           ></i>
         </div>
+    </div>
 
       <BTabs 
         ref="i2r" 
