@@ -277,7 +277,9 @@ export default {
       this.addBLRowID = data.rowid !== undefined ? data.rowid : 0
       this.addIOCactive = data.active !== undefined ? data.active : true
       this.addIOCsubd = data.subdomains !== undefined ? data.subdomains : true
-      this.$root.$emit('bv::show::modal', 'mAddIOC')
+      this.$nextTick(() => {
+        this.$root.$emit('bv::show::modal', 'mAddIOC')
+      })
     },
     
     // Handle IOC delete request from Admin Block/Allow lists
@@ -339,7 +341,9 @@ export default {
       this.addAssetVendor = data.vendor
       this.addAssetComment = data.comment
       this.addAssetRowID = data.rowid
-      this.$root.$emit('bv::show::modal', 'mAddAsset')
+      this.$nextTick(() => {
+        this.$root.$emit('bv::show::modal', 'mAddAsset')
+      })
     },
     
     // Handle asset delete request from Admin
@@ -404,7 +408,9 @@ export default {
     // Handle open import modal request from Tools
     handleOpenImportModal(data) {
       this.db_import_type = data.db_import_type || []
-      this.$root.$emit('bv::show::modal', 'mImportDB')
+      this.$nextTick(() => {
+        this.$root.$emit('bv::show::modal', 'mImportDB')
+      })
     },
     
     // Fetch settings from API
