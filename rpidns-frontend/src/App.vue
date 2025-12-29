@@ -7,33 +7,33 @@
     </div>
 
     <!-- Main Container with Tabs -->
-    <BContainer fluid class="flex-grow-1 p-0 overflow-hidden">
+    <BContainer fluid class="flex-grow-1 p-0 d-flex">
       <BTabs 
         ref="i2r" 
         pills 
         :vertical="windowInnerWidth > 500" 
         lazy 
         :nav-wrapper-class="navWrapperClass" 
-        class="h-100 corners" 
-        content-class="curl_angels h-100 overflow-auto" 
+        class="flex-grow-1 corners position-relative" 
+        content-class="curl_angels flex-grow-1 overflow-auto" 
         v-model="cfgTab" 
         @update:model-value="changeTab"
         :nav-class="navClass"
       >
-        <!-- Menu Toggle Icons - inside nav area -->
-        <template #tabs-start>
-          <div class="position-relative" style="width: 0; height: 0;">
+        <!-- Menu Toggle Icons -->
+        <template #tabs-end v-if="windowInnerWidth > 500">
+          <div class="position-relative mt-2">
             <i 
               v-cloak 
-              class="fa fa-angle-double-left border rounded-end border-secondary bg-light" 
-              style="position: absolute; left: 100%; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px; margin-left: 5px;" 
+              class="fa fa-angle-double-left border rounded border-secondary text-dark" 
+              style="cursor: pointer; padding: 3px 6px;" 
               :class="{ hidden: shouldHideCollapseIcon }" 
               @click="collapseMenu"
             ></i>
             <i 
               v-cloak 
-              class="fa fa-angle-double-right border rounded-end border-secondary bg-light" 
-              style="position: absolute; left: 0; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
+              class="fa fa-angle-double-right border rounded border-secondary text-dark" 
+              style="cursor: pointer; padding: 3px 6px;" 
               :class="{ hidden: shouldHideExpandIcon }" 
               @click="expandMenu"
             ></i>

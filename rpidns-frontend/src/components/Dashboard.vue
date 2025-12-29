@@ -1,7 +1,6 @@
 <template>
-  <div>
-    <div class="v-spacer"></div>
-    <BCard>
+  <div class="h-100 overflow-auto p-2">
+    <BCard class="h-100 d-flex flex-column">
       <!-- Header with Refresh and Period Selection -->
       <template #header>
         <BRow>
@@ -33,167 +32,177 @@
         </BRow>
       </template>
 
-      <div class="v-spacer"></div>
-
       <!-- First Row: Allowed Stats -->
-      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-2 mb-2">
+      <div class="row g-2 mb-2">
         <!-- TopX Allowed Requests -->
-        <div class="col">
-          <BCard class="h-100">
+        <div class="col-12 col-md-6 col-lg-3">
+          <BCard class="widget-card">
             <template #header><small>TopX Allowed Requests</small></template>
-            <BTableSimple striped hover small responsive class="mb-0">
-              <BTbody>
-                <BTr v-for="item in topXReq" :key="item.fname" class="mouseoverpointer" @click="onAllowedRequestClick(item)">
-                  <BTd class="mw350">{{ item.fname }}</BTd>
-                  <BTd>{{ item.cnt }}</BTd>
-                </BTr>
-              </BTbody>
-            </BTableSimple>
-            <div v-if="loading.topXReq" class="text-center m-0 p-0">
-              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+            <div class="widget-body">
+              <BTableSimple striped hover small class="mb-0">
+                <BTbody>
+                  <BTr v-for="item in topXReq" :key="item.fname" class="mouseoverpointer" @click="onAllowedRequestClick(item)">
+                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  </BTr>
+                </BTbody>
+              </BTableSimple>
+              <div v-if="loading.topXReq" class="text-center p-2">
+                <BSpinner small></BSpinner>&nbsp;Loading...
+              </div>
             </div>
           </BCard>
         </div>
 
         <!-- TopX Allowed Clients -->
-        <div class="col">
-          <BCard class="h-100">
+        <div class="col-12 col-md-6 col-lg-3">
+          <BCard class="widget-card">
             <template #header><small>TopX Allowed Clients</small></template>
-            <BTableSimple striped hover small responsive class="mb-0">
-              <BTbody>
-                <BTr v-for="item in topXClient" :key="item.fname" class="mouseoverpointer" @click="onAllowedClientClick(item)">
-                  <BTd class="mw350">{{ item.fname }}</BTd>
-                  <BTd>{{ item.cnt }}</BTd>
-                </BTr>
-              </BTbody>
-            </BTableSimple>
-            <div v-if="loading.topXClient" class="text-center m-0 p-0">
-              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+            <div class="widget-body">
+              <BTableSimple striped hover small class="mb-0">
+                <BTbody>
+                  <BTr v-for="item in topXClient" :key="item.fname" class="mouseoverpointer" @click="onAllowedClientClick(item)">
+                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  </BTr>
+                </BTbody>
+              </BTableSimple>
+              <div v-if="loading.topXClient" class="text-center p-2">
+                <BSpinner small></BSpinner>&nbsp;Loading...
+              </div>
             </div>
           </BCard>
         </div>
 
         <!-- TopX Allowed Request Types -->
-        <div class="col">
-          <BCard class="h-100">
+        <div class="col-12 col-md-6 col-lg-3">
+          <BCard class="widget-card">
             <template #header><small>TopX Allowed Request Types</small></template>
-            <BTableSimple striped hover small responsive class="mb-0">
-              <BTbody>
-                <BTr v-for="item in topXReqType" :key="item.fname" class="mouseoverpointer" @click="onRequestTypeClick(item)">
-                  <BTd class="mw350">{{ item.fname }}</BTd>
-                  <BTd>{{ item.cnt }}</BTd>
-                </BTr>
-              </BTbody>
-            </BTableSimple>
-            <div v-if="loading.topXReqType" class="text-center m-0 p-0">
-              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+            <div class="widget-body">
+              <BTableSimple striped hover small class="mb-0">
+                <BTbody>
+                  <BTr v-for="item in topXReqType" :key="item.fname" class="mouseoverpointer" @click="onRequestTypeClick(item)">
+                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  </BTr>
+                </BTbody>
+              </BTableSimple>
+              <div v-if="loading.topXReqType" class="text-center p-2">
+                <BSpinner small></BSpinner>&nbsp;Loading...
+              </div>
             </div>
           </BCard>
         </div>
 
         <!-- RpiDNS Stats -->
-        <div class="col">
-          <BCard class="h-100">
+        <div class="col-12 col-md-6 col-lg-3">
+          <BCard class="widget-card">
             <template #header><small>RpiDNS</small></template>
-            <BTableSimple striped hover small responsive class="mb-0">
-              <BTbody>
-                <BTr v-for="item in serverStats" :key="item.fname">
-                  <BTd class="mw350">{{ item.fname }}</BTd>
-                  <BTd>
-                    <span v-if="item.fname === 'CPU load'" v-b-tooltip.hover="'Load in 1 minute, 5 minutes, 15 minutes'">{{ item.cnt }}</span>
-                    <span v-else>{{ item.cnt }}</span>
-                  </BTd>
-                </BTr>
-              </BTbody>
-            </BTableSimple>
-            <div v-if="loading.serverStats" class="text-center m-0 p-0">
-              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+            <div class="widget-body">
+              <BTableSimple striped hover small class="mb-0">
+                <BTbody>
+                  <BTr v-for="item in serverStats" :key="item.fname">
+                    <BTd>{{ item.fname }}</BTd>
+                    <BTd class="text-end">
+                      <span v-if="item.fname === 'CPU load'" v-b-tooltip.hover="'Load in 1 minute, 5 minutes, 15 minutes'">{{ item.cnt }}</span>
+                      <span v-else>{{ item.cnt }}</span>
+                    </BTd>
+                  </BTr>
+                </BTbody>
+              </BTableSimple>
+              <div v-if="loading.serverStats" class="text-center p-2">
+                <BSpinner small></BSpinner>&nbsp;Loading...
+              </div>
             </div>
           </BCard>
         </div>
       </div>
 
-      <div class="v-spacer"></div>
-
       <!-- Second Row: Blocked Stats -->
-      <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-2 mb-2">
+      <div class="row g-2 mb-2">
         <!-- TopX Blocked Requests -->
-        <div class="col">
-          <BCard class="h-100">
+        <div class="col-12 col-md-6 col-lg-3">
+          <BCard class="widget-card">
             <template #header><small>TopX Blocked Requests</small></template>
-            <BTableSimple striped hover small responsive class="mb-0">
-              <BTbody>
-                <BTr v-for="item in topXBreq" :key="item.fname" class="mouseoverpointer" @click="onBlockedRequestClick(item)">
-                  <BTd class="mw350">{{ item.fname }}</BTd>
-                  <BTd>{{ item.cnt }}</BTd>
-                </BTr>
-              </BTbody>
-            </BTableSimple>
-            <div v-if="loading.topXBreq" class="text-center m-0 p-0">
-              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+            <div class="widget-body">
+              <BTableSimple striped hover small class="mb-0">
+                <BTbody>
+                  <BTr v-for="item in topXBreq" :key="item.fname" class="mouseoverpointer" @click="onBlockedRequestClick(item)">
+                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  </BTr>
+                </BTbody>
+              </BTableSimple>
+              <div v-if="loading.topXBreq" class="text-center p-2">
+                <BSpinner small></BSpinner>&nbsp;Loading...
+              </div>
             </div>
           </BCard>
         </div>
 
         <!-- TopX Blocked Clients -->
-        <div class="col">
-          <BCard class="h-100">
+        <div class="col-12 col-md-6 col-lg-3">
+          <BCard class="widget-card">
             <template #header><small>TopX Blocked Clients</small></template>
-            <BTableSimple striped hover small responsive class="mb-0">
-              <BTbody>
-                <BTr v-for="item in topXBclient" :key="item.fname" class="mouseoverpointer" @click="onBlockedClientClick(item)">
-                  <BTd class="mw350">{{ item.fname }}</BTd>
-                  <BTd>{{ item.cnt }}</BTd>
-                </BTr>
-              </BTbody>
-            </BTableSimple>
-            <div v-if="loading.topXBclient" class="text-center m-0 p-0">
-              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+            <div class="widget-body">
+              <BTableSimple striped hover small class="mb-0">
+                <BTbody>
+                  <BTr v-for="item in topXBclient" :key="item.fname" class="mouseoverpointer" @click="onBlockedClientClick(item)">
+                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  </BTr>
+                </BTbody>
+              </BTableSimple>
+              <div v-if="loading.topXBclient" class="text-center p-2">
+                <BSpinner small></BSpinner>&nbsp;Loading...
+              </div>
             </div>
           </BCard>
         </div>
 
         <!-- TopX Feeds -->
-        <div class="col">
-          <BCard class="h-100">
+        <div class="col-12 col-md-6 col-lg-3">
+          <BCard class="widget-card">
             <template #header><small>TopX Feeds</small></template>
-            <BTableSimple striped hover small responsive class="mb-0">
-              <BTbody>
-                <BTr v-for="item in topXFeeds" :key="item.fname" class="mouseoverpointer" @click="onFeedClick(item)">
-                  <BTd class="mw350">{{ item.fname }}</BTd>
-                  <BTd>{{ item.cnt }}</BTd>
-                </BTr>
-              </BTbody>
-            </BTableSimple>
-            <div v-if="loading.topXFeeds" class="text-center m-0 p-0">
-              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+            <div class="widget-body">
+              <BTableSimple striped hover small class="mb-0">
+                <BTbody>
+                  <BTr v-for="item in topXFeeds" :key="item.fname" class="mouseoverpointer" @click="onFeedClick(item)">
+                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  </BTr>
+                </BTbody>
+              </BTableSimple>
+              <div v-if="loading.topXFeeds" class="text-center p-2">
+                <BSpinner small></BSpinner>&nbsp;Loading...
+              </div>
             </div>
           </BCard>
         </div>
 
         <!-- TopX Servers -->
-        <div class="col">
-          <BCard class="h-100">
+        <div class="col-12 col-md-6 col-lg-3">
+          <BCard class="widget-card">
             <template #header><small>TopX Servers</small></template>
-            <BTableSimple striped hover small responsive class="mb-0">
-              <BTbody>
-                <BTr v-for="item in topXServer" :key="item.fname" class="mouseoverpointer" @click="onServerClick(item)">
-                  <BTd class="mw350">{{ item.fname }}</BTd>
-                  <BTd>{{ item.cnt }}</BTd>
-                </BTr>
-              </BTbody>
-            </BTableSimple>
-            <div v-if="loading.topXServer" class="text-center m-0 p-0">
-              <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+            <div class="widget-body">
+              <BTableSimple striped hover small class="mb-0">
+                <BTbody>
+                  <BTr v-for="item in topXServer" :key="item.fname" class="mouseoverpointer" @click="onServerClick(item)">
+                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  </BTr>
+                </BTbody>
+              </BTableSimple>
+              <div v-if="loading.topXServer" class="text-center p-2">
+                <BSpinner small></BSpinner>&nbsp;Loading...
+              </div>
             </div>
           </BCard>
         </div>
       </div>
 
-      <div class="v-spacer"></div>
-
       <!-- QPS Chart Row -->
-      <BCard>
+      <BCard class="flex-grow-1">
         <template #header><small>Queries per Minute</small></template>
         <apexchart type="area" height="200" width="99%" :options="qps_options" :series="qps_series"></apexchart>
       </BCard>
@@ -351,4 +360,23 @@ export default {
 <style scoped>
 .mw350 { max-width: 350px; }
 .mouseoverpointer { cursor: pointer; }
+
+/* Widget cards with fixed height */
+.widget-card {
+  height: 100%;
+}
+.widget-card :deep(.card-body) {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.widget-card :deep(.card-header) {
+  padding: 0.25rem 0.5rem;
+}
+.widget-body {
+  height: 150px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 </style>
