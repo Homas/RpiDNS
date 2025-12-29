@@ -9,35 +9,39 @@
     <!-- Main Container with Tabs -->
     <BContainer 
       fluid 
-      :class="{'h-100': true, 'd-flex': true, 'flex-column': true, 'p-0': windowInnerWidth <= 500}"
+      class="flex-grow-1 d-flex flex-column p-0"
     >
-      <BTabs 
-        ref="i2r" 
-        pills 
-        :vertical="windowInnerWidth > 500" 
-        lazy 
-        :nav-wrapper-class="{'menu-bkgr': true, 'h-100': windowInnerWidth > 500, 'p-1': windowInnerWidth > 500}" 
-        class="h-100 corners" 
-        content-class="curl_angels" 
-        v-model="cfgTab" 
-        @update:model-value="changeTab"
-        :nav-class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }"
-      >
-        <!-- Menu Toggle Icons -->
-        <i 
-          v-cloak 
-          class="fa fa-angle-double-left border rounded-right border-dark" 
-          style="position: absolute; left: -2px; top: 10px; z-index: 1; cursor: pointer;" 
-          :class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }" 
-          @click="collapseMenu"
-        ></i>
-        <i 
-          v-cloak 
-          class="fa fa-angle-double-right border rounded-right border-dark" 
-          style="position: absolute; left: -2px; top: 10px; z-index: 1; cursor: pointer;" 
-          :class="{ hidden: (toggleMenu != 2 && windowInnerWidth >= 992) || (toggleMenu != 1 && windowInnerWidth < 992) }" 
-          @click="expandMenu"
-        ></i>
+      <div class="d-flex h-100 position-relative">
+        <!-- Menu Toggle Icons - positioned relative to nav -->
+        <div class="position-relative" :class="{ 'd-none': windowInnerWidth <= 500 }">
+          <i 
+            v-cloak 
+            class="fa fa-angle-double-left border rounded-end border-dark bg-light" 
+            style="position: absolute; right: -15px; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
+            :class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }" 
+            @click="collapseMenu"
+          ></i>
+          <i 
+            v-cloak 
+            class="fa fa-angle-double-right border rounded-end border-dark bg-light" 
+            style="position: absolute; right: -15px; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
+            :class="{ hidden: (toggleMenu != 2 && windowInnerWidth >= 992) || (toggleMenu != 1 && windowInnerWidth < 992) }" 
+            @click="expandMenu"
+          ></i>
+        </div>
+        
+        <BTabs 
+          ref="i2r" 
+          pills 
+          :vertical="windowInnerWidth > 500" 
+          lazy 
+          :nav-wrapper-class="{'menu-bkgr': true, 'h-100': windowInnerWidth > 500, 'p-1': windowInnerWidth > 500}" 
+          class="h-100 w-100 corners" 
+          content-class="curl_angels flex-grow-1" 
+          v-model="cfgTab" 
+          @update:model-value="changeTab"
+          :nav-class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }"
+        >
 
         <!-- Dashboard Tab -->
         <BTab class="scroll_tab">
@@ -114,7 +118,8 @@
             </BCard>
           </div>
         </BTab>
-      </BTabs>
+        </BTabs>
+      </div>
     </BContainer>
 
     <!-- Copyright Footer -->
