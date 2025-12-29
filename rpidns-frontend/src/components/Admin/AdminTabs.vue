@@ -1,7 +1,6 @@
 <template>
-  <div>
-    <div class="v-spacer"></div>
-    <BCard no-body>
+  <div class="h-100 overflow-auto p-2">
+    <BCard no-body class="h-100">
       <BTabs card v-model="activeTab">
         <!-- Assets Tab -->
         <BTab title="Assets" active>

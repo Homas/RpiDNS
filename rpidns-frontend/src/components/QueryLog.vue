@@ -1,7 +1,6 @@
 <template>
-  <div>
-    <div class="v-spacer"></div>
-    <BCard>
+  <div class="h-100 overflow-auto p-2">
+    <BCard class="h-100 d-flex flex-column">
       <!-- Header with Refresh and Period Selection -->
       <template #header>
         <BRow>
