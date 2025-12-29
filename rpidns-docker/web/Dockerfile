@@ -87,6 +87,7 @@ RUN mkdir -p /opt/rpidns/www \
 COPY --from=frontend-builder /build/dist /opt/rpidns/www/rpi_admin/dist
 
 # Copy PHP application files from source
+COPY www/blocked.php /opt/rpidns/www/blocked.php
 COPY www/rpidns_vars.php /opt/rpidns/www/rpidns_vars.php
 COPY www/rpisettings.php /opt/rpidns/www/rpisettings.php
 COPY www/rpi_admin/index.php /opt/rpidns/www/rpi_admin/index.php

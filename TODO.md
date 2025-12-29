@@ -1,14 +1,15 @@
 # Migration to VUE3
 - [ ] Root hints provision for bind
-- [ ] Remove block.php from the install script on the community
-- [ ] Can't download CA cert with docker
-PHP message: PHP Warning:  fopen(/opt/rpidns/www/ioc2rpzCA.crt): Failed to open stream: No such file or directory in /opt/rpidns/www/rpi_admin/rpidata.php on line 402; PHP message: PHP Fatal error:  Uncaught TypeError: fpassthru(): Argument #1 ($stream) must be of type resource, false given in /opt/rpidns/www/rpi_admin/rpidata.php:430
 - [ ] Import DB for ZIP
 TypeError: Cannot read properties of undefined (reading 'length')
 - [ ] unzipped, tried to import but Import DB modal doesn't close and generate the same error as above
 - [ ] RPZ 1d,1w shows more than 1h by one (4 vs 3)
+
+- [x] Remove blocked.php from the install script on the community
+- [x] Can't download CA cert with docker
+PHP message: PHP Warning:  fopen(/opt/rpidns/www/ioc2rpzCA.crt): Failed to open stream: No such file or directory in /opt/rpidns/www/rpi_admin/rpidata.php on line 402; PHP message: PHP Fatal error:  Uncaught TypeError: fpassthru(): Argument #1 ($stream) must be of type resource, false given in /opt/rpidns/www/rpi_admin/rpidata.php:430
 - [x] list of RPZ zones not available
-- [ ] RPZ feed retransfer doesn't work
+- [x] RPZ feed retransfer doesn't work
 {feed: "allow.ioc2rpz.rpidns"}
 PHP message: PHP Warning:  Undefined variable $feeds in /opt/rpidns/www/rpi_admin/rpidata.php on line 542; PHP message: PHP Fatal error:  Uncaught TypeError: array_key_exists(): Argument #2 ($array) must be of type array, null given in /opt/rpidns/www/rpi_admin/rpidata.php:542
 

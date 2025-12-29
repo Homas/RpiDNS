@@ -66,6 +66,9 @@ if [ ! -f "${SSL_SIGN_DIR}/ioc2rpzCA.crt" ]; then
     echo "CA certificate generated"
 fi
 
+# Make CA cert downloadable (not secure but Ok for now)
+ln -s ${SSL_SIGN_DIR}/ioc2rpzCA.crt /opt/rpidns/www/ioc2rpzCA.crt
+
 # Generate Intermediate certificate if not present
 if [ ! -f "${SSL_SIGN_DIR}/ioc2rpzInt.crt" ]; then
     echo "Generating Intermediate certificate for SSL signing..."
