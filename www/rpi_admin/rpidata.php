@@ -518,7 +518,8 @@ RpiDNS powered by https://ioc2rpz.net
 		break;
 	case "GET rpz_feeds":
 			$feeds=[];
-			exec('/bin/grep "zone.*policy" /etc/bind/named.conf.options',$out);
+			$bind_conf = file_exists('/etc/bind/named.conf.options') ? '/etc/bind/named.conf.options' : '/etc/bind/named.conf';
+			exec('/bin/grep "zone.*policy" '.$bind_conf,$out);
 			#zone "wl-ip.ioc2rpz.rpidns" policy passthru log no;#local whitelist ip-based
 			foreach ($out as $line){
 				if (preg_match('/^zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
@@ -530,7 +531,8 @@ RpiDNS powered by https://ioc2rpz.net
 		break;
 		//
 	case "PUT retransfer_feed":
-		exec('/bin/grep "zone.*policy" /etc/bind/named.conf.options',$out);
+		$bind_conf = file_exists('/etc/bind/named.conf.options') ? '/etc/bind/named.conf.options' : '/etc/bind/named.conf';
+		exec('/bin/grep "zone.*policy" '.$bind_conf,$out);
 		#zone "wl-ip.ioc2rpz.rpidns" policy passthru log no;#local whitelist ip-based
 		foreach ($out as $line){
 			if (preg_match('/^zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){

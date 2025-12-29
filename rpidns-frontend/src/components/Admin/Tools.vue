@@ -4,15 +4,13 @@
       <!-- CA Root Certificate Card -->
       <b-card header="CA root certificate" body-class="p-2">
         <p>
-          CA root certificate is used to sign all SSL certificates. 
-          Install certificate to your browser/OS to avoid displaying 
-          certificate error message before the block page.
+          CA root certificate is used to sign all SSL certificates. Install certificate to your browser/OS to remediate certificate error message on the block page.
         </p>
         <a 
           :href="'/rpi_admin/rpidata.php?req=download&file=CA'" 
           class="btn btn-secondary btn-sm"
         >
-          <i class="fa fa-download"></i>&nbsp;&nbsp;Download
+          <i class="fa fa-download"></i>&nbsp;Download
         </a>
       </b-card>
 
@@ -20,14 +18,14 @@
       <b-card header="Database" body-class="p-2">
         <p>
           SQLite database stores all DNS query and RPZ logs, application settings. 
-          If you need to keep the data - periodically backup the database.
+          You can manually backup the database.
         </p>
         <a 
           :href="'/rpi_admin/rpidata.php?req=download&file=DB'" 
           class="btn btn-secondary btn-sm"
         >
-          <i class="fa fa-download"></i>&nbsp;&nbsp;Download
-        </a>
+          <i class="fa fa-download"></i>&nbsp;Download
+        </a>&nbsp;
         <b-button 
           v-b-tooltip.hover 
           title="Import" 
@@ -35,7 +33,7 @@
           size="sm" 
           @click.stop="openImportModal"
         >
-          <i class="fa fa-upload"></i>&nbsp;&nbsp;Import
+          <i class="fa fa-upload"></i>&nbsp;Import
         </b-button>
       </b-card>
 
@@ -51,19 +49,19 @@
             :href="'/rpi_admin/rpidata.php?req=download&file=bind.log'" 
             class="btn btn-secondary btn-sm"
           >
-            <i class="fa fa-download"></i>&nbsp;&nbsp;bind.log
-          </a>&nbsp;&nbsp;&nbsp;
+            <i class="fa fa-download"></i>&nbsp;bind.log
+          </a>&nbsp;
           <a 
             :href="'/rpi_admin/rpidata.php?req=download&file=bind_queries.log'" 
             class="btn btn-secondary btn-sm"
           >
-            <i class="fa fa-download"></i>&nbsp;&nbsp;bind_queries.log
-          </a>&nbsp;&nbsp;&nbsp;
+            <i class="fa fa-download"></i>&nbsp;bind_queries.log
+          </a>&nbsp;
           <a 
             :href="'/rpi_admin/rpidata.php?req=download&file=bind_rpz.log'" 
             class="btn btn-secondary btn-sm"
           >
-            <i class="fa fa-download"></i>&nbsp;&nbsp;bind_rpz.log
+            <i class="fa fa-download"></i>&nbsp;bind_rpz.log
           </a>
         </b-input-group>
       </b-card>
