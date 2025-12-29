@@ -110,8 +110,8 @@ RUN chmod +x /entrypoint.sh \
     && chmod 0600 /etc/crontabs/root
 
 # Create a simple blocked.php for health check
-RUN echo '<?php echo "blocked"; ?>' > /opt/rpidns/www/blocked.php \
-    && chown www-data:www-data /opt/rpidns/www/blocked.php
+#RUN echo '<?php echo "blocked"; ?>' > /opt/rpidns/www/blocked.php \
+#    && chown www-data:www-data /opt/rpidns/www/blocked.php
 
 # Expose ports
 # 80 - HTTP

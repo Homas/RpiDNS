@@ -7,7 +7,10 @@ PHP message: PHP Warning:  fopen(/opt/rpidns/www/ioc2rpzCA.crt): Failed to open 
 TypeError: Cannot read properties of undefined (reading 'length')
 - [ ] unzipped, tried to import but Import DB modal doesn't close and generate the same error as above
 - [ ] RPZ 1d,1w shows more than 1h by one (4 vs 3)
-- [ ] list of RPZ zones not available
+- [x] list of RPZ zones not available
+- [ ] RPZ feed retransfer doesn't work
+{feed: "allow.ioc2rpz.rpidns"}
+PHP message: PHP Warning:  Undefined variable $feeds in /opt/rpidns/www/rpi_admin/rpidata.php on line 542; PHP message: PHP Fatal error:  Uncaught TypeError: array_key_exists(): Argument #2 ($array) must be of type array, null given in /opt/rpidns/www/rpi_admin/rpidata.php:542
 
 ## Bugs
  - [x] Drill-down from TopX Servers - wrong filter.
