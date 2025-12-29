@@ -7,52 +7,77 @@
     </div>
 
     <!-- Main Container with Tabs -->
-    <BContainer fluid class="flex-grow-1 p-0 d-flex overflow-hidden">
-      <!-- Nav wrapper with toggle button -->
-      <div v-if="windowInnerWidth > 500" class="menu-bkgr d-flex flex-column nav-sidebar">
-        <!-- Tab navigation -->
-        <ul class="nav nav-pills flex-column p-1" :class="{ hidden: isMenuCollapsed }">
-          <li class="nav-item" v-for="(tab, index) in tabs" :key="index">
-            <a 
-              class="nav-link" 
-              :class="{ active: cfgTab === index }" 
-              href="#" 
-              @click.prevent="selectTab(index)"
-            >
-              <i :class="tab.icon"></i>
-              <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;{{ tab.title }}</span>
-            </a>
-          </li>
-        </ul>
-        <!-- Toggle button at bottom -->
-        <div class="mt-auto p-2">
+    <BContainer fluid class="flex-grow-1 p-0 d-flex">
+ 
+    <!-- Menu Toggle Icons -->
+    <template #tabs-end v-if="windowInnerWidth > 500">
+      <div class="position-relative mt-2">
+        <i 
+          v-cloak 
+          class="fa fa-angle-double-left border rounded border-secondary text-dark" 
+          style="cursor: pointer; padding: 3px 6px;" 
+          :class="{ hidden: shouldHideCollapseIcon }" 
+          @click="collapseMenu"
+        ></i>
+        <i 
+          v-cloak 
+          class="fa fa-angle-double-right border rounded border-secondary text-dark" 
+          style="cursor: pointer; padding: 3px 6px;" 
+          :class="{ hidden: shouldHideExpandIcon }" 
+          @click="expandMenu"
+        ></i>
+      </div>
+    </template>      
+ 
+    <div class="d-flex h-100 position-relative">
+        <!-- Menu Toggle Icons - positioned relative to nav -->
+        <div class="position-relative" :class="{ 'd-none': windowInnerWidth <= 500 }">
           <i 
             v-cloak 
-            class="fa fa-angle-double-left border rounded border-secondary text-light menu-toggle-btn" 
-            :class="{ hidden: isMenuCollapsed }" 
+            class="fa fa-angle-double-left border rounded-end border-dark bg-light" 
+            style="position: absolute; right: -15px; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
+            :class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }" 
             @click="collapseMenu"
           ></i>
           <i 
             v-cloak 
-            class="fa fa-angle-double-right border rounded border-secondary text-light menu-toggle-btn" 
-            :class="{ hidden: !isMenuCollapsed }" 
+            class="fa fa-angle-double-right border rounded-end border-dark bg-light" 
+            style="position: absolute; right: -15px; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
+            :class="{ hidden: (toggleMenu != 2 && windowInnerWidth >= 992) || (toggleMenu != 1 && windowInnerWidth < 992) }" 
             @click="expandMenu"
           ></i>
         </div>
-      </div>
 
-      <!-- Tab content -->
-      <div class="flex-grow-1 corners curl_angels overflow-auto">
+      <BTabs 
+        ref="i2r" 
+        pills 
+        :vertical="windowInnerWidth > 500" 
+        lazy 
+        :nav-wrapper-class="navWrapperClass" 
+        class="flex-grow-1 corners position-relative" 
+        content-class="curl_angels flex-grow-1 overflow-auto" 
+        v-model="cfgTab" 
+        @update:model-value="changeTab"
+        :nav-class="navClass"
+      >
         <!-- Dashboard Tab -->
-        <div v-if="cfgTab === 0" class="scroll_tab h-100">
+        <BTab class="scroll_tab">
+          <template #title>
+            <i class="fa fa-tachometer-alt"></i>
+            <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Dashboard</span>
+          </template>
           <Dashboard 
             @navigate="handleNavigate"
             @add-ioc="handleAddIOC"
           />
-        </div>
+        </BTab>
 
         <!-- Query Log Tab -->
-        <div v-else-if="cfgTab === 1" class="scroll_tab h-100">
+        <BTab @click="refreshQueryLog" lazy>
+          <template #title>
+            <i class="fas fa-shoe-prints"></i>
+            <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Query log</span>
+          </template>
           <QueryLog 
             ref="queryLog"
             :filter="qlogs_Filter"
@@ -60,10 +85,14 @@
             :logs_height="logs_height"
             @add-ioc="handleAddIOC"
           />
-        </div>
+        </BTab>
 
         <!-- RPZ Hits Tab -->
-        <div v-else-if="cfgTab === 2" class="scroll_tab h-100">
+        <BTab @click="refreshRpzHits" lazy>
+          <template #title>
+            <i class="fa fa-shield-alt"></i>
+            <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;RPZ hits</span>
+          </template>
           <RpzHits 
             ref="rpzHits"
             :filter="hits_Filter"
@@ -71,10 +100,14 @@
             :logs_height="logs_height"
             @add-ioc="handleAddIOC"
           />
-        </div>
+        </BTab>
 
         <!-- Admin Tab -->
-        <div v-else-if="cfgTab === 3" class="scroll_tab h-100">
+        <BTab lazy>
+          <template #title>
+            <i class="fas fa-screwdriver"></i>
+            <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Admin</span>
+          </template>
           <AdminTabs 
             :logs_height="logs_height"
             @navigate="handleNavigate"
@@ -85,37 +118,22 @@
             @show-info="showInfo"
             @open-import-modal="handleOpenImportModal"
           />
-        </div>
+        </BTab>
 
         <!-- Help Tab -->
-        <div v-else-if="cfgTab === 4" class="scroll_tab h-100">
-          <div class="p-3 h-100">
-            <BCard class="h-100">
+        <BTab lazy>
+          <template #title>
+            <i class="fas fa-hands-helping"></i>
+            <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Help</span>
+          </template>
+          <div class="p-3">
+            <BCard>
               <template #header>
                 <span class="bold"><i class="fas fa-hands-helping"></i>&nbsp;&nbsp;Help</span>
               </template>
               <p>Help content</p>
             </BCard>
           </div>
-        </div>
-      </div>
-
-      <!-- Horizontal tabs for mobile -->
-      <BTabs 
-        v-if="windowInnerWidth <= 500"
-        ref="i2r" 
-        pills 
-        lazy 
-        class="flex-grow-1" 
-        content-class="curl_angels flex-grow-1 overflow-auto" 
-        v-model="cfgTab" 
-        @update:model-value="changeTab"
-      >
-        <BTab v-for="(tab, index) in tabs" :key="index" class="scroll_tab h-100">
-          <template #title>
-            <i :class="tab.icon"></i>
-            <span>&nbsp;&nbsp;{{ tab.title }}</span>
-          </template>
         </BTab>
       </BTabs>
     </BContainer>
@@ -218,15 +236,6 @@ export default {
     const windowInnerWidth = ref(800)
     const logs_height = ref(150)
 
-    // Tab definitions
-    const tabs = [
-      { title: 'Dashboard', icon: 'fa fa-tachometer-alt' },
-      { title: 'Query log', icon: 'fas fa-shoe-prints' },
-      { title: 'RPZ hits', icon: 'fa fa-shield-alt' },
-      { title: 'Admin', icon: 'fas fa-screwdriver' },
-      { title: 'Help', icon: 'fas fa-hands-helping' }
-    ]
-
     // Computed classes for nav
     const navWrapperClass = computed(() => ({
       'menu-bkgr': true, 
@@ -249,11 +258,6 @@ export default {
       (toggleMenu.value != 2 && windowInnerWidth.value >= 992) || 
       (toggleMenu.value != 1 && windowInnerWidth.value < 992) ||
       windowInnerWidth.value <= 500
-    )
-
-    const isMenuCollapsed = computed(() => 
-      (toggleMenu.value == 2 && windowInnerWidth.value >= 992) || 
-      (toggleMenu.value == 1 && windowInnerWidth.value < 992)
     )
 
     // Query Logs state
@@ -305,17 +309,6 @@ export default {
 
     const changeTab = (tab) => {
       history.pushState(null, null, '#i2r/' + tab)
-    }
-
-    const selectTab = (index) => {
-      cfgTab.value = index
-      changeTab(index)
-      // Trigger refresh for specific tabs
-      if (index === 1) {
-        refreshQueryLog()
-      } else if (index === 2) {
-        refreshRpzHits()
-      }
     }
 
     const collapseMenu = () => {
@@ -522,12 +515,10 @@ export default {
       cfgTab,
       windowInnerWidth,
       logs_height,
-      tabs,
       navWrapperClass,
       navClass,
       shouldHideCollapseIcon,
       shouldHideExpandIcon,
-      isMenuCollapsed,
       qlogs_Filter,
       qlogs_period,
       hits_Filter,
@@ -554,7 +545,6 @@ export default {
       // Methods
       updateWindowSize,
       changeTab,
-      selectTab,
       collapseMenu,
       expandMenu,
       handleNavigate,
@@ -577,30 +567,5 @@ export default {
 <style scoped>
 .placeholder-content {
   padding: 1rem;
-}
-
-.menu-toggle-btn {
-  cursor: pointer;
-  padding: 3px 6px;
-}
-
-.nav-sidebar {
-  min-width: 50px;
-}
-
-.nav-sidebar .nav-link {
-  color: #0d6efd;
-  border-radius: 0.375rem;
-  padding: 0.5rem 1rem;
-  margin-bottom: 0.25rem;
-}
-
-.nav-sidebar .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-.nav-sidebar .nav-link.active {
-  background-color: #0d6efd;
-  color: white;
 }
 </style>
