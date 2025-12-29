@@ -522,7 +522,7 @@ RpiDNS powered by https://ioc2rpz.net
 			exec('/bin/grep "zone.*policy" '.$bind_conf,$out);
 			#zone "wl-ip.ioc2rpz.rpidns" policy passthru log no;#local whitelist ip-based
 			foreach ($out as $line){
-				if (preg_match('/^zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
+				if (preg_match('/^\s*zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
 					$feeds[]=["feed"=>trim($rpz[1]), "action"=>trim($rpz[2]), "desc"=>trim($rpz[3])];
 				};
 			};
