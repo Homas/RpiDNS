@@ -1,25 +1,25 @@
 <template>
   <div>
     <div class="v-spacer"></div>
-    <b-card no-body>
-      <b-tabs card v-model="activeTab">
+    <BCard no-body>
+      <BTabs card v-model="activeTab">
         <!-- Assets Tab -->
-        <b-tab title="Assets" active>
+        <BTab title="Assets" active>
           <Assets 
             :logs_height="logs_height"
             @navigate="$emit('navigate', $event)"
             @add-asset="$emit('add-asset', $event)"
             @delete-asset="$emit('delete-asset', $event)"
           />
-        </b-tab>
+        </BTab>
 
         <!-- RPZ Feeds Tab -->
-        <b-tab title="RPZ Feeds" lazy>
-          <RpzFeeds :logs_height="logs_height" />
-        </b-tab>
+        <BTab title="RPZ Feeds" lazy>
+          <RpzFeeds :logs_height="logs_height" @show-info="$emit('show-info', $event)" />
+        </BTab>
 
         <!-- Block Tab -->
-        <b-tab title="Block" lazy>
+        <BTab title="Block" lazy>
           <BlockList 
             :logs_height="logs_height"
             @navigate="$emit('navigate', $event)"
@@ -27,10 +27,10 @@
             @delete-ioc="$emit('delete-ioc', $event)"
             @show-info="$emit('show-info', $event)"
           />
-        </b-tab>
+        </BTab>
 
         <!-- Allow Tab -->
-        <b-tab title="Allow" lazy>
+        <BTab title="Allow" lazy>
           <AllowList 
             :logs_height="logs_height"
             @navigate="$emit('navigate', $event)"
@@ -38,27 +38,24 @@
             @delete-ioc="$emit('delete-ioc', $event)"
             @show-info="$emit('show-info', $event)"
           />
-        </b-tab>
+        </BTab>
 
         <!-- Settings Tab -->
-        <b-tab title="Settings" lazy>
-          <Settings 
-            @show-info="$emit('show-info', $event)"
-          />
-        </b-tab>
+        <BTab title="Settings" lazy>
+          <Settings @show-info="$emit('show-info', $event)" />
+        </BTab>
 
         <!-- Tools Tab -->
-        <b-tab title="Tools" lazy>
-          <Tools 
-            @open-import-modal="$emit('open-import-modal', $event)"
-          />
-        </b-tab>
-      </b-tabs>
-    </b-card>
+        <BTab title="Tools" lazy>
+          <Tools @open-import-modal="$emit('open-import-modal', $event)" />
+        </BTab>
+      </BTabs>
+    </BCard>
   </div>
 </template>
 
 <script>
+import { ref } from 'vue'
 import Assets from './Assets.vue'
 import RpzFeeds from './RpzFeeds.vue'
 import BlockList from './BlockList.vue'
@@ -68,24 +65,14 @@ import Tools from './Tools.vue'
 
 export default {
   name: 'AdminTabs',
-  components: {
-    Assets,
-    RpzFeeds,
-    BlockList,
-    AllowList,
-    Settings,
-    Tools
-  },
+  components: { Assets, RpzFeeds, BlockList, AllowList, Settings, Tools },
   props: {
-    logs_height: {
-      type: Number,
-      default: 150
-    }
+    logs_height: { type: Number, default: 150 }
   },
-  data() {
-    return {
-      activeTab: 0
-    }
+  emits: ['navigate', 'add-asset', 'delete-asset', 'add-ioc', 'delete-ioc', 'show-info', 'open-import-modal'],
+  setup() {
+    const activeTab = ref(0)
+    return { activeTab }
   }
 }
 </script>

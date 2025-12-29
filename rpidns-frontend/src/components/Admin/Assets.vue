@@ -1,334 +1,164 @@
 <template>
   <div>
     <!-- Toolbar Row -->
-    <b-row class="d-none d-sm-flex">
-      <b-col cols="3" lg="3">
-        <b-button 
-          v-b-tooltip.hover 
-          title="Add" 
-          variant="outline-secondary" 
-          size="sm" 
-          @click.stop="openAddModal"
-        >
+    <BRow class="d-none d-sm-flex">
+      <BCol cols="3" lg="3">
+        <BButton v-b-tooltip.hover title="Add" variant="outline-secondary" size="sm" @click.stop="openAddModal">
           <i class="fa fa-plus"></i>
-        </b-button>
-        <b-button 
-          v-b-tooltip.hover 
-          title="Edit" 
-          variant="outline-secondary" 
-          size="sm" 
-          :disabled="!asset_selected"
-          @click.stop="openEditModal"
-        >
+        </BButton>
+        <BButton v-b-tooltip.hover title="Edit" variant="outline-secondary" size="sm" :disabled="!asset_selected" @click.stop="openEditModal">
           <i class="fa fa-edit"></i>
-        </b-button>
-        <b-button 
-          v-b-tooltip.hover 
-          title="Delete" 
-          variant="outline-secondary" 
-          size="sm" 
-          :disabled="!asset_selected"
-          @click.stop="confirmDelete"
-        >
+        </BButton>
+        <BButton v-b-tooltip.hover title="Delete" variant="outline-secondary" size="sm" :disabled="!asset_selected" @click.stop="confirmDelete">
           <i class="fa fa-trash-alt"></i>
-        </b-button>
-        <b-button 
-          v-b-tooltip.hover 
-          title="Refresh" 
-          variant="outline-secondary" 
-          size="sm" 
-          @click.stop="refreshTable"
-        >
+        </BButton>
+        <BButton v-b-tooltip.hover title="Refresh" variant="outline-secondary" size="sm" @click.stop="refreshTable">
           <i class="fa fa-sync"></i>
-        </b-button>
-      </b-col>
-
-      <b-col cols="3" lg="3"></b-col>
-
-      <b-col cols="6" lg="6">
-        <b-form-group label-cols-md="4" label-size="sm">
-          <b-input-group>
-            <b-input-group-text slot="prepend" size="sm">
-              <i class="fas fa-filter fa-fw" size="sm"></i>
-            </b-input-group-text>
-            <b-form-input 
-              v-model="assets_Filter" 
-              placeholder="Type to search" 
-              size="sm"
-            ></b-form-input>
-            <b-button 
-              size="sm" 
-              slot="append" 
-              :disabled="!assets_Filter" 
-              @click="assets_Filter = ''"
-            >
-              Clear
-            </b-button>
-          </b-input-group>
-        </b-form-group>
-      </b-col>
-    </b-row>
+        </BButton>
+      </BCol>
+      <BCol cols="3" lg="3"></BCol>
+      <BCol cols="6" lg="6">
+        <BFormGroup label-cols-md="4" label-size="sm">
+          <BInputGroup>
+            <template #prepend>
+              <BInputGroupText size="sm"><i class="fas fa-filter fa-fw"></i></BInputGroupText>
+            </template>
+            <BFormInput v-model="assets_Filter" placeholder="Type to search" size="sm"></BFormInput>
+            <template #append>
+              <BButton size="sm" :disabled="!assets_Filter" @click="assets_Filter = ''">Clear</BButton>
+            </template>
+          </BInputGroup>
+        </BFormGroup>
+      </BCol>
+    </BRow>
 
     <!-- Assets Table -->
-    <b-row>
-      <b-col cols="12" lg="12">
-        <b-table
-          id="assets"
-          :sticky-header="`${logs_height}px`"
-          :sort-icon-left="true"
-          no-border-collapse
-          striped
-          hover
-          small
-          :no-provider-paging="true"
-          :no-provider-sorting="true"
-          :no-provider-filtering="true"
-          :items="getAssets"
-          :api-url="apiUrl"
-          :fields="assets_fields"
-          :filter="assets_Filter"
-        >
-          <template v-slot:table-busy>
-            <div class="text-center text-second m-0 p-0">
-              <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;
-              <strong>Loading...</strong>
-            </div>
-          </template>
-
-          <!-- Row Selection Checkbox -->
-          <template v-slot:cell(rowid)="row">
-            <b-form-checkbox 
-              :value="row.item" 
-              :name="'asset' + row.item.rowid" 
-              v-model="asset_selected" 
-            />
-          </template>
-
-          <!-- Address Column with Popover -->
-          <template v-slot:cell(address)="row">
-            <b-popover 
-              title="Actions" 
-              :target="'tip-assets' + row.item.address" 
-              triggers="hover"
-            >
-              <a href="javascript:{}" @click.stop="navigateToQueries(row.item)">Show queries</a><br>
-              <a href="javascript:{}" @click.stop="navigateToHits(row.item)">Show hits</a>
-            </b-popover>
-            <span :id="'tip-assets' + row.item.address">{{ row.item.address }}</span>
-          </template>
-
-          <!-- Name Column with Popover -->
-          <template v-slot:cell(name)="row">
-            <b-popover 
-              title="Actions" 
-              :target="'tip-assets_name' + row.item.rowid" 
-              triggers="hover"
-            >
-              <a href="javascript:{}" @click.stop="navigateToQueriesByName(row.item)">Show queries</a><br>
-              <a href="javascript:{}" @click.stop="navigateToHitsByName(row.item)">Show hits</a>
-            </b-popover>
-            <span :id="'tip-assets_name' + row.item.rowid">{{ row.item.name }}</span>
-          </template>
-
-          <!-- Vendor Column with Popover -->
-          <template v-slot:cell(vendor)="row">
-            <b-popover 
-              title="Actions" 
-              :target="'tip-assets_vendor' + row.item.rowid" 
-              triggers="hover"
-            >
-              <a href="javascript:{}" @click.stop="navigateToQueriesByVendor(row.item)">Show queries</a><br>
-              <a href="javascript:{}" @click.stop="navigateToHitsByVendor(row.item)">Show hits</a>
-            </b-popover>
-            <span :id="'tip-assets_vendor' + row.item.rowid">{{ row.item.vendor }}</span>
-          </template>
-        </b-table>
-      </b-col>
-    </b-row>
+    <BRow>
+      <BCol cols="12" lg="12">
+        <BTableSimple id="assets" :sticky-header="`${logs_height}px`" striped hover small>
+          <BThead>
+            <BTr>
+              <BTh class="width050 d-none d-sm-table-cell"></BTh>
+              <BTh class="d-none d-sm-table-cell">Address</BTh>
+              <BTh>Name</BTh>
+              <BTh class="d-none d-md-table-cell">Vendor</BTh>
+              <BTh class="d-none d-md-table-cell">Added</BTh>
+              <BTh class="d-none d-md-table-cell">Comment</BTh>
+            </BTr>
+          </BThead>
+          <BTbody>
+            <BTr v-for="item in filteredItems" :key="item.rowid">
+              <BTd class="width050 d-none d-sm-table-cell">
+                <BFormCheckbox :value="item" v-model="asset_selected" />
+              </BTd>
+              <BTd class="mw150 d-none d-sm-table-cell">{{ item.address }}</BTd>
+              <BTd class="mw200">{{ item.name }}</BTd>
+              <BTd class="mw150 d-none d-md-table-cell">{{ item.vendor }}</BTd>
+              <BTd class="mw150 d-none d-md-table-cell">{{ formatDate(item.dtz) }}</BTd>
+              <BTd class="mw150 d-none d-md-table-cell">{{ item.comment }}</BTd>
+            </BTr>
+          </BTbody>
+        </BTableSimple>
+        <div v-if="isLoading" class="text-center m-0 p-0">
+          <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+        </div>
+      </BCol>
+    </BRow>
   </div>
 </template>
 
 <script>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useApi } from '@/composables/useApi'
 
 export default {
   name: 'Assets',
-  props: {
-    logs_height: {
-      type: Number,
-      default: 150
-    }
-  },
-  data() {
-    return {
-      assets_Filter: '',
-      asset_selected: null,
-      apiUrl: '/rpi_admin/rpidata.php?req=assets',
-      assets_fields: [
-        { 
-          key: 'rowid', 
-          label: '', 
-          tdClass: 'width050 d-none d-sm-table-cell', 
-          thClass: 'd-none d-sm-table-cell' 
-        },
-        { 
-          key: 'address', 
-          label: 'Address', 
-          sortable: true, 
-          tdClass: 'mw150 d-none d-sm-table-cell', 
-          thClass: 'd-none d-sm-table-cell'
-        },
-        { 
-          key: 'name', 
-          label: 'Name', 
-          sortable: true, 
-          tdClass: 'mw200'
-        },
-        { 
-          key: 'vendor', 
-          label: 'Vendor', 
-          sortable: true, 
-          tdClass: 'mw150 d-none d-md-table-cell', 
-          thClass: 'd-none d-md-table-cell'
-        },
-        { 
-          key: 'dtz', 
-          label: 'Added', 
-          sortable: true, 
-          formatter: (value) => { 
-            const date = new Date(value)
-            return date.toLocaleString()
-          }, 
-          tdClass: 'mw150 d-none d-md-table-cell', 
-          thClass: 'd-none d-md-table-cell'
-        },
-        { 
-          key: 'comment', 
-          label: 'Comment', 
-          sortable: true, 
-          tdClass: 'mw150 d-none d-md-table-cell', 
-          thClass: 'd-none d-md-table-cell'
-        }
-      ]
-    }
-  },
-  setup() {
+  props: { logs_height: { type: Number, default: 150 } },
+  emits: ['navigate', 'add-asset', 'delete-asset'],
+  setup(props, { emit }) {
     const api = useApi()
-    return { api }
-  },
-  methods: {
-    async getAssets(ctx) {
+    const assets_Filter = ref('')
+    const asset_selected = ref(null)
+    const tableItems = ref([])
+    const isLoading = ref(false)
+
+    const filteredItems = computed(() => {
+      if (!assets_Filter.value) return tableItems.value
+      const filter = assets_Filter.value.toLowerCase()
+      return tableItems.value.filter(item => 
+        (item.address && item.address.toLowerCase().includes(filter)) ||
+        (item.name && item.name.toLowerCase().includes(filter)) ||
+        (item.vendor && item.vendor.toLowerCase().includes(filter)) ||
+        (item.comment && item.comment.toLowerCase().includes(filter))
+      )
+    })
+
+    const fetchData = async () => {
+      isLoading.value = true
       try {
-        const response = await this.api.get({
-          req: 'assets',
-          sortBy: ctx.sortBy,
-          sortDesc: ctx.sortDesc
-        })
-        return response.data || []
+        const response = await api.get({ req: 'assets', sortBy: 'name', sortDesc: false })
+        tableItems.value = response.data || []
       } catch (error) {
         console.error('Error fetching assets:', error)
-        return []
+        tableItems.value = []
+      } finally {
+        isLoading.value = false
       }
-    },
-    
-    refreshTable() {
-      this.$root.$emit('bv::refresh::table', 'assets')
-    },
-    
-    openAddModal() {
-      this.$emit('add-asset', {
-        mode: 'add',
-        address: '',
-        name: '',
-        vendor: '',
-        comment: '',
-        rowid: 0
-      })
-    },
-    
-    openEditModal() {
-      if (this.asset_selected) {
-        this.$emit('add-asset', {
+    }
+
+    const refreshTable = () => { fetchData() }
+    const formatDate = (value) => { const date = new Date(value); return date.toLocaleString() }
+
+    const openAddModal = () => {
+      emit('add-asset', { mode: 'add', address: '', name: '', vendor: '', comment: '', rowid: 0 })
+    }
+
+    const openEditModal = () => {
+      if (asset_selected.value) {
+        emit('add-asset', {
           mode: 'edit',
-          address: this.asset_selected.address,
-          name: this.asset_selected.name,
-          vendor: this.asset_selected.vendor,
-          comment: this.asset_selected.comment,
-          rowid: this.asset_selected.rowid
+          address: asset_selected.value.address,
+          name: asset_selected.value.name,
+          vendor: asset_selected.value.vendor,
+          comment: asset_selected.value.comment,
+          rowid: asset_selected.value.rowid
         })
       }
-    },
-    
-    confirmDelete() {
-      if (this.asset_selected) {
-        this.$emit('delete-asset', {
-          asset: this.asset_selected,
-          table: 'assets'
-        })
+    }
+
+    const confirmDelete = () => {
+      if (asset_selected.value) {
+        emit('delete-asset', { asset: asset_selected.value, table: 'assets' })
       }
-    },
-    
-    navigateToQueries(item) {
-      this.$emit('navigate', {
-        type: 'qlogs',
-        filter: item.address,
-        tab: 1
-      })
-    },
-    
-    navigateToHits(item) {
-      this.$emit('navigate', {
-        type: 'hits',
-        filter: item.address,
-        tab: 2
-      })
-    },
-    
-    navigateToQueriesByName(item) {
-      this.$emit('navigate', {
-        type: 'qlogs',
-        filter: item.name,
-        tab: 1
-      })
-    },
-    
-    navigateToHitsByName(item) {
-      this.$emit('navigate', {
-        type: 'hits',
-        filter: item.name,
-        tab: 2
-      })
-    },
-    
-    navigateToQueriesByVendor(item) {
-      this.$emit('navigate', {
-        type: 'qlogs',
-        filter: item.vendor,
-        tab: 1
-      })
-    },
-    
-    navigateToHitsByVendor(item) {
-      this.$emit('navigate', {
-        type: 'hits',
-        filter: item.vendor,
-        tab: 2
-      })
+    }
+
+    const navigateToQueries = (item) => { emit('navigate', { type: 'qlogs', filter: item.address, tab: 1 }) }
+    const navigateToHits = (item) => { emit('navigate', { type: 'hits', filter: item.address, tab: 2 }) }
+
+    const handleRefreshEvent = (event) => {
+      if (event.detail && event.detail.table === 'assets') { fetchData() }
+    }
+
+    onMounted(() => {
+      fetchData()
+      window.addEventListener('refresh-table', handleRefreshEvent)
+    })
+
+    onBeforeUnmount(() => {
+      window.removeEventListener('refresh-table', handleRefreshEvent)
+    })
+
+    return {
+      assets_Filter, asset_selected, filteredItems, isLoading,
+      refreshTable, formatDate, openAddModal, openEditModal, confirmDelete,
+      navigateToQueries, navigateToHits
     }
   }
 }
 </script>
 
 <style scoped>
-.width050 {
-  width: 50px;
-}
-
-.mw150 {
-  max-width: 150px;
-}
-
-.mw200 {
-  max-width: 200px;
-}
+.width050 { width: 50px; }
+.mw150 { max-width: 150px; }
+.mw200 { max-width: 200px; }
 </style>

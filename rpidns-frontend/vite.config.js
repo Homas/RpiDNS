@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite'
-import vue2 from '@vitejs/plugin-vue2'
+import vue from '@vitejs/plugin-vue'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [vue2()],
+  plugins: [vue()],
   base: '/rpi_admin/dist/',
   build: {
     outDir: 'dist',
@@ -16,8 +16,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           'vendor-vue': ['vue'],
-          'vendor-bootstrap': ['bootstrap-vue', 'bootstrap/dist/css/bootstrap.css'],
-          'vendor-charts': ['apexcharts', 'vue-apexcharts'],
+          'vendor-bootstrap': ['bootstrap-vue-next', 'bootstrap/dist/css/bootstrap.css'],
+          'vendor-charts': ['apexcharts', 'vue3-apexcharts'],
           'vendor-utils': ['axios']
         }
       }

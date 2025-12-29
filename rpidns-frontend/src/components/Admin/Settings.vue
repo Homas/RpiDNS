@@ -1,209 +1,163 @@
 <template>
   <div>
-    <b-row>
+    <BRow>
       <!-- Data Statistics and Retention Column -->
-      <b-col cols="12" lg="7">
+      <BCol cols="12" lg="7">
         <h4>Data statistics and retention</h4>
-        <b-table 
-          id="tbl_retention" 
-          :busy="db_stats_busy" 
-          no-border-collapse 
-          responsive 
-          striped 
-          hover 
-          small 
-          :items="retention" 
-          :fields="retention_fields"
-        >
-          <template v-slot:table-busy>
-            <div class="text-center text-second m-0 p-0">
-              <b-spinner class="align-middle"></b-spinner>&nbsp;&nbsp;
-              <strong>Loading...</strong>
-            </div>
-          </template>
-          <template v-slot:cell(5)="row">
-            <b-form-input 
-              :ref="'ret_' + row.item[0]" 
-              min="1" 
-              max="1825" 
-              type="number" 
-              size="sm" 
-              :value="row.item[5]" 
-              v-b-tooltip.hover 
-              title="days"
-            ></b-form-input>
-          </template>
-        </b-table>
-      </b-col>
+        <BTableSimple id="tbl_retention" striped hover small responsive>
+          <BThead>
+            <BTr>
+              <BTh>Table</BTh>
+              <BTh class="d-none d-md-table-cell">Size</BTh>
+              <BTh class="d-none d-md-table-cell">Rows</BTh>
+              <BTh class="d-none d-md-table-cell">From</BTh>
+              <BTh class="d-none d-md-table-cell">To</BTh>
+              <BTh>Retention</BTh>
+            </BTr>
+          </BThead>
+          <BTbody>
+            <BTr v-for="item in retention" :key="item[0]">
+              <BTd>{{ item[0] }}</BTd>
+              <BTd class="width100 d-none d-md-table-cell">{{ formatSize(item[1]) }}</BTd>
+              <BTd class="width100 d-none d-md-table-cell">{{ item[2] }}</BTd>
+              <BTd class="d-none d-md-table-cell">{{ formatDate(item[3]) }}</BTd>
+              <BTd class="d-none d-md-table-cell">{{ formatDate(item[4]) }}</BTd>
+              <BTd class="width050">
+                <BFormInput 
+                  v-model="retentionValues[item[0]]" 
+                  min="1" 
+                  max="1825" 
+                  type="number" 
+                  size="sm" 
+                  v-b-tooltip.hover 
+                  title="days"
+                ></BFormInput>
+              </BTd>
+            </BTr>
+          </BTbody>
+        </BTableSimple>
+        <div v-if="db_stats_busy" class="text-center m-0 p-0">
+          <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Loading...</strong>
+        </div>
+      </BCol>
 
       <!-- Miscellaneous Settings Column -->
-      <b-col cols="12" lg="5">
+      <BCol cols="12" lg="5">
         <h4>Miscellaneous</h4>
         <hr class="mt-0">
-        <b-form-checkbox v-model="assets_autocreate" switch>
+        <BFormCheckbox v-model="assets_autocreate" switch>
           Automatically create assets
-        </b-form-checkbox>
+        </BFormCheckbox>
         <div class="v-spacer"></div>
-        <b-form inline class="mw350">
+        <BForm inline class="mw350">
           <label for="assets_by">Track assets by&nbsp;&nbsp;&nbsp;</label>
-          <b-form-select id="assets_by" v-model="assets_by" size="sm">
-            <b-form-select-option value="mac">MAC Address</b-form-select-option>
-            <b-form-select-option value="ip">IP Address</b-form-select-option>
-          </b-form-select>
+          <BFormSelect id="assets_by" v-model="assets_by" size="sm">
+            <BFormSelectOption value="mac">MAC Address</BFormSelectOption>
+            <BFormSelectOption value="ip">IP Address</BFormSelectOption>
+          </BFormSelect>
           <br><br>
           <label for="dashboard_topx">Dashboard show Top &nbsp;&nbsp;&nbsp;</label>
-          <b-form-input 
-            id="dashboard_topx" 
-            min="1" 
-            max="200" 
-            type="number" 
-            size="sm" 
-            v-model="dashboard_topx"
-          ></b-form-input>
-        </b-form>
-      </b-col>
-    </b-row>
+          <BFormInput id="dashboard_topx" min="1" max="200" type="number" size="sm" v-model="dashboard_topx"></BFormInput>
+        </BForm>
+      </BCol>
+    </BRow>
 
     <!-- Save Button Row -->
-    <b-row>
-      <b-col cols="12">
-        <b-button size="sm" @click="setSettings">Save</b-button>
-      </b-col>
-    </b-row>
+    <BRow>
+      <BCol cols="12">
+        <BButton size="sm" @click="setSettings">Save</BButton>
+      </BCol>
+    </BRow>
   </div>
 </template>
 
 <script>
+import { ref, reactive, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 
 export default {
   name: 'Settings',
-  data() {
-    return {
-      // Settings data
-      retention: [],
-      assets_by: 'mac',
-      assets_autocreate: true,
-      dashboard_topx: 100,
-      db_stats_busy: false,
+  emits: ['show-info'],
+  setup(props, { emit }) {
+    const api = useApi()
+    const retention = ref([])
+    const retentionValues = reactive({})
+    const assets_by = ref('mac')
+    const assets_autocreate = ref(true)
+    const dashboard_topx = ref(100)
+    const db_stats_busy = ref(false)
 
-      // Table field definitions
-      retention_fields: [
-        { key: '0', label: 'Table' },
-        { 
-          key: '1', 
-          label: 'Size', 
-          tdClass: 'width100 d-none d-md-table-cell', 
-          thClass: 'width100 d-none d-md-table-cell',
-          formatter: (value) => {
-            if (value < 1024) return value + ' b'
-            if (value < 1024 * 1024) return Math.round(value / 1024 * 100) / 100 + ' Kb'
-            if (value < 1024 * 1024 * 1024) return Math.round(value / 1024 / 1024 * 100) / 100 + ' Mb'
-            return Math.round(value / 1024 / 1024 / 1024 * 100) / 100 + ' Gb'
-          }
-        },
-        { 
-          key: '2', 
-          label: 'Rows', 
-          tdClass: 'width100 d-none d-md-table-cell', 
-          thClass: 'width100 d-none d-md-table-cell'
-        },
-        { 
-          key: '3', 
-          label: 'From', 
-          tdClass: 'd-none d-md-table-cell', 
-          thClass: 'd-none d-md-table-cell',
-          formatter: (value) => {
-            const date = new Date(value)
-            return date.toLocaleString()
-          }
-        },
-        { 
-          key: '4', 
-          label: 'To', 
-          tdClass: 'd-none d-md-table-cell', 
-          thClass: 'd-none d-md-table-cell',
-          formatter: (value) => {
-            const date = new Date(value)
-            return date.toLocaleString()
-          }
-        },
-        { 
-          key: '5', 
-          label: 'Retention', 
-          tdClass: 'width050', 
-          thClass: 'width050'
-        }
-      ]
+    const formatSize = (value) => {
+      if (value < 1024) return value + ' b'
+      if (value < 1024 * 1024) return Math.round(value / 1024 * 100) / 100 + ' Kb'
+      if (value < 1024 * 1024 * 1024) return Math.round(value / 1024 / 1024 * 100) / 100 + ' Mb'
+      return Math.round(value / 1024 / 1024 / 1024 * 100) / 100 + ' Gb'
     }
-  },
-  mounted() {
-    this.getSettings()
-  },
-  methods: {
-    async getSettings() {
-      const api = useApi()
-      this.db_stats_busy = true
+
+    const formatDate = (value) => {
+      if (!value) return ''
+      const date = new Date(value)
+      return date.toLocaleString()
+    }
+
+    const getSettings = async () => {
+      db_stats_busy.value = true
       try {
         const data = await api.get({ req: 'RPIsettings' })
-        this.db_stats_busy = false
-        this.retention = data.retention
-        this.assets_autocreate = data.assets_autocreate === '1'
-        this.assets_by = data.assets_by
-        this.dashboard_topx = parseInt(data.dashboard_topx)
+        db_stats_busy.value = false
+        retention.value = data.retention || []
+        assets_autocreate.value = data.assets_autocreate === '1'
+        assets_by.value = data.assets_by || 'mac'
+        dashboard_topx.value = parseInt(data.dashboard_topx) || 100
+        // Initialize retention values
+        retention.value.forEach(item => {
+          retentionValues[item[0]] = item[5]
+        })
       } catch (error) {
-        this.db_stats_busy = false
-        this.$emit('show-info', { msg: 'Failed to load settings', time: 3 })
+        db_stats_busy.value = false
+        emit('show-info', { msg: 'Failed to load settings', time: 3 })
       }
-    },
-    async setSettings() {
-      const api = useApi()
-      
-      // Build settings data including retention values from refs
+    }
+
+    const setSettings = async () => {
       const data = {
-        dash_topx: this.dashboard_topx,
-        assets_by: this.assets_by,
-        assets_autocreate: this.assets_autocreate,
-        queries_raw: this.$refs.ret_queries_raw?.localValue || this.getRetentionValue('queries_raw'),
-        queries_5m: this.$refs.ret_queries_5m?.localValue || this.getRetentionValue('queries_5m'),
-        queries_1h: this.$refs.ret_queries_1h?.localValue || this.getRetentionValue('queries_1h'),
-        queries_1d: this.$refs.ret_queries_1d?.localValue || this.getRetentionValue('queries_1d'),
-        hits_raw: this.$refs.ret_hits_raw?.localValue || this.getRetentionValue('hits_raw'),
-        hits_5m: this.$refs.ret_hits_5m?.localValue || this.getRetentionValue('hits_5m'),
-        hits_1h: this.$refs.ret_hits_1h?.localValue || this.getRetentionValue('hits_1h'),
-        hits_1d: this.$refs.ret_hits_1d?.localValue || this.getRetentionValue('hits_1d')
+        dash_topx: dashboard_topx.value,
+        assets_by: assets_by.value,
+        assets_autocreate: assets_autocreate.value,
+        queries_raw: retentionValues['queries_raw'] || 30,
+        queries_5m: retentionValues['queries_5m'] || 30,
+        queries_1h: retentionValues['queries_1h'] || 30,
+        queries_1d: retentionValues['queries_1d'] || 30,
+        hits_raw: retentionValues['hits_raw'] || 30,
+        hits_5m: retentionValues['hits_5m'] || 30,
+        hits_1h: retentionValues['hits_1h'] || 30,
+        hits_1d: retentionValues['hits_1d'] || 30
       }
 
       try {
         const result = await api.put({ req: 'RPIsettings' }, data)
         if (result.status !== 'success') {
-          this.$emit('show-info', { msg: result.reason, time: 3 })
+          emit('show-info', { msg: result.reason, time: 3 })
         } else {
-          this.$emit('show-info', { msg: 'Settings were saved', time: 3 })
+          emit('show-info', { msg: 'Settings were saved', time: 3 })
         }
       } catch (error) {
-        this.$emit('show-info', { msg: 'Unknown error!!!', time: 3 })
+        emit('show-info', { msg: 'Unknown error!!!', time: 3 })
       }
-    },
-    getRetentionValue(tableName) {
-      // Find retention value from the retention array
-      const row = this.retention.find(r => r[0] === tableName)
-      return row ? row[5] : 30
+    }
+
+    onMounted(() => { getSettings() })
+
+    return {
+      retention, retentionValues, assets_by, assets_autocreate, dashboard_topx, db_stats_busy,
+      formatSize, formatDate, setSettings
     }
   }
 }
 </script>
 
 <style scoped>
-.mw350 {
-  max-width: 350px;
-}
-
-.width050 {
-  width: 50px;
-}
-
-.width100 {
-  width: 100px;
-}
+.mw350 { max-width: 350px; }
+.width050 { width: 50px; }
+.width100 { width: 100px; }
 </style>

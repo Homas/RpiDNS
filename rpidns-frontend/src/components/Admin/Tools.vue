@@ -1,81 +1,60 @@
 <template>
   <div>
-    <b-card-group deck>
+    <BCardGroup deck>
       <!-- CA Root Certificate Card -->
-      <b-card header="CA root certificate" body-class="p-2">
+      <BCard header="CA root certificate" body-class="p-2">
         <p>
           CA root certificate is used to sign all SSL certificates. Install certificate to your browser/OS to remediate certificate error message on the block page.
         </p>
-        <a 
-          :href="'/rpi_admin/rpidata.php?req=download&file=CA'" 
-          class="btn btn-secondary btn-sm"
-        >
+        <a :href="'/rpi_admin/rpidata.php?req=download&file=CA'" class="btn btn-secondary btn-sm">
           <i class="fa fa-download"></i>&nbsp;Download
         </a>
-      </b-card>
+      </BCard>
 
       <!-- Database Card -->
-      <b-card header="Database" body-class="p-2">
+      <BCard header="Database" body-class="p-2">
         <p>
           SQLite database stores all DNS query and RPZ logs, application settings. 
           You can manually backup the database.
         </p>
-        <a 
-          :href="'/rpi_admin/rpidata.php?req=download&file=DB'" 
-          class="btn btn-secondary btn-sm"
-        >
+        <a :href="'/rpi_admin/rpidata.php?req=download&file=DB'" class="btn btn-secondary btn-sm">
           <i class="fa fa-download"></i>&nbsp;Download
         </a>&nbsp;
-        <b-button 
-          v-b-tooltip.hover 
-          title="Import" 
-          variant="secondary" 
-          size="sm" 
-          @click.stop="openImportModal"
-        >
+        <BButton v-b-tooltip.hover title="Import" variant="secondary" size="sm" @click.stop="openImportModal">
           <i class="fa fa-upload"></i>&nbsp;Import
-        </b-button>
-      </b-card>
+        </BButton>
+      </BCard>
 
       <!-- ISC Bind Logs Card -->
-      <b-card header="ISC Bind logs files" body-class="p-2">
+      <BCard header="ISC Bind logs files" body-class="p-2">
         <p>
           Bind log files contain internal DNS server log messages, 
           raw DNS query log and RPZ log messages. 
           bind_queries.log contains DNS query and rpz logs.
         </p>
-        <b-input-group>
-          <a 
-            :href="'/rpi_admin/rpidata.php?req=download&file=bind.log'" 
-            class="btn btn-secondary btn-sm"
-          >
+        <BInputGroup>
+          <a :href="'/rpi_admin/rpidata.php?req=download&file=bind.log'" class="btn btn-secondary btn-sm">
             <i class="fa fa-download"></i>&nbsp;bind.log
           </a>&nbsp;
-          <a 
-            :href="'/rpi_admin/rpidata.php?req=download&file=bind_queries.log'" 
-            class="btn btn-secondary btn-sm"
-          >
+          <a :href="'/rpi_admin/rpidata.php?req=download&file=bind_queries.log'" class="btn btn-secondary btn-sm">
             <i class="fa fa-download"></i>&nbsp;bind_queries.log
           </a>&nbsp;
-          <a 
-            :href="'/rpi_admin/rpidata.php?req=download&file=bind_rpz.log'" 
-            class="btn btn-secondary btn-sm"
-          >
+          <a :href="'/rpi_admin/rpidata.php?req=download&file=bind_rpz.log'" class="btn btn-secondary btn-sm">
             <i class="fa fa-download"></i>&nbsp;bind_rpz.log
           </a>
-        </b-input-group>
-      </b-card>
-    </b-card-group>
+        </BInputGroup>
+      </BCard>
+    </BCardGroup>
   </div>
 </template>
 
 <script>
 export default {
   name: 'Tools',
-  methods: {
-    openImportModal() {
-      // Emit event to parent to open import modal with default selections
-      this.$emit('open-import-modal', {
+  emits: ['open-import-modal'],
+  setup(props, { emit }) {
+    const openImportModal = () => {
+      emit('open-import-modal', {
         db_import_type: [
           'assets', 'bl', 'wl', 
           'q_raw', 'h_raw', 
@@ -85,10 +64,8 @@ export default {
         ]
       })
     }
+
+    return { openImportModal }
   }
 }
 </script>
-
-<style scoped>
-/* Component-specific styles */
-</style>

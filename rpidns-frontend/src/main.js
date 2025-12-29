@@ -1,29 +1,21 @@
 /*
 (c) Vadim Pavlov 2020
 RpiDNS powered by https://ioc2rpz.net
-Migrated to Vite + Vue 2
+Migrated to Vite + Vue 3
 */
 
-import Vue from 'vue'
-import { BootstrapVue, BVConfigPlugin } from 'bootstrap-vue'
-import VueApexCharts from 'vue-apexcharts'
+import { createApp } from 'vue'
+import { createBootstrap } from 'bootstrap-vue-next'
+import VueApexCharts from 'vue3-apexcharts'
 
 // Import CSS dependencies
 import 'bootstrap/dist/css/bootstrap.css'
-import 'bootstrap-vue/dist/bootstrap-vue.css'
+import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
 import '@fortawesome/fontawesome-free/css/all.css'
 import './assets/css/rpi_admin.css'
 
-// Use BootstrapVue
-Vue.use(BootstrapVue)
-
-// Register ApexCharts component globally
-Vue.component('apexchart', VueApexCharts)
-
-// Inject PHP variables (will be set by index.php via window.RPIDNS_CONFIG)
-Vue.prototype.$rpiver = window.RPIDNS_CONFIG?.rpiver || ''
-Vue.prototype.$assetsBy = window.RPIDNS_CONFIG?.assets_by || 'mac'
-Vue.prototype.$addressType = window.RPIDNS_CONFIG?.addressType || 'MAC'
+// Import root App component
+import App from './App.vue'
 
 // Global color palette for charts
 const gColors = [
@@ -39,13 +31,20 @@ const gColors = [
   '#A300D6', '#7D02EB', '#5653FE', '#2983FF', '#00B1F2'
 ]
 
-// Make colors available globally
-Vue.prototype.$gColors = gColors
+// Create Vue 3 app instance
+const app = createApp(App)
 
-// Import root App component
-import App from './App.vue'
+// Use bootstrap-vue-next
+app.use(createBootstrap())
 
-// Create Vue app instance
-new Vue({
-  render: h => h(App)
-}).$mount('#app')
+// Use vue3-apexcharts
+app.use(VueApexCharts)
+
+// Provide global properties (Vue 3 way to replace Vue.prototype)
+app.config.globalProperties.$rpiver = window.RPIDNS_CONFIG?.rpiver || ''
+app.config.globalProperties.$assetsBy = window.RPIDNS_CONFIG?.assets_by || 'mac'
+app.config.globalProperties.$addressType = window.RPIDNS_CONFIG?.addressType || 'MAC'
+app.config.globalProperties.$gColors = gColors
+
+// Mount the app
+app.mount('#app')

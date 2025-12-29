@@ -1,50 +1,49 @@
 <template>
-  <b-modal 
+  <BModal 
+    v-model="isVisible"
     centered 
     title="Asset" 
     id="mAddAsset" 
-    ref="refAddAsset" 
     body-class="text-center pt-0 pb-0" 
     ok-title="Add" 
     @ok="addAsset"
     @show="onShow"
-    v-cloak
   >
     <span class="text-center">
-      <b-container fluid>
-        <b-row class="pb-1">
-          <b-col md="12" class="p-0">
-            <b-input 
+      <BContainer fluid>
+        <BRow class="pb-1">
+          <BCol md="12" class="p-0">
+            <BFormInput 
               v-model.trim="localAddress" 
               :placeholder="`Enter ${addressType} address`"
               v-b-tooltip.hover 
               :title="`${addressType} Address`"
             />
-          </b-col>
-        </b-row>
-        <b-row class="pb-1">
-          <b-col md="12" class="p-0">
-            <b-input 
+          </BCol>
+        </BRow>
+        <BRow class="pb-1">
+          <BCol md="12" class="p-0">
+            <BFormInput 
               v-model.trim="localName" 
               placeholder="Enter Name"
               v-b-tooltip.hover 
               title="Name"
             />
-          </b-col>
-        </b-row>
-        <b-row class="pb-1">
-          <b-col md="12" class="p-0">
-            <b-input 
+          </BCol>
+        </BRow>
+        <BRow class="pb-1">
+          <BCol md="12" class="p-0">
+            <BFormInput 
               v-model.trim="localVendor" 
               placeholder="Enter Vendor"
               v-b-tooltip.hover 
               title="Vendor"
             />
-          </b-col>
-        </b-row>
-        <b-row>
-          <b-col md="12" class="p-0">
-            <b-textarea 
+          </BCol>
+        </BRow>
+        <BRow>
+          <BCol md="12" class="p-0">
+            <BFormTextarea 
               rows="3" 
               max-rows="6" 
               maxlength="250" 
@@ -53,99 +52,82 @@
               v-b-tooltip.hover 
               title="Commentary"
             />
-          </b-col>
-        </b-row>
-      </b-container>
+          </BCol>
+        </BRow>
+      </BContainer>
     </span>
-  </b-modal>
+  </BModal>
 </template>
 
 <script>
+import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 
 export default {
   name: 'AddAsset',
   props: {
-    address: {
-      type: String,
-      default: ''
-    },
-    name: {
-      type: String,
-      default: ''
-    },
-    vendor: {
-      type: String,
-      default: ''
-    },
-    comment: {
-      type: String,
-      default: ''
-    },
-    rowid: {
-      type: Number,
-      default: 0
-    },
-    assetsBy: {
-      type: String,
-      default: 'mac'
-    }
+    address: { type: String, default: '' },
+    name: { type: String, default: '' },
+    vendor: { type: String, default: '' },
+    comment: { type: String, default: '' },
+    rowid: { type: Number, default: 0 },
+    assetsBy: { type: String, default: 'mac' }
   },
-  data() {
-    return {
-      localAddress: '',
-      localName: '',
-      localVendor: '',
-      localComment: ''
-    }
-  },
-  computed: {
-    addressType() {
-      return this.assetsBy === 'mac' ? 'MAC' : 'IP'
-    }
-  },
-  setup() {
+  emits: ['show-info', 'refresh-table'],
+  setup(props, { emit, expose }) {
     const api = useApi()
-    return { api }
-  },
-  methods: {
-    onShow() {
-      // Sync props to local data when modal opens
-      this.localAddress = this.address
-      this.localName = this.name
-      this.localVendor = this.vendor
-      this.localComment = this.comment
-    },
-    async addAsset(event) {
+    const isVisible = ref(false)
+    const localAddress = ref('')
+    const localName = ref('')
+    const localVendor = ref('')
+    const localComment = ref('')
+
+    const addressType = computed(() => props.assetsBy === 'mac' ? 'MAC' : 'IP')
+
+    const show = () => { isVisible.value = true }
+    const hide = () => { isVisible.value = false }
+
+    const onShow = () => {
+      localAddress.value = props.address
+      localName.value = props.name
+      localVendor.value = props.vendor
+      localComment.value = props.comment
+    }
+
+    const addAsset = async (event) => {
       event.preventDefault()
-      
       const data = {
-        id: this.rowid,
-        name: this.localName,
-        address: this.localAddress,
-        vendor: this.localVendor,
-        comment: this.localComment
+        id: props.rowid,
+        name: localName.value,
+        address: localAddress.value,
+        vendor: localVendor.value,
+        comment: localComment.value
       }
-      
+
       try {
         let response
-        if (this.rowid === 0) {
-          // Create new asset
-          response = await this.api.post({ req: 'assets' }, data)
+        if (props.rowid === 0) {
+          response = await api.post({ req: 'assets' }, data)
         } else {
-          // Update existing asset
-          response = await this.api.put({ req: 'assets' }, data)
+          response = await api.put({ req: 'assets' }, data)
         }
-        
+
         if (response.status === 'success') {
-          this.$root.$emit('bv::refresh::table', 'assets')
-          this.$refs.refAddAsset.hide()
+          emit('refresh-table')
+          hide()
         } else {
-          this.$emit('show-info', response.reason, 3)
+          emit('show-info', response.reason, 3)
         }
       } catch (error) {
-        this.$emit('show-info', 'Unknown error!!!', 3)
+        emit('show-info', 'Unknown error!!!', 3)
       }
+    }
+
+    expose({ show, hide })
+
+    return {
+      isVisible, localAddress, localName, localVendor, localComment, addressType,
+      show, hide, onShow, addAsset
     }
   }
 }
