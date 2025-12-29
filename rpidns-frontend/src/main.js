@@ -8,6 +8,71 @@ import { createApp } from 'vue'
 import { createBootstrap } from 'bootstrap-vue-next'
 import VueApexCharts from 'vue3-apexcharts'
 
+// Import bootstrap-vue-next components explicitly
+import {
+  BContainer,
+  BRow,
+  BCol,
+  BTabs,
+  BTab,
+  BCard,
+  BCardBody,
+  BCardHeader,
+  BCardFooter,
+  BCardTitle,
+  BCardText,
+  BCardGroup,
+  BTable,
+  BTableLite,
+  BTableSimple,
+  BThead,
+  BTbody,
+  BTr,
+  BTh,
+  BTd,
+  BButton,
+  BButtonGroup,
+  BModal,
+  BForm,
+  BFormGroup,
+  BFormInput,
+  BFormSelect,
+  BFormSelectOption,
+  BFormCheckbox,
+  BFormCheckboxGroup,
+  BFormRadio,
+  BFormRadioGroup,
+  BFormTextarea,
+  BFormFile,
+  BInputGroup,
+  BInputGroupText,
+  BPagination,
+  BSpinner,
+  BProgress,
+  BProgressBar,
+  BPopover,
+  BTooltip,
+  BNav,
+  BNavItem,
+  BNavbar,
+  BNavbarBrand,
+  BNavbarNav,
+  BNavbarToggle,
+  BCollapse,
+  BDropdown,
+  BDropdownItem,
+  BDropdownDivider,
+  BBadge,
+  BAlert,
+  BLink,
+  BImg,
+  BOverlay,
+  vBTooltip,
+  vBPopover,
+  vBToggle,
+  vBModal
+} from 'bootstrap-vue-next'
+
 // Import CSS dependencies
 import 'bootstrap/dist/css/bootstrap.css'
 import 'bootstrap-vue-next/dist/bootstrap-vue-next.css'
@@ -36,6 +101,71 @@ const app = createApp(App)
 
 // Use bootstrap-vue-next
 app.use(createBootstrap())
+
+// Register bootstrap-vue-next components globally
+app.component('BContainer', BContainer)
+app.component('BRow', BRow)
+app.component('BCol', BCol)
+app.component('BTabs', BTabs)
+app.component('BTab', BTab)
+app.component('BCard', BCard)
+app.component('BCardBody', BCardBody)
+app.component('BCardHeader', BCardHeader)
+app.component('BCardFooter', BCardFooter)
+app.component('BCardTitle', BCardTitle)
+app.component('BCardText', BCardText)
+app.component('BCardGroup', BCardGroup)
+app.component('BTable', BTable)
+app.component('BTableLite', BTableLite)
+app.component('BTableSimple', BTableSimple)
+app.component('BThead', BThead)
+app.component('BTbody', BTbody)
+app.component('BTr', BTr)
+app.component('BTh', BTh)
+app.component('BTd', BTd)
+app.component('BButton', BButton)
+app.component('BButtonGroup', BButtonGroup)
+app.component('BModal', BModal)
+app.component('BForm', BForm)
+app.component('BFormGroup', BFormGroup)
+app.component('BFormInput', BFormInput)
+app.component('BFormSelect', BFormSelect)
+app.component('BFormSelectOption', BFormSelectOption)
+app.component('BFormCheckbox', BFormCheckbox)
+app.component('BFormCheckboxGroup', BFormCheckboxGroup)
+app.component('BFormRadio', BFormRadio)
+app.component('BFormRadioGroup', BFormRadioGroup)
+app.component('BFormTextarea', BFormTextarea)
+app.component('BFormFile', BFormFile)
+app.component('BInputGroup', BInputGroup)
+app.component('BInputGroupText', BInputGroupText)
+app.component('BPagination', BPagination)
+app.component('BSpinner', BSpinner)
+app.component('BProgress', BProgress)
+app.component('BProgressBar', BProgressBar)
+app.component('BPopover', BPopover)
+app.component('BTooltip', BTooltip)
+app.component('BNav', BNav)
+app.component('BNavItem', BNavItem)
+app.component('BNavbar', BNavbar)
+app.component('BNavbarBrand', BNavbarBrand)
+app.component('BNavbarNav', BNavbarNav)
+app.component('BNavbarToggle', BNavbarToggle)
+app.component('BCollapse', BCollapse)
+app.component('BDropdown', BDropdown)
+app.component('BDropdownItem', BDropdownItem)
+app.component('BDropdownDivider', BDropdownDivider)
+app.component('BBadge', BBadge)
+app.component('BAlert', BAlert)
+app.component('BLink', BLink)
+app.component('BImg', BImg)
+app.component('BOverlay', BOverlay)
+
+// Register directives globally
+app.directive('b-tooltip', vBTooltip)
+app.directive('b-popover', vBPopover)
+app.directive('b-toggle', vBToggle)
+app.directive('b-modal', vBModal)
 
 // Use vue3-apexcharts
 app.use(VueApexCharts)
