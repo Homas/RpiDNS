@@ -10,7 +10,7 @@
     <BContainer fluid class="flex-grow-1 p-0 d-flex">
  
     <!-- Menu Toggle Icons -->
-    <template #tabs-end v-if="windowInnerWidth > 500">
+<!--     <template #tabs-end v-if="windowInnerWidth > 500">
       <div class="position-relative mt-2">
         <i 
           v-cloak 
@@ -27,10 +27,10 @@
           @click="expandMenu"
         ></i>
       </div>
-    </template>      
+    </template>     -->  
  
-    <div class="d-flex h-100 position-relative">
-        <!-- Menu Toggle Icons - positioned relative to nav -->
+    <!-- <div class="d-flex h-100 position-relative">
+        <!-- Menu Toggle Icons - positioned relative to nav 
         <div class="position-relative" :class="{ 'd-none': windowInnerWidth <= 500 }">
           <i 
             v-cloak 
@@ -47,7 +47,7 @@
             @click="expandMenu"
           ></i>
         </div>
-    </div>
+    </div>  -->
 
       <BTabs 
         ref="i2r" 
@@ -61,7 +61,24 @@
         @update:model-value="changeTab"
         :nav-class="navClass"
       >
-        <!-- Dashboard Tab -->
+
+      <div class="position-relative" :class="{ 'd-none': windowInnerWidth <= 500 }">
+          <i 
+            v-cloak 
+            class="fa fa-angle-double-left border rounded-end border-dark bg-light" 
+            style="position: absolute;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
+            :class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }" 
+            @click="collapseMenu"
+          ></i>
+          <i 
+            v-cloak 
+            class="fa fa-angle-double-right border rounded-end border-dark bg-light" 
+            style="position: absolute;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
+            :class="{ hidden: (toggleMenu != 2 && windowInnerWidth >= 992) || (toggleMenu != 1 && windowInnerWidth < 992) }" 
+            @click="expandMenu"
+          ></i>
+
+      <!-- Dashboard Tab -->
         <BTab class="scroll_tab">
           <template #title>
             <i class="fa fa-tachometer-alt"></i>
