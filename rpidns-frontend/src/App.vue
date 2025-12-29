@@ -62,7 +62,6 @@
         :nav-class="navClass"
       >
 
-      <div class="position-relative" :class="{ 'd-none': windowInnerWidth <= 500 }">
           <i 
             v-cloak 
             class="fa fa-angle-double-left border rounded-end border-dark bg-light" 
