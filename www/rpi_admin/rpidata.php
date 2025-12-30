@@ -549,25 +549,52 @@ RpiDNS powered by https://ioc2rpz.net
 			$import_db_file="";
 			$postfix = bin2hex(random_bytes(10));
 			if (!file_exists(TMPDir)) {$oldumask=umask(0);mkdir(TMPDir, 0775, true);umask($oldumask);};
-			switch (exec("/usr/bin/file ".$_FILES['file']['tmp_name']." | /usr/bin/awk '{print $2}'")):
+			
+			// Debug: Log import request details
+			$file_type_cmd = "/usr/bin/file ".$_FILES['file']['tmp_name']." | /usr/bin/awk '{print $2}'";
+			$detected_type = exec($file_type_cmd);
+			$file_type_full = exec("/usr/bin/file ".$_FILES['file']['tmp_name']);
+			error_log("[ImportDB] POST import request received");
+			error_log("[ImportDB] Uploaded file: " . json_encode($_FILES));
+			error_log("[ImportDB] File type command: " . $file_type_cmd);
+			error_log("[ImportDB] Detected type (awk): " . $detected_type);
+			error_log("[ImportDB] Full file type: " . $file_type_full);
+			error_log("[ImportDB] Objects to import: " . $REQUEST['objects']);
+			
+			switch ($detected_type):
 				case "SQLite":
+					error_log("[ImportDB] Processing as SQLite file");
 					if (move_uploaded_file($_FILES['file']['tmp_name'],TMPDir."/import_db_".$postfix.".sqlite")) $import_db_file=TMPDir."/import_db_".$postfix.".sqlite";
 				break;
 				case "gzip":
-					exec("gzip -dc ".$_FILES['file']['tmp_name']. " > ".TMPDir."/import_db_".$postfix.".sqlite");
-					$import_db_file=exec("/usr/bin/file ".TMPDir."/import_db_".$postfix.".sqlite"." | /usr/bin/awk '{print $2}'")=="SQLite"?TMPDir."/import_db_".$postfix.".sqlite":"";
+					error_log("[ImportDB] Processing as gzip file");
+					$gzip_cmd = "gzip -dc ".$_FILES['file']['tmp_name']. " > ".TMPDir."/import_db_".$postfix.".sqlite";
+					error_log("[ImportDB] Gzip command: " . $gzip_cmd);
+					exec($gzip_cmd);
+					$extracted_type = exec("/usr/bin/file ".TMPDir."/import_db_".$postfix.".sqlite"." | /usr/bin/awk '{print $2}'");
+					error_log("[ImportDB] Extracted file type: " . $extracted_type);
+					$import_db_file=$extracted_type=="SQLite"?TMPDir."/import_db_".$postfix.".sqlite":"";
 				break;
 				case "Zip":
+					error_log("[ImportDB] Processing as Zip file");
 					exec("unzip -p ".$_FILES['file']['tmp_name']. ">".TMPDir."/import_db_".$postfix.".sqlite");
-					$import_db_file=exec("/usr/bin/file ".TMPDir."/import_db_".$postfix.".sqlite"." | /usr/bin/awk '{print $2}'")=="SQLite"?TMPDir."/import_db_".$postfix.".sqlite":"";
+					$extracted_type = exec("/usr/bin/file ".TMPDir."/import_db_".$postfix.".sqlite"." | /usr/bin/awk '{print $2}'");
+					error_log("[ImportDB] Extracted file type: " . $extracted_type);
+					$import_db_file=$extracted_type=="SQLite"?TMPDir."/import_db_".$postfix.".sqlite":"";
 				break;
+				default:
+					error_log("[ImportDB] Unknown file type: " . $detected_type . " - not matching SQLite, gzip, or Zip");
 			endswitch;
 			if ($import_db_file!=""){
 				chmod(TMPDir."/import_db_".$postfix.".sqlite",0660);
 				file_put_contents(TMPDir."/rpidns_import_ready",TMPDir."/import_db_".$postfix.".sqlite"."|".$REQUEST['objects']);
 				chmod(TMPDir."/rpidns_import_ready",0660);
+				error_log("[ImportDB] Import started successfully: " . TMPDir."/import_db_".$postfix.".sqlite");
 				$response='{"status":"success","details":"import started","file_data":'.json_encode($_FILES).',"debug":"'.TMPDir."/import_db_".$postfix.'.sqlite|'.$REQUEST['objects'].'"}';
-			} else $response='{"status":"error","details":"bad file","file_data":'.json_encode($_FILES).'}';
+			} else {
+				error_log("[ImportDB] Import failed - bad file. Detected type was: " . $detected_type);
+				$response='{"status":"error","details":"bad file","file_data":'.json_encode($_FILES).'}';
+			}
 			if (is_uploaded_file($_FILES['file']['tmp_name'])) unlink($_FILES['file']['tmp_name']);
 
 		break;

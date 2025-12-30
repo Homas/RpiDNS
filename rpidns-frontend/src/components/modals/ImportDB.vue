@@ -10,12 +10,14 @@
       ok-title="Import" 
       @ok="importDB"
       @show="onShow"
+      @hidden="onHidden"
     >
       <span class="text-center">
         <BContainer fluid>
           <BRow class="pb-2">
             <BCol md="12" class="p-0">
               <BFormFile 
+                :key="fileInputKey"
                 v-model="upload_file" 
                 accept=".sqlite, .gzip, .zip" 
                 :state="upload_file !== null" 
@@ -102,6 +104,7 @@ export default {
     const upload_cancel_token = ref(null)
     const fUpInd = ref(true)
     const fImpInd = ref(false)
+    const fileInputKey = ref(0)
 
     const show = () => { isVisible.value = true }
     const hide = () => { isVisible.value = false }
@@ -112,6 +115,14 @@ export default {
       upload_progress.value = 0
       fUpInd.value = true
       fImpInd.value = false
+      // Force re-render of file input to allow re-selecting same file
+      fileInputKey.value++
+    }
+
+    const onHidden = () => {
+      // Reset file input when modal is closed
+      upload_file.value = null
+      fileInputKey.value++
     }
 
     const importDB = async (event) => {
@@ -137,6 +148,14 @@ export default {
       fImpInd.value = false
 
       try {
+        // Debug: log request details
+/*         console.error('[ImportDB] POST import request:', {
+          file: upload_file.value?.name,
+          fileSize: upload_file.value?.size,
+          fileType: upload_file.value?.type,
+          objects: db_import_type.value
+        }) */
+
         const response = await axios.post('/rpi_admin/rpidata.php?req=import', formData, {
           cancelToken: upload_cancel_token.value.token,
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -149,15 +168,22 @@ export default {
           }
         })
 
+        // Debug: log response
+        //console.error('[ImportDB] Server response:', response.data)
+
         if (response.data.status === 'success') {
           progressVisible.value = false
           emit('show-info', 'The DB will be imported soon', 3)
         } else {
           progressVisible.value = false
-          emit('show-info', response.data.reason, 3)
+          // Server may return error in 'reason' or 'details' field
+          const errorMsg = response.data.reason || response.data.details || 'Import failed'
+          console.error('[ImportDB] Import error:', errorMsg)
+          emit('show-info', errorMsg, 3)
         }
       } catch (error) {
         progressVisible.value = false
+        console.error('[ImportDB] Request error:', error)
         if (axios.isCancel(error)) {
           emit('show-info', 'Upload canceled', 3)
         } else {
@@ -177,7 +203,7 @@ export default {
 
     return {
       isVisible, progressVisible, upload_file, db_import_type, upload_progress,
-      fUpInd, fImpInd, show, hide, onShow, importDB, cancelUpload
+      fUpInd, fImpInd, fileInputKey, show, hide, onShow, onHidden, importDB, cancelUpload
     }
   }
 }

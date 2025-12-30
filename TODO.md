@@ -1,9 +1,11 @@
 # Migration to VUE3
 - [ ] Root hints provision for bind
-- [ ] Import DB for ZIP
+- [x] Import DB for ZIP
 TypeError: Cannot read properties of undefined (reading 'length')
-- [ ] unzipped, tried to import but Import DB modal doesn't close and generate the same error as above
+- [x] unzipped, tried to import but Import DB modal doesn't close and generate the same error as above
 - [ ] RPZ 1d,1w shows more than 1h by one (4 vs 3)
+- [ ] me-3 in between the tab pills and content
+
 
 - [x] Remove blocked.php from the install script on the community
 - [x] Can't download CA cert with docker

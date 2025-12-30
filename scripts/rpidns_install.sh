@@ -150,7 +150,7 @@ if [ -z "$RPIDNS_INSTALL_TYPE" ]; then
     # Non-container installation
     echo "Installing system dependencies..."
     apt-get update
-    apt-get -q -y install php-fpm sqlite3 php-sqlite3 curl ca-certificates gnupg
+    apt-get -q -y install php-fpm sqlite3 php-sqlite3 curl ca-certificates gnupg file
     
     # Always install Node.js (required for frontend build)
     echo "Installing Node.js..."

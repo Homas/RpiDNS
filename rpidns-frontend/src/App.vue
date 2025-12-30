@@ -418,8 +418,12 @@ export default {
     }
 
     const showInfo = (msg, time) => {
-      infoModalSize.value = msg.length > 30 ? 'md' : 'sm'
-      infoModalMessage.value = msg
+      // Handle undefined/null messages
+      const message = msg || ''
+      const duration = time || 3
+      
+      infoModalSize.value = message.length > 30 ? 'md' : 'sm'
+      infoModalMessage.value = message
       infoModalVisible.value = true
 
       if (infoModalTimeout) {
@@ -427,7 +431,7 @@ export default {
       }
       infoModalTimeout = setTimeout(() => {
         infoModalVisible.value = false
-      }, time * 1000)
+      }, duration * 1000)
     }
 
     const handleOpenImportModal = (data) => {
