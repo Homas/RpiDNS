@@ -11,15 +11,17 @@
  
       <BTabs 
         ref="i2r" 
-        pills 
+        pills
+        justified
         :vertical="windowInnerWidth > 500" 
         lazy 
         :nav-wrapper-class="navWrapperClass" 
         class="flex-grow-1 corners position-relative" 
         content-class="curl_angels flex-grow-1 overflow-auto h-100 position-relative" 
-        v-model="cfgTab" 
-        @update:model-value="changeTab"
+        :model-value="cfgTab"
+        @update:model-value="onTabChange"
         :nav-class="navClass"
+        nav-item-class="text-start"
       >
 
       <!-- Menu Toggle Icons -->
@@ -292,6 +294,11 @@ export default {
       history.pushState(null, null, '#i2r/' + tab)
     }
 
+    const onTabChange = (tab) => {
+      cfgTab.value = tab
+      changeTab(tab)
+    }
+
     const collapseMenu = () => {
       toggleMenu.value += 1
       updateWindowSize()
@@ -305,6 +312,7 @@ export default {
     }
 
     const handleNavigate = (data) => {
+      // Set filter and period first
       if (data.type === 'qlogs') {
         qlogs_Filter.value = data.filter
         qlogs_period.value = data.period
@@ -312,7 +320,10 @@ export default {
         hits_Filter.value = data.filter
         hits_period.value = data.period
       }
+      // Change tab - use direct assignment
       cfgTab.value = data.tab
+      // Also update URL hash
+      history.pushState(null, null, '#i2r/' + data.tab)
     }
 
     const handleAddIOC = (data) => {
@@ -526,6 +537,7 @@ export default {
       // Methods
       updateWindowSize,
       changeTab,
+      onTabChange,
       collapseMenu,
       expandMenu,
       handleNavigate,

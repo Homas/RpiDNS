@@ -41,8 +41,17 @@
             <div class="widget-body">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
-                  <BTr v-for="item in topXReq" :key="item.fname" class="mouseoverpointer" @click="onAllowedRequestClick(item)">
-                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                  <BTr v-for="(item, index) in topXReq" :key="'req-' + index" class="mouseoverpointer">
+                    <BTd class="text-truncate" style="max-width: 200px;">
+                      <BPopover :target="'tip-good_requests-' + index" triggers="hover" title="Actions">
+                        <a href="javascript:void(0)" @click.stop="onAllowedRequestClick(item)">Show queries</a><br>
+                        <a href="javascript:void(0)" @click.stop="blockDomain(item.fname)">Block</a>
+                        <hr class="m-1">
+                        <strong>Research:</strong><br>
+                        <ResearchLinks :domain="item.fname" />
+                      </BPopover>
+                      <span :id="'tip-good_requests-' + index">{{ item.fname }}</span>
+                    </BTd>
                     <BTd class="text-end">{{ item.cnt }}</BTd>
                   </BTr>
                 </BTbody>
@@ -61,8 +70,14 @@
             <div class="widget-body">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
-                  <BTr v-for="item in topXClient" :key="item.fname" class="mouseoverpointer" @click="onAllowedClientClick(item)">
-                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                  <BTr v-for="(item, index) in topXClient" :key="'client-' + index" class="mouseoverpointer">
+                    <BTd class="text-truncate" style="max-width: 200px;">
+                      <BPopover :target="'tip-good_clients-' + index" triggers="hover" title="Actions">
+                        <a href="javascript:void(0)" @click.stop="onAllowedClientClick(item)">Show queries</a><br>
+                        <a href="javascript:void(0)" @click.stop="showHitsForClient(item)">Show hits</a>
+                      </BPopover>
+                      <span :id="'tip-good_clients-' + index">{{ item.fname }}</span>
+                    </BTd>
                     <BTd class="text-end">{{ item.cnt }}</BTd>
                   </BTr>
                 </BTbody>
@@ -81,9 +96,9 @@
             <div class="widget-body">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
-                  <BTr v-for="item in topXReqType" :key="item.fname" class="mouseoverpointer" @click="onRequestTypeClick(item)">
-                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
-                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  <BTr v-for="(item, index) in topXReqType" :key="'reqtype-' + index" class="mouseoverpointer">
+                    <BTd class="text-truncate" style="max-width: 200px;" @click="onRequestTypeClick(item)">{{ item.fname }}</BTd>
+                    <BTd class="text-end" @click="onRequestTypeClick(item)">{{ item.cnt }}</BTd>
                   </BTr>
                 </BTbody>
               </BTableSimple>
@@ -127,8 +142,18 @@
             <div class="widget-body">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
-                  <BTr v-for="item in topXBreq" :key="item.fname" class="mouseoverpointer" @click="onBlockedRequestClick(item)">
-                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                  <BTr v-for="(item, index) in topXBreq" :key="'breq-' + index" class="mouseoverpointer">
+                    <BTd class="text-truncate" style="max-width: 200px;">
+                      <BPopover :target="'tip-bad_requests-' + index" triggers="hover" title="Actions">
+                        Show <a href="javascript:void(0)" @click.stop="showQueries('fqdn=' + item.fname)">queries</a>&nbsp;|&nbsp;
+                        <a href="javascript:void(0)" @click.stop="onBlockedRequestClick(item)">hits</a><br>
+                        <a href="javascript:void(0)" @click.stop="allowDomain(item.fname)">Allow</a>
+                        <hr class="m-1">
+                        <strong>Research:</strong><br>
+                        <ResearchLinks :domain="item.fname" />
+                      </BPopover>
+                      <span :id="'tip-bad_requests-' + index">{{ item.fname }}</span>
+                    </BTd>
                     <BTd class="text-end">{{ item.cnt }}</BTd>
                   </BTr>
                 </BTbody>
@@ -147,8 +172,14 @@
             <div class="widget-body">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
-                  <BTr v-for="item in topXBclient" :key="item.fname" class="mouseoverpointer" @click="onBlockedClientClick(item)">
-                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
+                  <BTr v-for="(item, index) in topXBclient" :key="'bclient-' + index" class="mouseoverpointer">
+                    <BTd class="text-truncate" style="max-width: 200px;">
+                      <BPopover :target="'tip-bad_clients-' + index" triggers="hover" title="Actions">
+                        Show <a href="javascript:void(0)" @click.stop="showQueriesForClient(item)">queries</a>&nbsp;|&nbsp;
+                        <a href="javascript:void(0)" @click.stop="onBlockedClientClick(item)">hits</a>
+                      </BPopover>
+                      <span :id="'tip-bad_clients-' + index">{{ item.fname }}</span>
+                    </BTd>
                     <BTd class="text-end">{{ item.cnt }}</BTd>
                   </BTr>
                 </BTbody>
@@ -167,9 +198,9 @@
             <div class="widget-body">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
-                  <BTr v-for="item in topXFeeds" :key="item.fname" class="mouseoverpointer" @click="onFeedClick(item)">
-                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
-                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  <BTr v-for="(item, index) in topXFeeds" :key="'feed-' + index" class="mouseoverpointer">
+                    <BTd class="text-truncate" style="max-width: 200px;" @click="onFeedClick(item)">{{ item.fname }}</BTd>
+                    <BTd class="text-end" @click="onFeedClick(item)">{{ item.cnt }}</BTd>
                   </BTr>
                 </BTbody>
               </BTableSimple>
@@ -187,9 +218,9 @@
             <div class="widget-body">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
-                  <BTr v-for="item in topXServer" :key="item.fname" class="mouseoverpointer" @click="onServerClick(item)">
-                    <BTd class="text-truncate" style="max-width: 200px;">{{ item.fname }}</BTd>
-                    <BTd class="text-end">{{ item.cnt }}</BTd>
+                  <BTr v-for="(item, index) in topXServer" :key="'server-' + index" class="mouseoverpointer">
+                    <BTd class="text-truncate" style="max-width: 200px;" @click="onServerClick(item)">{{ item.fname }}</BTd>
+                    <BTd class="text-end" @click="onServerClick(item)">{{ item.cnt }}</BTd>
                   </BTr>
                 </BTbody>
               </BTableSimple>
@@ -214,12 +245,14 @@
 <script>
 import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
+import { BPopover } from 'bootstrap-vue-next'
 import ResearchLinks from './ResearchLinks.vue'
 
 export default {
   name: 'Dashboard',
   components: {
-    ResearchLinks
+    ResearchLinks,
+    BPopover
   },
   emits: ['navigate', 'add-ioc'],
   setup(props, { emit }) {
