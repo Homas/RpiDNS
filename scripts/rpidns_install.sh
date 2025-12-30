@@ -102,9 +102,13 @@ build_frontend() {
     
     echo "Using npm at: $NPM_CMD"
     
+    # Clean node_modules to ensure fresh install
+    echo "Cleaning node_modules..."
+    rm -rf node_modules package-lock.json
+    
     # Install npm dependencies
     echo "Installing npm dependencies..."
-    $NPM_CMD install
+    $NPM_CMD install --no-fund --no-audit
     
     if [ $? -ne 0 ]; then
         echo "ERROR: npm install failed"
@@ -141,7 +145,7 @@ if [ -z "$RPIDNS_INSTALL_TYPE" ]; then
     echo "Installing Node.js..."
     # Add NodeSource repository for LTS version
     mkdir -p /etc/apt/keyrings
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --batch --yes --dearmor -o /etc/apt/keyrings/nodesource.gpg
     NODE_MAJOR=20
     echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
     apt-get update

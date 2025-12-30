@@ -20,7 +20,6 @@
         v-model="cfgTab" 
         @update:model-value="changeTab"
         :nav-class="navClass"
-        nav-item-class="me-0"
       >
 
       <!-- Menu Toggle Icons -->
@@ -221,12 +220,13 @@ export default {
       'text-align-start': true,
       'h-100': windowInnerWidth.value > 500, 
       'p-1': windowInnerWidth.value > 500,
-      'mnw165': windowInnerWidth.value > 500,
+      'mnw165': (windowInnerWidth.value > 500 && toggleMenu.value == 0) ,
     }))
 
     const navClass = computed(() => ({ 
       hidden: (toggleMenu.value == 2 && windowInnerWidth.value >= 992) || 
-              (toggleMenu.value == 1 && windowInnerWidth.value < 992) 
+              (toggleMenu.value == 1 && windowInnerWidth.value < 992),
+      'me-0': true 
     }))
 
     const shouldHideCollapseIcon = computed(() => 
