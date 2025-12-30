@@ -7,7 +7,7 @@
     </div>
 
     <!-- Main Container with Tabs -->
-    <BContainer fluid class="flex-grow-1 p-0 d-flex">
+    <BContainer fluid class="flex-grow-1 p-0 d-flex h-100">
  
     <!-- Menu Toggle Icons -->
 <!--     <template #tabs-end v-if="windowInnerWidth > 500">
@@ -65,14 +65,14 @@
           <i 
             v-cloak 
             class="fa fa-angle-double-left border rounded-end border-dark bg-light" 
-            style="position: absolute;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
+            style="position: relative;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
             :class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }" 
             @click="collapseMenu"
           ></i>
           <i 
             v-cloak 
             class="fa fa-angle-double-right border rounded-end border-dark bg-light" 
-            style="position: absolute;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
+            style="position: relative;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
             :class="{ hidden: (toggleMenu != 2 && windowInnerWidth >= 992) || (toggleMenu != 1 && windowInnerWidth < 992) }" 
             @click="expandMenu"
           ></i>
