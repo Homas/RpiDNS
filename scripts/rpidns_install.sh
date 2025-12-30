@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ###
 ### 2025-12-28
 ### Updated for Vite-based frontend builds
@@ -6,18 +6,46 @@
 ### This script builds the frontend with Vite and sets up the local environment
 ###
 
-SYSUSER=`who am i | awk '{print $1}'`
+SYSUSER=$(who am i | awk '{print $1}')
 SUDO_USER=${SUDO_USER:-$SYSUSER}
+
+# Function to find npm in common locations
+find_npm() {
+    # Check common npm locations
+    for NPM_PATH in /usr/bin/npm /usr/local/bin/npm /opt/nodejs/bin/npm; do
+        if [ -x "$NPM_PATH" ]; then
+            echo "$NPM_PATH"
+            return 0
+        fi
+    done
+    
+    # Try command -v as fallback
+    if command -v npm >/dev/null 2>&1; then
+        command -v npm
+        return 0
+    fi
+    
+    return 1
+}
 
 # Function to check if Node.js is installed
 check_nodejs() {
+    # Check common node locations
+    for NODE_PATH in /usr/bin/node /usr/local/bin/node /opt/nodejs/bin/node; do
+        if [ -x "$NODE_PATH" ]; then
+            NODE_VERSION=$($NODE_PATH -v)
+            echo "Node.js ${NODE_VERSION} is installed at $NODE_PATH"
+            return 0
+        fi
+    done
+    
     if command -v node >/dev/null 2>&1; then
         NODE_VERSION=$(node -v)
         echo "Node.js ${NODE_VERSION} is installed"
         return 0
-    else
-        return 1
     fi
+    
+    return 1
 }
 
 # Function to install Node.js
@@ -26,6 +54,10 @@ install_nodejs() {
     # Install Node.js via NodeSource repository (LTS version)
     curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
     apt-get -q -y install nodejs
+    
+    # Refresh PATH to include newly installed node/npm
+    export PATH="/usr/bin:/usr/local/bin:/opt/nodejs/bin:$PATH"
+    hash -r 2>/dev/null || true
     
     if check_nodejs; then
         echo "Node.js installed successfully"
@@ -47,9 +79,32 @@ build_frontend() {
     
     cd "$FRONTEND_DIR"
     
+    # Ensure npm is in PATH
+    export PATH="/usr/bin:/usr/local/bin:/opt/nodejs/bin:$PATH"
+    
+    # Find npm location using our function
+    NPM_CMD=$(find_npm)
+    
+    # If npm not found, try to install Node.js
+    if [ -z "$NPM_CMD" ] || [ ! -x "$NPM_CMD" ]; then
+        echo "npm not found, attempting to install Node.js..."
+        install_nodejs
+        
+        # Try finding npm again after installation
+        NPM_CMD=$(find_npm)
+        if [ -z "$NPM_CMD" ] || [ ! -x "$NPM_CMD" ]; then
+            echo "ERROR: npm still not found after Node.js installation."
+            echo "Searched locations: /usr/bin/npm, /usr/local/bin/npm, /opt/nodejs/bin/npm"
+            echo "Current PATH: $PATH"
+            exit 1
+        fi
+    fi
+    
+    echo "Using npm at: $NPM_CMD"
+    
     # Install npm dependencies
     echo "Installing npm dependencies..."
-    npm install
+    $NPM_CMD install
     
     if [ $? -ne 0 ]; then
         echo "ERROR: npm install failed"
@@ -58,7 +113,7 @@ build_frontend() {
     
     # Build production assets
     echo "Building production assets..."
-    npm run build
+    $NPM_CMD run build
     
     if [ $? -ne 0 ]; then
         echo "ERROR: npm run build failed"
@@ -78,11 +133,26 @@ build_frontend() {
 
 if [ -z "$RPIDNS_INSTALL_TYPE" ]; then
     # Non-container installation
-    apt-get -q -y install php-fpm sqlite3 php-sqlite3 curl
+    echo "Installing system dependencies..."
+    apt-get update
+    apt-get -q -y install php-fpm sqlite3 php-sqlite3 curl ca-certificates gnupg
     
-    # Install Node.js if not present
-    if ! check_nodejs; then
-        install_nodejs
+    # Always install Node.js (required for frontend build)
+    echo "Installing Node.js..."
+    # Add NodeSource repository for LTS version
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+    NODE_MAJOR=20
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
+    apt-get update
+    apt-get -q -y install nodejs
+    
+    # Verify Node.js installation
+    export PATH="/usr/bin:/usr/local/bin:$PATH"
+    if check_nodejs; then
+        echo "Node.js installation verified"
+    else
+        echo "WARNING: Node.js installation could not be verified"
     fi
     
     # Init DB

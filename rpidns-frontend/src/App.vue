@@ -551,3 +551,8 @@ export default {
 }
 .mnw165 { min-width: 165px; }
 </style>
+
+
+<style>
+.mnw165 { min-width: 165px; }
+</style>
