@@ -220,7 +220,8 @@ export default {
       'menu-bkgr': true, 
       'text-align-start': true,
       'h-100': windowInnerWidth.value > 500, 
-      'p-1': windowInnerWidth.value > 500
+      'p-1': windowInnerWidth.value > 500,
+      'mnw165': windowInnerWidth.value > 500,
     }))
 
     const navClass = computed(() => ({ 
@@ -548,4 +549,5 @@ export default {
 .placeholder-content {
   padding: 1rem;
 }
+.mnw165 { min-width: 165px; }
 </style>

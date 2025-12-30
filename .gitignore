@@ -24,9 +24,6 @@ _bind_queries.log
 # Database files (generated at runtime)
 www/db/
 
-# Local settings (may contain sensitive data)
-www/rpisettings.php
-
 # SSL certificates (generated at runtime)
 conf/ssl/
 conf/ssl_sign/
