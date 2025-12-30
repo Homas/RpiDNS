@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:dev": "vite build --mode development --sourcemap",
     "preview": "vite preview",
     "copy:dist": "rm -rf ../www/rpi_admin/dist && cp -r dist ../www/rpi_admin/dist",
     "build:deploy": "npm run build && npm run copy:dist",
+    "build:deploy:dev": "npm run build:dev && npm run copy:dist",
     "test": "vitest"
   },
   "keywords": [

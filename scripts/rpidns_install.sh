@@ -9,6 +9,11 @@
 SYSUSER=$(who am i | awk '{print $1}')
 SUDO_USER=${SUDO_USER:-$SYSUSER}
 
+# Build mode: "production" (default) or "development"
+# Development mode includes source maps and unminified code for debugging
+# Set via environment variable: RPIDNS_BUILD_MODE=development
+RPIDNS_BUILD_MODE=${RPIDNS_BUILD_MODE:-production}
+
 # Function to find npm in common locations
 find_npm() {
     # Check common npm locations
@@ -116,8 +121,14 @@ build_frontend() {
     fi
     
     # Build production assets
-    echo "Building production assets..."
-    $NPM_CMD run build
+    echo "Building frontend assets (mode: $RPIDNS_BUILD_MODE)..."
+    if [ "$RPIDNS_BUILD_MODE" = "development" ]; then
+        # Development build with source maps for debugging
+        $NPM_CMD run build -- --mode development --sourcemap
+    else
+        # Production build (minified, no source maps)
+        $NPM_CMD run build
+    fi
     
     if [ $? -ne 0 ]; then
         echo "ERROR: npm run build failed"

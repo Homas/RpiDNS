@@ -18,8 +18,8 @@
         :nav-wrapper-class="navWrapperClass" 
         class="flex-grow-1 corners position-relative" 
         content-class="curl_angels flex-grow-1 overflow-auto h-100 position-relative" 
-        :model-value="cfgTab"
-        @update:model-value="onTabChange"
+        :index="cfgTab"
+        @update:index="onTabChange"
         :nav-class="navClass"
         nav-item-class="text-start"
       >
@@ -101,7 +101,9 @@
         </BTab>
 
         <!-- Help Tab -->
-        <BTab lazy>
+
+<!--
+         <BTab lazy>
           <template #title>
             <i class="fas fa-hands-helping"></i>
             <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Help</span>
@@ -115,6 +117,8 @@
             </BCard>
           </div>
         </BTab>
+ -->
+
       </BTabs>
     </BContainer>
 
