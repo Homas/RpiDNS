@@ -16,24 +16,25 @@
         lazy 
         :nav-wrapper-class="navWrapperClass" 
         class="flex-grow-1 corners position-relative" 
-        content-class="curl_angels flex-grow-1 overflow-auto h-100" 
+        content-class="curl_angels flex-grow-1 overflow-auto h-100 position-relative" 
         v-model="cfgTab" 
         @update:model-value="changeTab"
         :nav-class="navClass"
+        nav-item-class="me-0"
       >
 
       <!-- Menu Toggle Icons -->
          <i 
             v-cloak 
             class="fa fa-angle-double-left border rounded-end border-dark bg-light" 
-            style="position: relative;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
+            style="position: absolute;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
             :class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }" 
             @click="collapseMenu"
           ></i>
           <i 
             v-cloak 
             class="fa fa-angle-double-right border rounded-end border-dark bg-light" 
-            style="position: relative;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
+            style="position: absolute;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
             :class="{ hidden: (toggleMenu != 2 && windowInnerWidth >= 992) || (toggleMenu != 1 && windowInnerWidth < 992) }" 
             @click="expandMenu"
           ></i>
@@ -217,6 +218,7 @@ export default {
     // Computed classes for nav
     const navWrapperClass = computed(() => ({
       'menu-bkgr': true, 
+      'text-align-start': true,
       'h-100': windowInnerWidth.value > 500, 
       'p-1': windowInnerWidth.value > 500
     }))
