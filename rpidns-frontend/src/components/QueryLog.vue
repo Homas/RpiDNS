@@ -1,32 +1,33 @@
 <template>
-  <div>
-    <div class="v-spacer"></div>
-    <BCard>
+  <div class="h-100 overflow-auto p-2">
+    <BCard class="h-100 d-flex flex-column">
       <!-- Header with Refresh and Period Selection -->
       <template #header>
         <BRow>
           <BCol cols="0" class="d-none d-lg-block" lg="2">
             <span class="bold"><i class="fas fa-shoe-prints"></i>&nbsp;&nbsp;Query logs</span>
           </BCol>
-          <BCol cols="12" lg="10" class="text-right">
-            <BFormGroup class="m-0">
+          <BCol cols="12" lg="10" class="text-end">
+            <BButton 
+              v-b-tooltip.hover 
+              title="Refresh" 
+              variant="outline-secondary" 
+              size="sm" 
+              @click.stop="refreshTable"
+            >
+              <i class="fa fa-sync"></i>
+            </BButton>&nbsp;&nbsp;&nbsp;
+            <BButtonGroup size="sm">
               <BButton 
-                v-b-tooltip.hover 
-                title="Refresh" 
-                variant="outline-secondary" 
-                size="sm" 
-                @click.stop="refreshTable"
+                v-for="opt in qperiod_options" 
+                :key="opt.value"
+                :variant="localPeriod === opt.value ? 'secondary' : 'outline-secondary'"
+                :disabled="opt.disabled"
+                @click="selectPeriod(opt.value)"
               >
-                <i class="fa fa-sync"></i>
+                {{ opt.text }}
               </BButton>
-              <BFormRadioGroup 
-                v-model="localPeriod" 
-                :options="qperiod_options" 
-                buttons 
-                size="sm" 
-                @update:model-value="onPeriodChange"
-              ></BFormRadioGroup>
-            </BFormGroup>
+            </BButtonGroup>
           </BCol>
         </BRow>
       </template>
@@ -34,15 +35,16 @@
       <!-- Controls Row: Logs/Stats Toggle, Pagination, Filter -->
       <BRow class="d-none d-sm-flex">
         <BCol cols="1" lg="1">
-          <BFormRadioGroup 
-            buttons 
-            size="sm" 
-            v-model="query_ltype" 
-            @update:model-value="switchStats"
-          >
-            <BFormRadio value="logs">Logs</BFormRadio>
-            <BFormRadio value="stats">Stats</BFormRadio>
-          </BFormRadioGroup>
+          <BButtonGroup size="sm">
+            <BButton 
+              :variant="query_ltype === 'logs' ? 'secondary' : 'outline-secondary'"
+              @click="selectLtype('logs')"
+            >Logs</BButton>
+            <BButton 
+              :variant="query_ltype === 'stats' ? 'secondary' : 'outline-secondary'"
+              @click="selectLtype('stats')"
+            >Stats</BButton>
+          </BButtonGroup>
         </BCol>
         <BCol cols="3" lg="3"></BCol>
         <BCol cols="3" lg="3">
@@ -236,7 +238,19 @@ export default {
     }
 
     const onPeriodChange = () => { qlogs_cp.value = 1; fetchData() }
+    const selectPeriod = (value) => {
+      if (value !== 'custom') {
+        localPeriod.value = value
+        qlogs_cp.value = 1
+        fetchData()
+      }
+    }
     const switchStats = () => { tableItems.value = []; fetchData() }
+    const selectLtype = (value) => {
+      query_ltype.value = value
+      tableItems.value = []
+      fetchData()
+    }
     const filterBy = (field, value) => { localFilter.value = field + '=' + value }
     const blockDomain = (domain) => { emit('add-ioc', { ioc: domain, type: 'bl' }) }
     const allowDomain = (domain) => { emit('add-ioc', { ioc: domain, type: 'wl' }) }
@@ -257,7 +271,7 @@ export default {
     return {
       localFilter, localPeriod, query_ltype, qlogs_cp, qlogs_nrows, qlogs_pp,
       qlogs_select_fields, tableItems, isLoading, qperiod_options,
-      refreshTable, onPeriodChange, switchStats, filterBy, blockDomain, allowDomain,
+      refreshTable, onPeriodChange, selectPeriod, switchStats, selectLtype, filterBy, blockDomain, allowDomain,
       formatDate, sortBy: sortByField
     }
   }

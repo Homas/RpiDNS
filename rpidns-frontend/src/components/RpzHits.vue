@@ -1,32 +1,33 @@
 <template>
-  <div>
-    <div class="v-spacer"></div>
-    <BCard>
+  <div class="h-100 overflow-auto p-2">
+    <BCard class="h-100 d-flex flex-column">
       <!-- Header with Refresh and Period Selection -->
       <template #header>
         <BRow>
           <BCol cols="0" class="d-none d-lg-block" lg="2">
             <span class="bold"><i class="fa fa-shield-alt"></i>&nbsp;&nbsp;RPZ hits</span>
           </BCol>
-          <BCol cols="12" lg="10" class="text-right">
-            <BFormGroup class="m-0">
+          <BCol cols="12" lg="10" class="text-end">
+            <BButton 
+              v-b-tooltip.hover 
+              title="Refresh" 
+              variant="outline-secondary" 
+              size="sm" 
+              @click.stop="refreshTable"
+            >
+              <i class="fa fa-sync"></i>
+            </BButton>&nbsp;&nbsp;&nbsp;
+            <BButtonGroup size="sm">
               <BButton 
-                v-b-tooltip.hover 
-                title="Refresh" 
-                variant="outline-secondary" 
-                size="sm" 
-                @click.stop="refreshTable"
+                v-for="opt in period_options" 
+                :key="opt.value"
+                :variant="localPeriod === opt.value ? 'secondary' : 'outline-secondary'"
+                :disabled="opt.disabled"
+                @click="selectPeriod(opt.value)"
               >
-                <i class="fa fa-sync"></i>
+                {{ opt.text }}
               </BButton>
-              <BFormRadioGroup 
-                v-model="localPeriod" 
-                :options="period_options" 
-                buttons 
-                size="sm" 
-                @update:model-value="onPeriodChange"
-              ></BFormRadioGroup>
-            </BFormGroup>
+            </BButtonGroup>
           </BCol>
         </BRow>
       </template>
@@ -34,15 +35,16 @@
       <!-- Controls Row: Logs/Stats Toggle, Pagination, Filter -->
       <BRow class="d-none d-sm-flex">
         <BCol cols="1" lg="1">
-          <BFormRadioGroup 
-            buttons 
-            size="sm" 
-            v-model="hits_ltype" 
-            @update:model-value="switchStats"
-          >
-            <BFormRadio value="logs">Logs</BFormRadio>
-            <BFormRadio value="stats">Stats</BFormRadio>
-          </BFormRadioGroup>
+          <BButtonGroup size="sm">
+            <BButton 
+              :variant="hits_ltype === 'logs' ? 'secondary' : 'outline-secondary'"
+              @click="selectLtype('logs')"
+            >Logs</BButton>
+            <BButton 
+              :variant="hits_ltype === 'stats' ? 'secondary' : 'outline-secondary'"
+              @click="selectLtype('stats')"
+            >Stats</BButton>
+          </BButtonGroup>
         </BCol>
         <BCol cols="3" lg="3"></BCol>
         <BCol cols="3" lg="3">
@@ -223,7 +225,19 @@ export default {
     }
 
     const onPeriodChange = () => { hits_cp.value = 1; fetchData() }
+    const selectPeriod = (value) => {
+      if (value !== 'custom') {
+        localPeriod.value = value
+        hits_cp.value = 1
+        fetchData()
+      }
+    }
     const switchStats = () => { tableItems.value = []; fetchData() }
+    const selectLtype = (value) => {
+      hits_ltype.value = value
+      tableItems.value = []
+      fetchData()
+    }
     const filterBy = (field, value) => { localFilter.value = field + '=' + value }
     const extractRuleDomain = (item) => {
       if (item.rule && item.feed) {
@@ -252,7 +266,7 @@ export default {
     return {
       localFilter, localPeriod, hits_ltype, hits_cp, hits_nrows, hits_pp,
       hits_select_fields, tableItems, isLoading, period_options,
-      refreshTable, onPeriodChange, switchStats, filterBy, extractRuleDomain,
+      refreshTable, onPeriodChange, selectPeriod, switchStats, selectLtype, filterBy, extractRuleDomain,
       allowDomain, allowRule, formatDate, sortBy: sortByField
     }
   }
