@@ -200,12 +200,10 @@ http {
             assert(lock:unlock())
         }
 
-        # Admin interface with basic auth - MUST be before blocking rules
+        # Admin interface - MUST be before blocking rules
+        # Authentication is handled by PHP session (auth.php)
         # Serve all files normally under /rpi_admin
         location ^~ /rpi_admin {
-            auth_basic "RpiDNS Admin";
-            auth_basic_user_file /opt/rpidns/conf/.htpasswd;
-            
             # Serve static files directly
             location ~* ^/rpi_admin/.*\.(jpg|jpeg|png|gif|ico|css|js|woff|woff2|ttf|svg|eot)$ {
                 try_files $uri =404;

@@ -1,0 +1,173 @@
+<template>
+  <BModal 
+    v-model="isVisible"
+    centered 
+    title="Change Password" 
+    id="mPasswordChange" 
+    body-class="text-center pt-0 pb-0" 
+    ok-title="Change Password" 
+    :ok-disabled="!isFormValid || loading"
+    @ok="handleSubmit"
+    @show="onShow"
+    @hidden="onHidden"
+  >
+    <BContainer fluid>
+      <BRow class="pb-2">
+        <BCol md="12" class="p-0">
+          <BFormInput 
+            v-model="currentPassword" 
+            type="password"
+            placeholder="Current Password"
+            :state="currentPassword.length > 0 ? true : null"
+            autocomplete="current-password"
+          />
+        </BCol>
+      </BRow>
+      <BRow class="pb-2">
+        <BCol md="12" class="p-0">
+          <BFormInput 
+            v-model="newPassword" 
+            type="password"
+            placeholder="New Password (min 8 characters)"
+            :state="newPasswordState"
+            autocomplete="new-password"
+          />
+          <BFormInvalidFeedback :state="newPasswordState">
+            Password must be at least 8 characters
+          </BFormInvalidFeedback>
+        </BCol>
+      </BRow>
+      <BRow class="pb-2">
+        <BCol md="12" class="p-0">
+          <BFormInput 
+            v-model="confirmPassword" 
+            type="password"
+            placeholder="Confirm New Password"
+            :state="confirmPasswordState"
+            autocomplete="new-password"
+          />
+          <BFormInvalidFeedback :state="confirmPasswordState">
+            Passwords do not match
+          </BFormInvalidFeedback>
+        </BCol>
+      </BRow>
+      <BRow v-if="error" class="pb-1">
+        <BCol md="12" class="p-0">
+          <BAlert variant="danger" show class="mb-0 py-2">{{ error }}</BAlert>
+        </BCol>
+      </BRow>
+      <BRow v-if="loading" class="pb-1">
+        <BCol md="12" class="p-0 text-center">
+          <BSpinner small type="grow"></BSpinner>&nbsp;&nbsp;Changing password...
+        </BCol>
+      </BRow>
+    </BContainer>
+  </BModal>
+</template>
+
+<script>
+import { ref, computed } from 'vue'
+import axios from 'axios'
+
+const MIN_PASSWORD_LENGTH = 8
+
+export default {
+  name: 'PasswordChange',
+  emits: ['show-info', 'password-changed'],
+  setup(props, { emit, expose }) {
+    const isVisible = ref(false)
+    const currentPassword = ref('')
+    const newPassword = ref('')
+    const confirmPassword = ref('')
+    const error = ref('')
+    const loading = ref(false)
+
+    const show = () => { isVisible.value = true }
+    const hide = () => { isVisible.value = false }
+
+    const onShow = () => {
+      currentPassword.value = ''
+      newPassword.value = ''
+      confirmPassword.value = ''
+      error.value = ''
+      loading.value = false
+    }
+
+    const onHidden = () => {
+      currentPassword.value = ''
+      newPassword.value = ''
+      confirmPassword.value = ''
+      error.value = ''
+    }
+
+    const newPasswordState = computed(() => {
+      if (newPassword.value.length === 0) return null
+      return newPassword.value.length >= MIN_PASSWORD_LENGTH
+    })
+
+    const confirmPasswordState = computed(() => {
+      if (confirmPassword.value.length === 0) return null
+      return confirmPassword.value === newPassword.value
+    })
+
+    const isFormValid = computed(() => {
+      return currentPassword.value.length > 0 &&
+             newPassword.value.length >= MIN_PASSWORD_LENGTH &&
+             confirmPassword.value === newPassword.value
+    })
+
+    const handleSubmit = async (event) => {
+      event.preventDefault()
+      
+      if (!isFormValid.value) {
+        return
+      }
+
+      error.value = ''
+      loading.value = true
+
+      try {
+        const response = await axios.post('/rpi_admin/auth.php?action=change_password', {
+          current_password: currentPassword.value,
+          new_password: newPassword.value
+        })
+
+        if (response.data.status === 'success') {
+          hide()
+          emit('password-changed')
+          emit('show-info', 'Password changed successfully', 3)
+        } else {
+          error.value = response.data.message || 'Failed to change password'
+        }
+      } catch (err) {
+        if (err.response && err.response.data && err.response.data.message) {
+          error.value = err.response.data.message
+        } else {
+          error.value = 'An error occurred while changing password'
+        }
+      } finally {
+        loading.value = false
+      }
+    }
+
+    expose({ show, hide })
+
+    return {
+      isVisible,
+      currentPassword,
+      newPassword,
+      confirmPassword,
+      error,
+      loading,
+      newPasswordState,
+      confirmPasswordState,
+      isFormValid,
+      show,
+      hide,
+      onShow,
+      onHidden,
+      handleSubmit
+    }
+  }
+}
+</script>

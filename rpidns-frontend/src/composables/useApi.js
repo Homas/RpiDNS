@@ -8,6 +8,26 @@ import axios from 'axios'
 const API_BASE = '/rpi_admin/rpidata.php'
 
 /**
+ * Handle 401 Unauthorized responses by redirecting to login
+ * @param {Error} error - Axios error object
+ */
+const handleUnauthorized = (error) => {
+  if (error.response && error.response.status === 401) {
+    // Dispatch a custom event that App.vue can listen to
+    window.dispatchEvent(new CustomEvent('session-expired'))
+    // Return a rejected promise with a clear message
+    return Promise.reject(new Error('Session expired. Please log in again.'))
+  }
+  return Promise.reject(error)
+}
+
+// Configure axios interceptor for 401 handling
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => handleUnauthorized(error)
+)
+
+/**
  * Composable for API calls to the RpiDNS backend
  * @returns {Object} API methods: get, post, put, del
  */
@@ -67,16 +87,28 @@ export function useApi() {
     const url = `${ctx.apiUrl}&sortBy=${ctx.sortBy}&sortDesc=${ctx.sortDesc}`
     try {
       const response = await axios.get(url)
+      
+      // Check for 401 response
+      if (response.status === 401) {
+        window.dispatchEvent(new CustomEvent('session-expired'))
+        return { items: [], records: 0 }
+      }
+      
       const items = response.data.data
-      // Check for HTML response (session expired)
+      // Check for HTML response (session expired - legacy check)
       if (/DOCTYPE html/.test(items)) {
-        window.location.reload(false)
+        window.dispatchEvent(new CustomEvent('session-expired'))
+        return { items: [], records: 0 }
       }
       return {
         items: items,
         records: parseInt(response.data.records) || 0
       }
     } catch (error) {
+      // 401 errors are handled by the interceptor
+      if (error.message === 'Session expired. Please log in again.') {
+        return { items: [], records: 0 }
+      }
       console.error('API Error:', error)
       return {
         items: [],

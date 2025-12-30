@@ -59,6 +59,13 @@
           <label for="dashboard_topx">Dashboard show Top &nbsp;&nbsp;&nbsp;</label>
           <BFormInput id="dashboard_topx" min="1" max="200" type="number" size="sm" v-model="dashboard_topx"></BFormInput>
         </BForm>
+        
+        <!-- Account Security Section -->
+        <h4 class="mt-4">Account Security</h4>
+        <hr class="mt-0">
+        <BButton size="sm" variant="outline-primary" @click="showPasswordChange">
+          <i class="fa fa-key"></i>&nbsp;Change Password
+        </BButton>
       </BCol>
     </BRow>
 
@@ -68,15 +75,26 @@
         <BButton size="sm" @click="setSettings">Save</BButton>
       </BCol>
     </BRow>
+
+    <!-- Password Change Modal -->
+    <PasswordChange 
+      ref="passwordChangeModal" 
+      @show-info="handleShowInfo"
+      @password-changed="onPasswordChanged"
+    />
   </div>
 </template>
 
 <script>
 import { ref, reactive, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
+import PasswordChange from '@/components/modals/PasswordChange.vue'
 
 export default {
   name: 'Settings',
+  components: {
+    PasswordChange
+  },
   emits: ['show-info'],
   setup(props, { emit }) {
     const api = useApi()
@@ -86,6 +104,7 @@ export default {
     const assets_autocreate = ref(true)
     const dashboard_topx = ref(100)
     const db_stats_busy = ref(false)
+    const passwordChangeModal = ref(null)
 
     const formatSize = (value) => {
       if (value < 1024) return value + ' b'
@@ -146,11 +165,26 @@ export default {
       }
     }
 
+    const showPasswordChange = () => {
+      if (passwordChangeModal.value) {
+        passwordChangeModal.value.show()
+      }
+    }
+
+    const handleShowInfo = (msg, time) => {
+      emit('show-info', { msg, time })
+    }
+
+    const onPasswordChanged = () => {
+      // Password was changed successfully - could add additional logic here if needed
+    }
+
     onMounted(() => { getSettings() })
 
     return {
       retention, retentionValues, assets_by, assets_autocreate, dashboard_topx, db_stats_busy,
-      formatSize, formatDate, setSettings
+      passwordChangeModal,
+      formatSize, formatDate, setSettings, showPasswordChange, handleShowInfo, onPasswordChanged
     }
   }
 }

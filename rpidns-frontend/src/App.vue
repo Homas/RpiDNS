@@ -1,9 +1,41 @@
 <template>
-  <div id="ConfApp" class="h-100 d-flex flex-column" v-cloak>
+  <!-- Loading State -->
+  <div v-if="authLoading" class="auth-loading d-flex align-items-center justify-content-center min-vh-100">
+    <div class="text-center">
+      <BSpinner variant="light" style="width: 3rem; height: 3rem;" />
+      <p class="text-white mt-3">Loading...</p>
+    </div>
+  </div>
+
+  <!-- Login Page -->
+  <LoginPage 
+    v-else-if="!isAuthenticated" 
+    @login-success="handleLoginSuccess"
+  />
+
+  <!-- Main Application -->
+  <div v-else id="ConfApp" class="h-100 d-flex flex-column" v-cloak>
     <!-- Header -->
-    <div class="menu-bkgr white ps-4 pt-2">
-      <span style="font-size: 32px">RpiDNS</span> powered by 
-      <a href="https://ioc2rpz.net" target="_blank">ioc2rpz.net</a>
+    <div class="menu-bkgr white ps-4 pt-2 d-flex justify-content-between align-items-center">
+      <div>
+        <span style="font-size: 32px">RpiDNS</span> powered by 
+        <a href="https://ioc2rpz.net" target="_blank">ioc2rpz.net</a>
+      </div>
+      <div class="pe-3">
+        <span class="text-white me-3" v-if="currentUser">
+          <i class="fas fa-user me-1"></i>{{ currentUser.username }}
+        </span>
+        <BButton 
+          variant="outline-light" 
+          size="sm" 
+          @click="handleLogout"
+          :disabled="loggingOut"
+        >
+          <BSpinner v-if="loggingOut" small class="me-1" />
+          <i v-else class="fas fa-sign-out-alt me-1"></i>
+          Logout
+        </BButton>
+      </div>
     </div>
 
     <!-- Main Container with Tabs -->
@@ -126,8 +158,10 @@
     <div class="copyright">
       <p>Copyright © 2020-2026 Vadim Pavlov</p>
     </div>
+  </div>
 
-    <!-- Modal Dialogs -->
+  <!-- Modal Dialogs (outside main app div for proper rendering) -->
+  <template v-if="isAuthenticated">
     <AddAsset
       ref="addAssetModal"
       :address="addAssetAddr"
@@ -181,11 +215,11 @@
     >
       {{ infoModalMessage }}
     </BModal>
-  </div>
+  </template>
 </template>
 
 <script>
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, provide } from 'vue'
 import Dashboard from './components/Dashboard.vue'
 import QueryLog from './components/QueryLog.vue'
 import RpzHits from './components/RpzHits.vue'
@@ -193,6 +227,7 @@ import AdminTabs from './components/Admin/AdminTabs.vue'
 import AddAsset from './components/modals/AddAsset.vue'
 import AddIOC from './components/modals/AddIOC.vue'
 import ImportDB from './components/modals/ImportDB.vue'
+import LoginPage from './components/LoginPage.vue'
 
 export default {
   name: 'App',
@@ -203,7 +238,8 @@ export default {
     AdminTabs,
     AddAsset,
     AddIOC,
-    ImportDB
+    ImportDB,
+    LoginPage
   },
   setup() {
     // Refs for child components
@@ -213,6 +249,22 @@ export default {
     const addIOCModal = ref(null)
     const importDB = ref(null)
     const i2r = ref(null)
+
+    // Authentication State
+    const authLoading = ref(true)
+    const isAuthenticated = ref(false)
+    const currentUser = ref(null)
+    const loggingOut = ref(false)
+    
+    // Computed property for admin status
+    const isAdmin = computed(() => {
+      return currentUser.value?.is_admin === true
+    })
+    
+    // Provide auth state to child components
+    provide('currentUser', currentUser)
+    provide('isAdmin', isAdmin)
+    provide('isAuthenticated', isAuthenticated)
 
     // UI State
     const toggleMenu = ref(0)
@@ -468,11 +520,74 @@ export default {
       window.dispatchEvent(new CustomEvent('refresh-table', { detail: { table: tableName } }))
     }
 
+    // Authentication Methods
+    const checkSession = async () => {
+      try {
+        const response = await fetch('/rpi_admin/auth.php?action=verify', {
+          method: 'GET',
+          credentials: 'same-origin'
+        })
+
+        const data = await response.json()
+
+        if (response.ok && data.status === 'success' && data.authenticated) {
+          isAuthenticated.value = true
+          currentUser.value = data.user
+        } else {
+          isAuthenticated.value = false
+          currentUser.value = null
+        }
+      } catch (error) {
+        console.error('Session check error:', error)
+        isAuthenticated.value = false
+        currentUser.value = null
+      } finally {
+        authLoading.value = false
+      }
+    }
+
+    const handleLoginSuccess = (user) => {
+      isAuthenticated.value = true
+      currentUser.value = user
+    }
+
+    const handleLogout = async () => {
+      loggingOut.value = true
+
+      try {
+        await fetch('/rpi_admin/auth.php?action=logout', {
+          method: 'POST',
+          credentials: 'same-origin'
+        })
+      } catch (error) {
+        console.error('Logout error:', error)
+      } finally {
+        isAuthenticated.value = false
+        currentUser.value = null
+        loggingOut.value = false
+        // Reset tab to dashboard
+        cfgTab.value = 0
+      }
+    }
+
+    // Handle session expiration from API calls
+    const handleSessionExpired = () => {
+      isAuthenticated.value = false
+      currentUser.value = null
+      cfgTab.value = 0
+    }
+
     // Lifecycle hooks
     onMounted(() => {
+      // Check session first
+      checkSession()
+
       updateWindowSize()
       nextTick(() => {
         window.addEventListener('resize', updateWindowSize)
+        
+        // Listen for session expiration events from API calls
+        window.addEventListener('session-expired', handleSessionExpired)
 
         // Restore menu state from localStorage
         if (window.localStorage.getItem('toggleMenu')) {
@@ -497,6 +612,7 @@ export default {
 
     onBeforeUnmount(() => {
       window.removeEventListener('resize', updateWindowSize)
+      window.removeEventListener('session-expired', handleSessionExpired)
       if (infoModalTimeout) {
         clearTimeout(infoModalTimeout)
       }
@@ -510,6 +626,12 @@ export default {
       addIOCModal,
       importDB,
       i2r,
+      // Authentication State
+      authLoading,
+      isAuthenticated,
+      currentUser,
+      loggingOut,
+      isAdmin,
       // State
       toggleMenu,
       cfgTab,
@@ -559,7 +681,12 @@ export default {
       handleOpenImportModal,
       onConfirmOk,
       refreshAssetsTable,
-      refreshIOCTable
+      refreshIOCTable,
+      // Authentication Methods
+      checkSession,
+      handleLoginSuccess,
+      handleLogout,
+      handleSessionExpired
     }
   }
 }
@@ -570,6 +697,10 @@ export default {
   padding: 1rem;
 }
 .mnw165 { min-width: 165px; }
+.auth-loading {
+  background-color: #343038;
+  min-height: 100vh;
+}
 </style>
 
 

@@ -49,30 +49,37 @@
         <BTab title="Tools" lazy>
           <Tools @open-import-modal="$emit('open-import-modal', $event)" />
         </BTab>
+
+        <!-- Users Tab (Admin only) -->
+        <BTab v-if="isAdmin" title="Users" lazy>
+          <UserManager @show-info="$emit('show-info', $event)" />
+        </BTab>
       </BTabs>
     </BCard>
   </div>
 </template>
 
 <script>
-import { ref } from 'vue'
+import { ref, inject } from 'vue'
 import Assets from './Assets.vue'
 import RpzFeeds from './RpzFeeds.vue'
 import BlockList from './BlockList.vue'
 import AllowList from './AllowList.vue'
 import Settings from './Settings.vue'
 import Tools from './Tools.vue'
+import UserManager from './UserManager.vue'
 
 export default {
   name: 'AdminTabs',
-  components: { Assets, RpzFeeds, BlockList, AllowList, Settings, Tools },
+  components: { Assets, RpzFeeds, BlockList, AllowList, Settings, Tools, UserManager },
   props: {
     logs_height: { type: Number, default: 150 }
   },
   emits: ['navigate', 'add-asset', 'delete-asset', 'add-ioc', 'delete-ioc', 'show-info', 'open-import-modal'],
   setup() {
     const activeTab = ref(0)
-    return { activeTab }
+    const isAdmin = inject('isAdmin', ref(false))
+    return { activeTab, isAdmin }
   }
 }
 </script>
