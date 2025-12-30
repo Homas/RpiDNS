@@ -9,46 +9,6 @@
     <!-- Main Container with Tabs -->
     <BContainer fluid class="flex-grow-1 p-0 d-flex h-100">
  
-    <!-- Menu Toggle Icons -->
-<!--     <template #tabs-end v-if="windowInnerWidth > 500">
-      <div class="position-relative mt-2">
-        <i 
-          v-cloak 
-          class="fa fa-angle-double-left border rounded border-secondary text-dark" 
-          style="cursor: pointer; padding: 3px 6px;" 
-          :class="{ hidden: shouldHideCollapseIcon }" 
-          @click="collapseMenu"
-        ></i>
-        <i 
-          v-cloak 
-          class="fa fa-angle-double-right border rounded border-secondary text-dark" 
-          style="cursor: pointer; padding: 3px 6px;" 
-          :class="{ hidden: shouldHideExpandIcon }" 
-          @click="expandMenu"
-        ></i>
-      </div>
-    </template>     -->  
- 
-    <!-- <div class="d-flex h-100 position-relative">
-        <!-- Menu Toggle Icons - positioned relative to nav 
-        <div class="position-relative" :class="{ 'd-none': windowInnerWidth <= 500 }">
-          <i 
-            v-cloak 
-            class="fa fa-angle-double-left border rounded-end border-dark bg-light" 
-            style="position: absolute; right: -15px; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
-            :class="{ hidden: (toggleMenu == 2 && windowInnerWidth >= 992) || (toggleMenu == 1 && windowInnerWidth < 992) }" 
-            @click="collapseMenu"
-          ></i>
-          <i 
-            v-cloak 
-            class="fa fa-angle-double-right border rounded-end border-dark bg-light" 
-            style="position: absolute; right: -15px; top: 10px; z-index: 10; cursor: pointer; padding: 2px 4px;" 
-            :class="{ hidden: (toggleMenu != 2 && windowInnerWidth >= 992) || (toggleMenu != 1 && windowInnerWidth < 992) }" 
-            @click="expandMenu"
-          ></i>
-        </div>
-    </div>  -->
-
       <BTabs 
         ref="i2r" 
         pills 
@@ -56,13 +16,14 @@
         lazy 
         :nav-wrapper-class="navWrapperClass" 
         class="flex-grow-1 corners position-relative" 
-        content-class="curl_angels flex-grow-1 overflow-auto" 
+        content-class="curl_angels flex-grow-1 overflow-auto h-100" 
         v-model="cfgTab" 
         @update:model-value="changeTab"
         :nav-class="navClass"
       >
 
-          <i 
+      <!-- Menu Toggle Icons -->
+         <i 
             v-cloak 
             class="fa fa-angle-double-left border rounded-end border-dark bg-light" 
             style="position: relative;left: -2px;top: 10px;z-index: 1; cursor: pointer;" 
