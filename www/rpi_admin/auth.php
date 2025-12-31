@@ -18,11 +18,60 @@ class AuthService {
     const SESSION_DURATION = 86400; // 24 hours in seconds
     const TOKEN_LENGTH = 32; // 32 bytes = 64 hex characters
     const BCRYPT_COST = 12;
+    
+    // Password complexity configuration
     const MIN_PASSWORD_LENGTH = 8;
+    const PASSPHRASE_LENGTH = 18; // Long passphrase alternative
     
     // Rate limiting configuration
     const MAX_LOGIN_ATTEMPTS = 5;
     const RATE_LIMIT_WINDOW = 900; // 15 minutes in seconds
+    
+    /**
+     * Validate password complexity
+     * Password must either:
+     * - Be 8+ chars with uppercase, lowercase, number, and symbol
+     * - OR be 18+ chars (passphrase)
+     * 
+     * @param string $password Password to validate
+     * @return array ['valid' => bool, 'message' => string]
+     */
+    public function validatePasswordComplexity($password) {
+        $length = strlen($password);
+        
+        // Long passphrase is always valid
+        if ($length >= self::PASSPHRASE_LENGTH) {
+            return ['valid' => true, 'message' => ''];
+        }
+        
+        // Short passwords need complexity
+        if ($length < self::MIN_PASSWORD_LENGTH) {
+            return [
+                'valid' => false, 
+                'message' => 'Password must be at least ' . self::MIN_PASSWORD_LENGTH . ' characters with complexity, or ' . self::PASSPHRASE_LENGTH . '+ characters as a passphrase'
+            ];
+        }
+        
+        $hasUpper = preg_match('/[A-Z]/', $password);
+        $hasLower = preg_match('/[a-z]/', $password);
+        $hasNumber = preg_match('/[0-9]/', $password);
+        $hasSymbol = preg_match('/[^A-Za-z0-9]/', $password);
+        
+        if (!$hasUpper || !$hasLower || !$hasNumber || !$hasSymbol) {
+            $missing = [];
+            if (!$hasUpper) $missing[] = 'uppercase letter';
+            if (!$hasLower) $missing[] = 'lowercase letter';
+            if (!$hasNumber) $missing[] = 'number';
+            if (!$hasSymbol) $missing[] = 'symbol';
+            
+            return [
+                'valid' => false,
+                'message' => 'Password must contain: ' . implode(', ', $missing) . '. Or use ' . self::PASSPHRASE_LENGTH . '+ characters as a passphrase.'
+            ];
+        }
+        
+        return ['valid' => true, 'message' => ''];
+    }
     
     /**
      * Constructor
@@ -677,7 +726,7 @@ class AuthService {
     
     /**
      * Change password for the current user
-     * Requires current password verification, validates minimum length,
+     * Requires current password verification, validates complexity,
      * updates password hash, and invalidates all other sessions
      * 
      * @param int $userId User ID
@@ -691,11 +740,12 @@ class AuthService {
             return ['status' => 'error', 'message' => 'Database error occurred', 'code' => 500];
         }
         
-        // Validate new password minimum length
-        if (strlen($newPassword) < self::MIN_PASSWORD_LENGTH) {
+        // Validate new password complexity
+        $validation = $this->validatePasswordComplexity($newPassword);
+        if (!$validation['valid']) {
             return [
                 'status' => 'error', 
-                'message' => 'Password must be at least ' . self::MIN_PASSWORD_LENGTH . ' characters',
+                'message' => $validation['message'],
                 'code' => 400
             ];
         }
@@ -838,11 +888,12 @@ class AuthService {
             return ['status' => 'error', 'message' => 'Username is required', 'code' => 400];
         }
         
-        // Validate password minimum length
-        if (strlen($password) < self::MIN_PASSWORD_LENGTH) {
+        // Validate password complexity
+        $validation = $this->validatePasswordComplexity($password);
+        if (!$validation['valid']) {
             return [
                 'status' => 'error', 
-                'message' => 'Password must be at least ' . self::MIN_PASSWORD_LENGTH . ' characters',
+                'message' => $validation['message'],
                 'code' => 400
             ];
         }

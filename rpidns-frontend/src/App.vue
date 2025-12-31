@@ -21,20 +21,27 @@
         <span style="font-size: 32px">RpiDNS</span> powered by 
         <a href="https://ioc2rpz.net" target="_blank">ioc2rpz.net</a>
       </div>
-      <div class="pe-3">
-        <span class="text-white me-3" v-if="currentUser">
-          <i class="fas fa-user me-1"></i>{{ currentUser.username }}
-        </span>
-        <BButton 
-          variant="outline-light" 
-          size="sm" 
-          @click="handleLogout"
-          :disabled="loggingOut"
+      <div class="pe-3 d-flex align-items-center">
+        <BDropdown 
+          v-if="currentUser"
+          variant="link" 
+          toggle-class="text-white text-decoration-none p-0 me-3"
+          no-caret
+          end
         >
-          <BSpinner v-if="loggingOut" small class="me-1" />
-          <i v-else class="fas fa-sign-out-alt me-1"></i>
-          Logout
-        </BButton>
+          <template #button-content>
+            <i class="fas fa-user me-1"></i>{{ currentUser.username }}
+            <i class="fas fa-caret-down ms-1"></i>
+          </template>
+          <BDropdownItem @click="showPasswordChangeModal">
+            <i class="fas fa-key me-2"></i>Change Password
+          </BDropdownItem>
+          <BDropdownDivider />
+          <BDropdownItem @click="handleLogout" :disabled="loggingOut">
+            <BSpinner v-if="loggingOut" small class="me-2" />
+            <i v-else class="fas fa-sign-out-alt me-2"></i>Logout
+          </BDropdownItem>
+        </BDropdown>
       </div>
     </div>
 
@@ -162,6 +169,12 @@
 
   <!-- Modal Dialogs (outside main app div for proper rendering) -->
   <template v-if="isAuthenticated">
+    <PasswordChange
+      ref="passwordChangeModal"
+      @show-info="showInfo"
+      @password-changed="onPasswordChanged"
+    />
+
     <AddAsset
       ref="addAssetModal"
       :address="addAssetAddr"
@@ -228,6 +241,7 @@ import AddAsset from './components/modals/AddAsset.vue'
 import AddIOC from './components/modals/AddIOC.vue'
 import ImportDB from './components/modals/ImportDB.vue'
 import LoginPage from './components/LoginPage.vue'
+import PasswordChange from './components/modals/PasswordChange.vue'
 
 export default {
   name: 'App',
@@ -239,7 +253,8 @@ export default {
     AddAsset,
     AddIOC,
     ImportDB,
-    LoginPage
+    LoginPage,
+    PasswordChange
   },
   setup() {
     // Refs for child components
@@ -248,6 +263,7 @@ export default {
     const addAssetModal = ref(null)
     const addIOCModal = ref(null)
     const importDB = ref(null)
+    const passwordChangeModal = ref(null)
     const i2r = ref(null)
 
     // Authentication State
@@ -577,6 +593,19 @@ export default {
       cfgTab.value = 0
     }
 
+    // Password change methods
+    const showPasswordChangeModal = () => {
+      nextTick(() => {
+        if (passwordChangeModal.value) {
+          passwordChangeModal.value.show()
+        }
+      })
+    }
+
+    const onPasswordChanged = () => {
+      // Password was changed successfully - could add additional logic here if needed
+    }
+
     // Lifecycle hooks
     onMounted(() => {
       // Check session first
@@ -625,6 +654,7 @@ export default {
       addAssetModal,
       addIOCModal,
       importDB,
+      passwordChangeModal,
       i2r,
       // Authentication State
       authLoading,
@@ -686,7 +716,9 @@ export default {
       checkSession,
       handleLoginSuccess,
       handleLogout,
-      handleSessionExpired
+      handleSessionExpired,
+      showPasswordChangeModal,
+      onPasswordChanged
     }
   }
 }

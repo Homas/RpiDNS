@@ -106,21 +106,21 @@ chmod 644 "${SSL_SIGN_DIR}"/*.pkey 2>/dev/null || true
 chmod 644 "${SSL_SIGN_DIR}"/*.crt 2>/dev/null || true
 
 # Generate admin password if not set via environment
-HTPASSWD_FILE="/opt/rpidns/conf/.htpasswd"
-if [ ! -f "${HTPASSWD_FILE}" ]; then
-    if [ -n "${RPIDNS_ADMIN_PASSWORD}" ]; then
-        echo "Setting admin password from environment..."
-        htpasswd -bc "${HTPASSWD_FILE}" admin "${RPIDNS_ADMIN_PASSWORD}" 2>/dev/null
-    else
-        # Generate random password
-        ADMIN_PASS=$(openssl rand -base64 12)
-        echo "Generated admin password: ${ADMIN_PASS}"
-        echo "Please change this password after first login!"
-        htpasswd -bc "${HTPASSWD_FILE}" admin "${ADMIN_PASS}" 2>/dev/null
-    fi
-    chown www-data:www-data "${HTPASSWD_FILE}"
-    chmod 644 "${HTPASSWD_FILE}"
-fi
+# HTPASSWD_FILE="/opt/rpidns/conf/.htpasswd"
+# if [ ! -f "${HTPASSWD_FILE}" ]; then
+#     if [ -n "${RPIDNS_ADMIN_PASSWORD}" ]; then
+#         echo "Setting admin password from environment..."
+#         htpasswd -bc "${HTPASSWD_FILE}" admin "${RPIDNS_ADMIN_PASSWORD}" 2>/dev/null
+#     else
+#         # Generate random password
+#         ADMIN_PASS=$(openssl rand -base64 12)
+#         echo "Generated admin password: ${ADMIN_PASS}"
+#         echo "Please change this password after first login!"
+#         htpasswd -bc "${HTPASSWD_FILE}" admin "${ADMIN_PASS}" 2>/dev/null
+#     fi
+#     chown www-data:www-data "${HTPASSWD_FILE}"
+#     chmod 644 "${HTPASSWD_FILE}"
+# fi
 
 # Ensure directories exist
 mkdir -p /run/php

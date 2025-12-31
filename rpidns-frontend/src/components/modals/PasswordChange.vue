@@ -28,13 +28,16 @@
           <BFormInput 
             v-model="newPassword" 
             type="password"
-            placeholder="New Password (min 8 characters)"
+            placeholder="New Password"
             :state="newPasswordState"
             autocomplete="new-password"
           />
           <BFormInvalidFeedback :state="newPasswordState">
-            Password must be at least 8 characters
+            {{ passwordValidationMessage }}
           </BFormInvalidFeedback>
+          <small class="text-muted d-block text-start mt-1">
+            8+ chars with uppercase, lowercase, number &amp; symbol, OR 18+ chars passphrase
+          </small>
         </BCol>
       </BRow>
       <BRow class="pb-2">
@@ -70,6 +73,49 @@ import { ref, computed } from 'vue'
 import axios from 'axios'
 
 const MIN_PASSWORD_LENGTH = 8
+const PASSPHRASE_LENGTH = 18
+
+// Validate password complexity
+function validatePassword(password) {
+  if (!password) {
+    return { valid: false, message: 'Password is required' }
+  }
+  
+  const length = password.length
+  
+  // Long passphrase is always valid
+  if (length >= PASSPHRASE_LENGTH) {
+    return { valid: true, message: '' }
+  }
+  
+  // Short passwords need complexity
+  if (length < MIN_PASSWORD_LENGTH) {
+    return { 
+      valid: false, 
+      message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters with complexity, or ${PASSPHRASE_LENGTH}+ characters as a passphrase`
+    }
+  }
+  
+  const hasUpper = /[A-Z]/.test(password)
+  const hasLower = /[a-z]/.test(password)
+  const hasNumber = /[0-9]/.test(password)
+  const hasSymbol = /[^A-Za-z0-9]/.test(password)
+  
+  if (!hasUpper || !hasLower || !hasNumber || !hasSymbol) {
+    const missing = []
+    if (!hasUpper) missing.push('uppercase')
+    if (!hasLower) missing.push('lowercase')
+    if (!hasNumber) missing.push('number')
+    if (!hasSymbol) missing.push('symbol')
+    
+    return {
+      valid: false,
+      message: `Missing: ${missing.join(', ')}. Or use ${PASSPHRASE_LENGTH}+ chars passphrase.`
+    }
+  }
+  
+  return { valid: true, message: '' }
+}
 
 export default {
   name: 'PasswordChange',
@@ -100,9 +146,13 @@ export default {
       error.value = ''
     }
 
+    const passwordValidation = computed(() => validatePassword(newPassword.value))
+    
+    const passwordValidationMessage = computed(() => passwordValidation.value.message)
+
     const newPasswordState = computed(() => {
       if (newPassword.value.length === 0) return null
-      return newPassword.value.length >= MIN_PASSWORD_LENGTH
+      return passwordValidation.value.valid
     })
 
     const confirmPasswordState = computed(() => {
@@ -112,7 +162,7 @@ export default {
 
     const isFormValid = computed(() => {
       return currentPassword.value.length > 0 &&
-             newPassword.value.length >= MIN_PASSWORD_LENGTH &&
+             passwordValidation.value.valid &&
              confirmPassword.value === newPassword.value
     })
 
@@ -159,6 +209,7 @@ export default {
       confirmPassword,
       error,
       loading,
+      passwordValidationMessage,
       newPasswordState,
       confirmPasswordState,
       isFormValid,
