@@ -69,10 +69,28 @@ function initSQLiteDB($DBF){
 		   "create table if not exists localzone (ioc text, type text, ltype text, comment text, active boolean, subdomains boolean, added_dt integer, provisioned text, unique(ioc));\n".
 			 "create index if not exists assets_itype on localzone(ltype);\n".
 
+       // Authentication tables (v2)
+       "create table if not exists users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, is_admin INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);\n".
+       "create index if not exists idx_users_username on users(username);\n".
+
+       "create table if not exists sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, token TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, ip_address TEXT, user_agent TEXT, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE);\n".
+       "create index if not exists idx_sessions_token on sessions(token);\n".
+       "create index if not exists idx_sessions_user_id on sessions(user_id);\n".
+       "create index if not exists idx_sessions_expires on sessions(expires_at);\n".
+
+       "create table if not exists login_attempts (id INTEGER PRIMARY KEY AUTOINCREMENT, ip_address TEXT NOT NULL, attempted_at INTEGER NOT NULL, success INTEGER NOT NULL DEFAULT 0);\n".
+       "create index if not exists idx_login_attempts_ip on login_attempts(ip_address);\n".
+       "create index if not exists idx_login_attempts_time on login_attempts(attempted_at);\n".
+
+       "create table if not exists schema_version (version INTEGER NOT NULL, applied_at INTEGER NOT NULL);\n".
+
 //blacklist and whitelist
 
 			 "";
   $db->exec($sql);
+
+  // Insert schema version record
+  $db->exec("INSERT INTO schema_version (version, applied_at) VALUES (".DBVersion.", ".time().")");
 
   #close DB
   $db->close();
@@ -80,5 +98,3 @@ function initSQLiteDB($DBF){
 
 
 initSQLiteDB("/opt/rpidns/www/db/".DBFile);
-
-?>

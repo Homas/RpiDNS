@@ -7,10 +7,12 @@
  */
 
 require_once "/opt/rpidns/www/rpidns_vars.php";
+require_once "/opt/rpidns/www/rpi_admin/db_migrate.php";
 
 class AuthService {
     private $db;
     private $dbFile;
+    private static $migrationChecked = false;
     
     // Session configuration
     const SESSION_DURATION = 86400; // 24 hours in seconds
@@ -28,6 +30,131 @@ class AuthService {
      */
     public function __construct($dbFile = null) {
         $this->dbFile = $dbFile ?? "/opt/rpidns/www/db/" . DBFile;
+        
+        // Run migration check once per request
+        if (!self::$migrationChecked) {
+            self::$migrationChecked = true;
+            $this->ensureMigration();
+        }
+    }
+    
+    /**
+     * Ensure database migration is up to date
+     */
+    private function ensureMigration() {
+        try {
+            $migration = new DbMigration($this->dbFile);
+            $currentVersion = $migration->getSchemaVersion();
+            
+            // Always check if auth tables exist (handles edge cases)
+            if (!$this->authTablesExist()) {
+                error_log("[AuthService] Auth tables missing, forcing migration");
+                $result = $migration->migrate();
+                
+                if ($result['status'] === 'error') {
+                    error_log("[AuthService] Migration failed: " . $result['message']);
+                    // Try to create tables directly as fallback
+                    $this->createAuthTables();
+                } else {
+                    error_log("[AuthService] Migration completed successfully to v" . $result['version']);
+                }
+            } elseif ($currentVersion < DBVersion) {
+                error_log("[AuthService] Running database migration from v$currentVersion to v" . DBVersion);
+                $result = $migration->migrate();
+                
+                if ($result['status'] === 'error') {
+                    error_log("[AuthService] Migration failed: " . $result['message']);
+                } else {
+                    error_log("[AuthService] Migration completed successfully to v" . $result['version']);
+                }
+            }
+        } catch (Exception $e) {
+            error_log("[AuthService] Migration check failed: " . $e->getMessage());
+            // Try to create tables directly as fallback
+            $this->createAuthTables();
+        }
+    }
+    
+    /**
+     * Check if authentication tables exist
+     * @return bool True if all auth tables exist
+     */
+    private function authTablesExist() {
+        if (!$this->openDb()) {
+            return false;
+        }
+        
+        $tables = ['users', 'sessions', 'login_attempts'];
+        foreach ($tables as $table) {
+            $result = $this->db->querySingle(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='$table'"
+            );
+            if (!$result) {
+                $this->closeDb();
+                return false;
+            }
+        }
+        $this->closeDb();
+        return true;
+    }
+    
+    /**
+     * Create authentication tables directly (fallback)
+     */
+    private function createAuthTables() {
+        error_log("[AuthService] Creating auth tables directly as fallback");
+        
+        if (!$this->openDb()) {
+            error_log("[AuthService] Failed to open database for table creation");
+            return;
+        }
+        
+        try {
+            $this->db->exec("
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    is_admin INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL
+                )
+            ");
+            $this->db->exec("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username)");
+            
+            $this->db->exec("
+                CREATE TABLE IF NOT EXISTS sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    token TEXT NOT NULL UNIQUE,
+                    created_at INTEGER NOT NULL,
+                    expires_at INTEGER NOT NULL,
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            ");
+            $this->db->exec("CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)");
+            $this->db->exec("CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)");
+            $this->db->exec("CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at)");
+            
+            $this->db->exec("
+                CREATE TABLE IF NOT EXISTS login_attempts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ip_address TEXT NOT NULL,
+                    attempted_at INTEGER NOT NULL,
+                    success INTEGER NOT NULL DEFAULT 0
+                )
+            ");
+            $this->db->exec("CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address)");
+            $this->db->exec("CREATE INDEX IF NOT EXISTS idx_login_attempts_time ON login_attempts(attempted_at)");
+            
+            error_log("[AuthService] Auth tables created successfully");
+        } catch (Exception $e) {
+            error_log("[AuthService] Failed to create auth tables: " . $e->getMessage());
+        }
+        
+        $this->closeDb();
     }
     
     /**
