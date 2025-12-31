@@ -65,6 +65,22 @@
       @show-info="handleShowInfo"
     />
 
+    <!-- Reset Password Confirmation Modal -->
+    <BModal 
+      v-model="resetConfirmModalVisible"
+      centered
+      title="Confirm Password Reset"
+      @ok="confirmResetPassword"
+    >
+      <p class="text-center">
+        Are you sure you want to reset the password for <strong>{{ resetConfirmUsername }}</strong>?
+        <br><br>
+        <span class="text-warning"><i class="fa fa-exclamation-triangle"></i> This action cannot be undone.</span>
+        <br>
+        <span class="text-muted small">A new random password will be generated.</span>
+      </p>
+    </BModal>
+
     <!-- Reset Password Result Modal -->
     <BModal 
       v-model="resetPasswordModalVisible"
@@ -122,6 +138,11 @@ export default {
     const resetPasswordUsername = ref('')
     const resetPasswordValue = ref('')
     
+    // Reset password confirmation modal state
+    const resetConfirmModalVisible = ref(false)
+    const resetConfirmUserId = ref(null)
+    const resetConfirmUsername = ref('')
+    
     // Delete confirmation modal state
     const deleteModalVisible = ref(false)
     const deleteUserId = ref(null)
@@ -172,14 +193,22 @@ export default {
       loadUsers()
     }
 
-    const handleResetPassword = async (user) => {
+    const handleResetPassword = (user) => {
+      resetConfirmUserId.value = user.id
+      resetConfirmUsername.value = user.username
+      resetConfirmModalVisible.value = true
+    }
+
+    const confirmResetPassword = async () => {
+      if (!resetConfirmUserId.value) return
+      
       try {
         const response = await axios.post('/rpi_admin/auth.php?action=reset_password', {
-          user_id: user.id
+          user_id: resetConfirmUserId.value
         })
         
         if (response.data.status === 'success') {
-          resetPasswordUsername.value = user.username
+          resetPasswordUsername.value = resetConfirmUsername.value
           resetPasswordValue.value = response.data.new_password
           resetPasswordModalVisible.value = true
         } else {
@@ -187,6 +216,9 @@ export default {
         }
       } catch (error) {
         emit('show-info', error.response?.data?.message || 'Failed to reset password', 3)
+      } finally {
+        resetConfirmUserId.value = null
+        resetConfirmUsername.value = ''
       }
     }
 
@@ -237,6 +269,9 @@ export default {
       resetPasswordModalVisible,
       resetPasswordUsername,
       resetPasswordValue,
+      resetConfirmModalVisible,
+      resetConfirmUserId,
+      resetConfirmUsername,
       deleteModalVisible,
       deleteUserId,
       deleteUsername,
@@ -247,6 +282,7 @@ export default {
       showAddUser,
       onUserCreated,
       handleResetPassword,
+      confirmResetPassword,
       handleDeleteUser,
       confirmDeleteUser,
       handleShowInfo
