@@ -287,10 +287,66 @@ class DbMigration {
         $htpasswdPath = "/opt/rpidns/conf/.htpasswd";
         $importResult = $this->importHtpasswdUsers($htpasswdPath);
         
+        // If no users were imported, create a default admin user
+        if (($importResult['imported'] ?? 0) === 0) {
+            $this->createDefaultAdminUser();
+        }
+        
         return [
             'status' => 'success',
             'message' => 'Authentication tables created. ' . ($importResult['imported'] ?? 0) . ' users imported from htpasswd.'
         ];
+    }
+    
+    /**
+     * Create a default admin user with a random password
+     * @return array Result with username and password
+     */
+    private function createDefaultAdminUser() {
+        $username = 'admin';
+        $password = bin2hex(random_bytes(8)); // 16 character random password
+        $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+        $now = time();
+        
+        // Check if admin user already exists
+        $stmt = $this->db->prepare("SELECT id FROM users WHERE username = :username");
+        $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        
+        if ($result->fetchArray()) {
+            error_log("[DbMigration] Default admin user already exists");
+            return ['created' => false];
+        }
+        
+        $stmt = $this->db->prepare("
+            INSERT INTO users (username, password_hash, is_admin, created_at, updated_at)
+            VALUES (:username, :password_hash, 1, :created_at, :updated_at)
+        ");
+        $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+        $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
+        $stmt->bindValue(':created_at', $now, SQLITE3_INTEGER);
+        $stmt->bindValue(':updated_at', $now, SQLITE3_INTEGER);
+        
+        if ($stmt->execute()) {
+            error_log("[DbMigration] Created default admin user. Username: admin, Password: $password");
+            error_log("[DbMigration] *** IMPORTANT: Please change the default password immediately! ***");
+            
+            // Also write to a file for the user to find
+            $credFile = "/opt/rpidns/conf/default_credentials.txt";
+            file_put_contents($credFile, "RpiDNS Default Admin Credentials\n" .
+                "================================\n" .
+                "Username: admin\n" .
+                "Password: $password\n\n" .
+                "IMPORTANT: Please change this password immediately after first login!\n" .
+                "This file will be deleted after you change your password.\n" .
+                "Created: " . date('Y-m-d H:i:s') . "\n");
+            chmod($credFile, 0600);
+            
+            return ['created' => true, 'username' => $username, 'password' => $password];
+        }
+        
+        error_log("[DbMigration] Failed to create default admin user: " . $this->db->lastErrorMsg());
+        return ['created' => false];
     }
     
     /**

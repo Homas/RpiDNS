@@ -92,9 +92,57 @@ function initSQLiteDB($DBF){
   // Insert schema version record
   $db->exec("INSERT INTO schema_version (version, applied_at) VALUES (".DBVersion.", ".time().")");
 
+  // Create default admin user
+  createDefaultAdminUser($db);
+
   #close DB
   $db->close();
 };
 
+function createDefaultAdminUser($db) {
+  $username = 'admin';
+  $password = bin2hex(random_bytes(8)); // 16 character random password
+  $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+  $now = time();
+  
+  // Check if admin user already exists
+  $result = $db->querySingle("SELECT id FROM users WHERE username = '$username'");
+  if ($result) {
+    error_log("[init_db] Default admin user already exists");
+    return;
+  }
+  
+  $stmt = $db->prepare("
+    INSERT INTO users (username, password_hash, is_admin, created_at, updated_at)
+    VALUES (:username, :password_hash, 1, :created_at, :updated_at)
+  ");
+  $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+  $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
+  $stmt->bindValue(':created_at', $now, SQLITE3_INTEGER);
+  $stmt->bindValue(':updated_at', $now, SQLITE3_INTEGER);
+  
+  if ($stmt->execute()) {
+    error_log("[init_db] Created default admin user. Username: admin, Password: $password");
+    error_log("[init_db] *** IMPORTANT: Please change the default password immediately! ***");
+    
+    // Write credentials to a file for the user to find
+    $credFile = "/opt/rpidns/conf/default_credentials.txt";
+    @file_put_contents($credFile, "RpiDNS Default Admin Credentials\n" .
+      "================================\n" .
+      "Username: admin\n" .
+      "Password: $password\n\n" .
+      "IMPORTANT: Please change this password immediately after first login!\n" .
+      "This file will be deleted after you change your password.\n" .
+      "Created: " . date('Y-m-d H:i:s') . "\n");
+    @chmod($credFile, 0600);
+    
+    echo "Default admin user created.\n";
+    echo "Username: admin\n";
+    echo "Password: $password\n";
+    echo "*** IMPORTANT: Please change this password immediately! ***\n";
+  } else {
+    error_log("[init_db] Failed to create default admin user: " . $db->lastErrorMsg());
+  }
+}
 
 initSQLiteDB("/opt/rpidns/www/db/".DBFile);

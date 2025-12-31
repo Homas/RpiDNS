@@ -149,12 +149,55 @@ class AuthService {
             $this->db->exec("CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip_address)");
             $this->db->exec("CREATE INDEX IF NOT EXISTS idx_login_attempts_time ON login_attempts(attempted_at)");
             
+            // Check if any users exist, if not create default admin
+            $userCount = $this->db->querySingle("SELECT COUNT(*) FROM users");
+            if ($userCount === 0) {
+                $this->createDefaultAdminUser();
+            }
+            
             error_log("[AuthService] Auth tables created successfully");
         } catch (Exception $e) {
             error_log("[AuthService] Failed to create auth tables: " . $e->getMessage());
         }
         
         $this->closeDb();
+    }
+    
+    /**
+     * Create a default admin user with a random password
+     */
+    private function createDefaultAdminUser() {
+        $username = 'admin';
+        $password = bin2hex(random_bytes(8)); // 16 character random password
+        $passwordHash = $this->hashPassword($password);
+        $now = time();
+        
+        $stmt = $this->db->prepare("
+            INSERT INTO users (username, password_hash, is_admin, created_at, updated_at)
+            VALUES (:username, :password_hash, 1, :created_at, :updated_at)
+        ");
+        $stmt->bindValue(':username', $username, SQLITE3_TEXT);
+        $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
+        $stmt->bindValue(':created_at', $now, SQLITE3_INTEGER);
+        $stmt->bindValue(':updated_at', $now, SQLITE3_INTEGER);
+        
+        if ($stmt->execute()) {
+            error_log("[AuthService] Created default admin user. Username: admin, Password: $password");
+            error_log("[AuthService] *** IMPORTANT: Please change the default password immediately! ***");
+            
+            // Write credentials to a file for the user to find
+            $credFile = "/opt/rpidns/conf/default_credentials.txt";
+            @file_put_contents($credFile, "RpiDNS Default Admin Credentials\n" .
+                "================================\n" .
+                "Username: admin\n" .
+                "Password: $password\n\n" .
+                "IMPORTANT: Please change this password immediately after first login!\n" .
+                "This file will be deleted after you change your password.\n" .
+                "Created: " . date('Y-m-d H:i:s') . "\n");
+            @chmod($credFile, 0600);
+        } else {
+            error_log("[AuthService] Failed to create default admin user: " . $this->db->lastErrorMsg());
+        }
     }
     
     /**
