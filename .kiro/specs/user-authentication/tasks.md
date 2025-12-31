@@ -211,13 +211,13 @@ This implementation plan converts the design into discrete coding tasks for addi
 - [x] 11. Checkpoint - Integration complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 12. Write htpasswd migration property test
+- [-] 12. Write htpasswd migration property test
   - [ ]* 12.1 Write property test for htpasswd import
     - **Property 18: Htpasswd Migration Imports Users**
     - **Validates: Requirements 6.4**
 
-- [ ] 13. Final integration testing
-  - [ ] 13.1 Test complete authentication flow
+- [x] 13. Final integration testing
+  - [x] 13.1 Test complete authentication flow
     - Test login with migrated htpasswd user
     - Test logout and session expiration
     - Test password change

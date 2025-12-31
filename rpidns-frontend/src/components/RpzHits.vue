@@ -8,16 +8,26 @@
             <span class="bold"><i class="fa fa-shield-alt"></i>&nbsp;&nbsp;RPZ hits</span>
           </BCol>
           <BCol cols="12" lg="10" class="text-end">
-            <BButton 
-              v-b-tooltip.hover 
-              title="Refresh" 
-              variant="outline-secondary" 
-              size="sm" 
-              @click.stop="refreshTable"
+            <BFormCheckbox
+              v-model="autoRefreshEnabled"
+              switch
+              size="sm"
+              class="d-inline-block ms-2 me-3"
+              v-b-tooltip.hover
+              title="Auto-refresh every 60s"
             >
-              <i class="fa fa-sync"></i>
-            </BButton>&nbsp;&nbsp;&nbsp;
-            <BButtonGroup size="sm">
+              <small>Auto</small>
+            </BFormCheckbox>
+            <BButton 
+            v-b-tooltip.hover 
+            title="Refresh" 
+            variant="outline-secondary" 
+            size="sm" 
+            @click.stop="refreshTable"
+          >
+            <i class="fa fa-sync"></i>
+          </BButton>
+          <BButtonGroup size="sm">
               <BButton 
                 v-for="opt in period_options" 
                 :key="opt.value"
@@ -154,6 +164,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import ResearchLinks from './ResearchLinks.vue'
+import { useAutoRefresh } from '../composables/useAutoRefresh'
 
 export default {
   name: 'RpzHits',
@@ -161,7 +172,8 @@ export default {
   props: {
     filter: { type: String, default: '' },
     period: { type: String, default: '30m' },
-    logs_height: { type: Number, default: 150 }
+    logs_height: { type: Number, default: 150 },
+    isActive: { type: Boolean, default: false }
   },
   emits: ['add-ioc'],
   setup(props, { emit }) {
@@ -218,11 +230,16 @@ export default {
     }
 
     const refreshTable = () => {
-      if ((Date.now() - hits_updatetime.value) > 60 * 1000) {
-        fetchData()
-        hits_updatetime.value = Date.now()
-      }
+      fetchData()
+      hits_updatetime.value = Date.now()
     }
+
+    // Auto-refresh setup
+    const { autoRefreshEnabled } = useAutoRefresh(
+      'rpidns_autorefresh_rpzhits',
+      refreshTable,
+      () => props.isActive
+    )
 
     const onPeriodChange = () => { hits_cp.value = 1; fetchData() }
     const selectPeriod = (value) => {
@@ -266,6 +283,7 @@ export default {
     return {
       localFilter, localPeriod, hits_ltype, hits_cp, hits_nrows, hits_pp,
       hits_select_fields, tableItems, isLoading, period_options,
+      autoRefreshEnabled,
       refreshTable, onPeriodChange, selectPeriod, switchStats, selectLtype, filterBy, extractRuleDomain,
       allowDomain, allowRule, formatDate, sortBy: sortByField
     }

@@ -86,6 +86,7 @@
             <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Dashboard</span>
           </template>
           <Dashboard 
+            :is-active="cfgTab === 0"
             @navigate="handleNavigate"
             @add-ioc="handleAddIOC"
           />
@@ -102,6 +103,7 @@
             :filter="qlogs_Filter"
             :period="qlogs_period"
             :logs_height="logs_height"
+            :is-active="cfgTab === 1"
             @add-ioc="handleAddIOC"
           />
         </BTab>
@@ -117,6 +119,7 @@
             :filter="hits_Filter"
             :period="hits_period"
             :logs_height="logs_height"
+            :is-active="cfgTab === 2"
             @add-ioc="handleAddIOC"
           />
         </BTab>

@@ -8,6 +8,16 @@
             <span class="bold"><i class="fas fa-tachometer-alt"></i>&nbsp;&nbsp;Dashboard</span>
           </BCol>
           <BCol cols="12" lg="10" class="text-end">
+            <BFormCheckbox
+              v-model="autoRefreshEnabled"
+              switch
+              size="sm"
+              class="d-inline-block ms-2 me-3"
+              v-b-tooltip.hover
+              title="Auto-refresh every 60s"
+            >
+              <small>Auto</small>
+            </BFormCheckbox>
             <BButton 
               v-b-tooltip.hover 
               title="Refresh" 
@@ -16,7 +26,9 @@
               @click.stop="refreshDash"
             >
               <i class="fa fa-sync"></i>
-            </BButton>&nbsp;&nbsp;&nbsp;
+            </BButton>
+
+
             <BButtonGroup size="sm">
               <BButton 
                 v-for="opt in period_options" 
@@ -243,10 +255,11 @@
 
 
 <script>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, inject } from 'vue'
 import axios from 'axios'
 import { BPopover } from 'bootstrap-vue-next'
 import ResearchLinks from './ResearchLinks.vue'
+import { useAutoRefresh } from '../composables/useAutoRefresh'
 
 export default {
   name: 'Dashboard',
@@ -255,6 +268,9 @@ export default {
     BPopover
   },
   emits: ['navigate', 'add-ioc'],
+  props: {
+    isActive: { type: Boolean, default: false }
+  },
   setup(props, { emit }) {
     const dash_period = ref('30m')
 
@@ -342,6 +358,13 @@ export default {
       fetchTableData('dash_topX_server', 'topXServer', topXServer)
     }
 
+    // Auto-refresh setup
+    const { autoRefreshEnabled } = useAutoRefresh(
+      'rpidns_autorefresh_dashboard',
+      refreshDash,
+      () => props.isActive
+    )
+
     const onPeriodChange = () => { refreshDash() }
 
     const selectPeriod = (value) => {
@@ -381,6 +404,7 @@ export default {
     return {
       dash_period, period_options, topXReq, topXClient, topXReqType, serverStats,
       topXBreq, topXBclient, topXFeeds, topXServer, loading, qps_series, qps_options,
+      autoRefreshEnabled,
       refreshDash, refreshDashQPS, onPeriodChange, selectPeriod, showQueries, showHits,
       showQueriesForClient, showHitsForClient, onAllowedRequestClick, onAllowedClientClick,
       onRequestTypeClick, onBlockedRequestClick, onBlockedClientClick, onFeedClick,

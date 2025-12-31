@@ -8,6 +8,16 @@
             <span class="bold"><i class="fas fa-shoe-prints"></i>&nbsp;&nbsp;Query logs</span>
           </BCol>
           <BCol cols="12" lg="10" class="text-end">
+            <BFormCheckbox
+              v-model="autoRefreshEnabled"
+              switch
+              size="sm"
+              class="d-inline-block ms-2 me-3"
+              v-b-tooltip.hover
+              title="Auto-refresh every 60s"
+            >
+              <small>Auto</small>
+            </BFormCheckbox>
             <BButton 
               v-b-tooltip.hover 
               title="Refresh" 
@@ -16,7 +26,8 @@
               @click.stop="refreshTable"
             >
               <i class="fa fa-sync"></i>
-            </BButton>&nbsp;&nbsp;&nbsp;
+            </BButton>
+
             <BButtonGroup size="sm">
               <BButton 
                 v-for="opt in qperiod_options" 
@@ -167,6 +178,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import ResearchLinks from './ResearchLinks.vue'
+import { useAutoRefresh } from '../composables/useAutoRefresh'
 
 export default {
   name: 'QueryLog',
@@ -174,7 +186,8 @@ export default {
   props: {
     filter: { type: String, default: '' },
     period: { type: String, default: '30m' },
-    logs_height: { type: Number, default: 150 }
+    logs_height: { type: Number, default: 150 },
+    isActive: { type: Boolean, default: false }
   },
   emits: ['add-ioc'],
   setup(props, { emit }) {
@@ -231,11 +244,16 @@ export default {
     }
 
     const refreshTable = () => {
-      if ((Date.now() - logs_updatetime.value) > 60 * 1000) {
-        fetchData()
-        logs_updatetime.value = Date.now()
-      }
+      fetchData()
+      logs_updatetime.value = Date.now()
     }
+
+    // Auto-refresh setup
+    const { autoRefreshEnabled } = useAutoRefresh(
+      'rpidns_autorefresh_querylog',
+      refreshTable,
+      () => props.isActive
+    )
 
     const onPeriodChange = () => { qlogs_cp.value = 1; fetchData() }
     const selectPeriod = (value) => {
@@ -271,6 +289,7 @@ export default {
     return {
       localFilter, localPeriod, query_ltype, qlogs_cp, qlogs_nrows, qlogs_pp,
       qlogs_select_fields, tableItems, isLoading, qperiod_options,
+      autoRefreshEnabled,
       refreshTable, onPeriodChange, selectPeriod, switchStats, selectLtype, filterBy, blockDomain, allowDomain,
       formatDate, sortBy: sortByField
     }
