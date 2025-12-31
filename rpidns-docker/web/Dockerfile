@@ -93,6 +93,8 @@ COPY www/rpidns_vars.php /opt/rpidns/www/rpidns_vars.php
 COPY www/rpisettings.php /opt/rpidns/www/rpisettings.php
 COPY www/rpi_admin/index.php /opt/rpidns/www/rpi_admin/index.php
 COPY www/rpi_admin/rpidata.php /opt/rpidns/www/rpi_admin/rpidata.php
+COPY www/rpi_admin/auth.php /opt/rpidns/www/rpi_admin/auth.php
+COPY www/rpi_admin/db_migrate.php /opt/rpidns/www/rpi_admin/db_migrate.php
 COPY www/blocked /opt/rpidns/www/blocked
 COPY scripts /opt/rpidns/scripts
 
