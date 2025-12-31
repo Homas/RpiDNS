@@ -11,65 +11,76 @@
     @show="onShow"
     @hidden="onHidden"
   >
-    <BContainer fluid>
-      <BRow class="pb-2">
-        <BCol md="12" class="p-0">
-          <BFormInput 
-            v-model="currentPassword" 
-            type="password"
-            placeholder="Current Password"
-            :state="currentPassword.length > 0 ? true : null"
-            autocomplete="current-password"
-          />
-        </BCol>
-      </BRow>
-      <BRow class="pb-2">
-        <BCol md="12" class="p-0">
-          <BFormInput 
-            v-model="newPassword" 
-            type="password"
-            placeholder="New Password"
-            :state="newPasswordState"
-            autocomplete="new-password"
-          />
-          <BFormInvalidFeedback :state="newPasswordState">
-            {{ passwordValidationMessage }}
-          </BFormInvalidFeedback>
-          <small class="text-muted d-block text-start mt-1">
-            8+ chars with uppercase, lowercase, number &amp; symbol, OR 18+ chars passphrase
-          </small>
-        </BCol>
-      </BRow>
-      <BRow class="pb-2">
-        <BCol md="12" class="p-0">
-          <BFormInput 
-            v-model="confirmPassword" 
-            type="password"
-            placeholder="Confirm New Password"
-            :state="confirmPasswordState"
-            autocomplete="new-password"
-          />
-          <BFormInvalidFeedback :state="confirmPasswordState">
-            Passwords do not match
-          </BFormInvalidFeedback>
-        </BCol>
-      </BRow>
-      <BRow v-if="error" class="pb-1">
-        <BCol md="12" class="p-0">
-          <BAlert variant="danger" show class="mb-0 py-2">{{ error }}</BAlert>
-        </BCol>
-      </BRow>
-      <BRow v-if="loading" class="pb-1">
-        <BCol md="12" class="p-0 text-center">
-          <BSpinner small type="grow"></BSpinner>&nbsp;&nbsp;Changing password...
-        </BCol>
-      </BRow>
-    </BContainer>
+    <form @submit.prevent="handleSubmit">
+      <!-- Hidden username field for accessibility and password managers -->
+      <input 
+        type="text" 
+        :value="username"
+        autocomplete="username" 
+        style="position: absolute; left: -9999px; width: 1px; height: 1px;"
+        tabindex="-1"
+        aria-hidden="true"
+      />
+      <BContainer fluid>
+        <BRow class="pb-2">
+          <BCol md="12" class="p-0">
+            <BFormInput 
+              v-model="currentPassword" 
+              type="password"
+              placeholder="Current Password"
+              :state="currentPassword.length > 0 ? true : null"
+              autocomplete="current-password"
+            />
+          </BCol>
+        </BRow>
+        <BRow class="pb-2">
+          <BCol md="12" class="p-0">
+            <BFormInput 
+              v-model="newPassword" 
+              type="password"
+              placeholder="New Password"
+              :state="newPasswordState"
+              autocomplete="new-password"
+            />
+            <BFormInvalidFeedback :state="newPasswordState">
+              {{ passwordValidationMessage }}
+            </BFormInvalidFeedback>
+            <small class="text-muted d-block text-start mt-1">
+              8+ chars with uppercase, lowercase, number &amp; symbol, OR 18+ chars passphrase
+            </small>
+          </BCol>
+        </BRow>
+        <BRow class="pb-2">
+          <BCol md="12" class="p-0">
+            <BFormInput 
+              v-model="confirmPassword" 
+              type="password"
+              placeholder="Confirm New Password"
+              :state="confirmPasswordState"
+              autocomplete="new-password"
+            />
+            <BFormInvalidFeedback :state="confirmPasswordState">
+              Passwords do not match
+            </BFormInvalidFeedback>
+          </BCol>
+        </BRow>
+        <BRow v-if="error" class="pb-1">
+          <BCol md="12" class="p-0">
+            <BAlert variant="danger" show class="mb-0 py-2">{{ error }}</BAlert>
+          </BCol>
+        </BRow>
+        <BRow v-if="loading" class="pb-1">
+          <BCol md="12" class="p-0 text-center">
+            <BSpinner small type="grow"></BSpinner>&nbsp;&nbsp;Changing password...
+          </BCol>
+        </BRow>
+      </BContainer>
+    </form>
   </BModal>
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, inject } from 'vue'
 import axios from 'axios'
 
 const MIN_PASSWORD_LENGTH = 8
@@ -127,6 +138,10 @@ export default {
     const confirmPassword = ref('')
     const error = ref('')
     const loading = ref(false)
+    
+    // Get current user for username field (accessibility)
+    const currentUser = inject('currentUser', ref(null))
+    const username = computed(() => currentUser.value?.username || '')
 
     const show = () => { isVisible.value = true }
     const hide = () => { isVisible.value = false }
@@ -209,6 +224,7 @@ export default {
       confirmPassword,
       error,
       loading,
+      username,
       passwordValidationMessage,
       newPasswordState,
       confirmPasswordState,

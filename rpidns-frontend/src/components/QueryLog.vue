@@ -43,6 +43,15 @@
         </BRow>
       </template>
 
+      <!-- Custom Period Picker Modal -->
+      <CustomPeriodPicker
+        v-model:show="showCustomPicker"
+        :initial-start="customPeriodStartDate"
+        :initial-end="customPeriodEndDate"
+        @apply="onCustomPeriodApply"
+        @cancel="onCustomPeriodCancel"
+      />
+
       <!-- Controls Row: Logs/Stats Toggle, Pagination, Filter -->
       <BRow class="d-none d-sm-flex">
         <BCol cols="1" lg="1">
@@ -178,18 +187,21 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import ResearchLinks from './ResearchLinks.vue'
+import CustomPeriodPicker from './CustomPeriodPicker.vue'
 import { useAutoRefresh } from '../composables/useAutoRefresh'
 
 export default {
   name: 'QueryLog',
-  components: { ResearchLinks },
+  components: { ResearchLinks, CustomPeriodPicker },
   props: {
     filter: { type: String, default: '' },
     period: { type: String, default: '30m' },
     logs_height: { type: Number, default: 150 },
-    isActive: { type: Boolean, default: false }
+    isActive: { type: Boolean, default: false },
+    customStart: { type: Number, default: null },
+    customEnd: { type: Number, default: null }
   },
-  emits: ['add-ioc'],
+  emits: ['add-ioc', 'custom-period-change'],
   setup(props, { emit }) {
     const localFilter = ref(props.filter)
     const localPeriod = ref(props.period)
@@ -204,17 +216,30 @@ export default {
     const sortField = ref('dtz')
     const sortDesc = ref(true)
 
+    // Custom period state
+    const customPeriodStart = ref(props.customStart)
+    const customPeriodEnd = ref(props.customEnd)
+    const showCustomPicker = ref(false)
+
+    // Computed Date objects for CustomPeriodPicker initial values
+    const customPeriodStartDate = computed(() => {
+      return customPeriodStart.value ? new Date(customPeriodStart.value * 1000) : null
+    })
+    const customPeriodEndDate = computed(() => {
+      return customPeriodEnd.value ? new Date(customPeriodEnd.value * 1000) : null
+    })
+
     const qperiod_options = [
       { text: '30m', value: '30m' },
       { text: '1h', value: '1h' },
       { text: '1d', value: '1d' },
       { text: '1w', value: '1w' },
       { text: '30d', value: '30d' },
-      { text: 'custom', value: 'custom', disabled: true }
+      { text: 'custom', value: 'custom', disabled: false }
     ]
 
     const apiUrl = computed(() => {
-      return '/rpi_admin/rpidata.php?req=queries_raw' +
+      let url = '/rpi_admin/rpidata.php?req=queries_raw' +
         '&period=' + localPeriod.value +
         '&cp=' + qlogs_cp.value +
         '&filter=' + localFilter.value +
@@ -223,6 +248,10 @@ export default {
         '&fields=' + qlogs_select_fields.value.join(',') +
         '&sortBy=' + sortField.value +
         '&sortDesc=' + sortDesc.value
+      if (localPeriod.value === 'custom' && customPeriodStart.value && customPeriodEnd.value) {
+        url += '&start_dt=' + customPeriodStart.value + '&end_dt=' + customPeriodEnd.value
+      }
+      return url
     })
 
     const fetchData = async () => {
@@ -257,12 +286,31 @@ export default {
 
     const onPeriodChange = () => { qlogs_cp.value = 1; fetchData() }
     const selectPeriod = (value) => {
-      if (value !== 'custom') {
+      if (value === 'custom') {
+        showCustomPicker.value = true
+      } else {
         localPeriod.value = value
         qlogs_cp.value = 1
         fetchData()
       }
     }
+
+    // Custom period handlers
+    const onCustomPeriodApply = ({ start_dt, end_dt }) => {
+      customPeriodStart.value = start_dt
+      customPeriodEnd.value = end_dt
+      localPeriod.value = 'custom'
+      showCustomPicker.value = false
+      qlogs_cp.value = 1
+      // Emit custom period change to parent for persistence across tabs
+      emit('custom-period-change', { start_dt, end_dt })
+      fetchData()
+    }
+
+    const onCustomPeriodCancel = () => {
+      showCustomPicker.value = false
+    }
+
     const switchStats = () => { tableItems.value = []; fetchData() }
     const selectLtype = (value) => {
       query_ltype.value = value
@@ -280,7 +328,16 @@ export default {
     }
 
     watch(() => props.filter, (newVal) => { localFilter.value = newVal })
-    watch(() => props.period, (newVal) => { localPeriod.value = newVal })
+    watch(() => props.period, (newVal) => { 
+      localPeriod.value = newVal
+      // If switching away from custom, clear custom period state
+      if (newVal !== 'custom') {
+        customPeriodStart.value = null
+        customPeriodEnd.value = null
+      }
+    })
+    watch(() => props.customStart, (newVal) => { customPeriodStart.value = newVal })
+    watch(() => props.customEnd, (newVal) => { customPeriodEnd.value = newVal })
     watch(localFilter, () => { qlogs_cp.value = 1; fetchData() })
     watch(qlogs_cp, () => { fetchData() })
 
@@ -289,9 +346,10 @@ export default {
     return {
       localFilter, localPeriod, query_ltype, qlogs_cp, qlogs_nrows, qlogs_pp,
       qlogs_select_fields, tableItems, isLoading, qperiod_options,
-      autoRefreshEnabled,
+      autoRefreshEnabled, showCustomPicker, customPeriodStart, customPeriodEnd,
+      customPeriodStartDate, customPeriodEndDate,
       refreshTable, onPeriodChange, selectPeriod, switchStats, selectLtype, filterBy, blockDomain, allowDomain,
-      formatDate, sortBy: sortByField
+      formatDate, sortBy: sortByField, onCustomPeriodApply, onCustomPeriodCancel
     }
   }
 }

@@ -44,6 +44,15 @@
         </BRow>
       </template>
 
+      <!-- Custom Period Picker Modal -->
+      <CustomPeriodPicker
+        v-model:show="showCustomPicker"
+        :initial-start="customPeriodStartDate"
+        :initial-end="customPeriodEndDate"
+        @apply="onCustomPeriodApply"
+        @cancel="onCustomPeriodCancel"
+      />
+
       <!-- First Row: Allowed Stats -->
       <div class="row g-2 mb-2">
         <!-- TopX Allowed Requests -->
@@ -255,24 +264,41 @@
 
 
 <script>
-import { ref, reactive, onMounted, inject } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
 import { BPopover } from 'bootstrap-vue-next'
 import ResearchLinks from './ResearchLinks.vue'
+import CustomPeriodPicker from './CustomPeriodPicker.vue'
 import { useAutoRefresh } from '../composables/useAutoRefresh'
 
 export default {
   name: 'Dashboard',
   components: {
     ResearchLinks,
-    BPopover
+    BPopover,
+    CustomPeriodPicker
   },
-  emits: ['navigate', 'add-ioc'],
+  emits: ['navigate', 'add-ioc', 'custom-period-change'],
   props: {
-    isActive: { type: Boolean, default: false }
+    isActive: { type: Boolean, default: false },
+    customStart: { type: Number, default: null },
+    customEnd: { type: Number, default: null }
   },
   setup(props, { emit }) {
     const dash_period = ref('30m')
+    
+    // Custom period state
+    const customPeriodStart = ref(null)  // Unix timestamp
+    const customPeriodEnd = ref(null)    // Unix timestamp
+    const showCustomPicker = ref(false)
+    
+    // Computed Date objects for CustomPeriodPicker initial values
+    const customPeriodStartDate = computed(() => {
+      return customPeriodStart.value ? new Date(customPeriodStart.value * 1000) : null
+    })
+    const customPeriodEndDate = computed(() => {
+      return customPeriodEnd.value ? new Date(customPeriodEnd.value * 1000) : null
+    })
 
     // Data for tables
     const topXReq = ref([])
@@ -296,14 +322,14 @@ export default {
       topXServer: false
     })
 
-    // Period options for radio group
+    // Period options for radio group - custom is now enabled
     const period_options = [
       { text: '30m', value: '30m' },
       { text: '1h', value: '1h' },
       { text: '1d', value: '1d' },
       { text: '1w', value: '1w' },
       { text: '30d', value: '30d' },
-      { text: 'custom', value: 'custom', disabled: true }
+      { text: 'custom', value: 'custom', disabled: false }
     ]
 
     // QPS Chart data
@@ -322,7 +348,11 @@ export default {
     const fetchTableData = async (endpoint, loadingKey, dataRef) => {
       loading[loadingKey] = true
       try {
-        const response = await axios.get(`/rpi_admin/rpidata.php?req=${endpoint}&period=${dash_period.value}&sortBy=cnt&sortDesc=true`)
+        let url = `/rpi_admin/rpidata.php?req=${endpoint}&period=${dash_period.value}&sortBy=cnt&sortDesc=true`
+        if (dash_period.value === 'custom' && customPeriodStart.value && customPeriodEnd.value) {
+          url += `&start_dt=${customPeriodStart.value}&end_dt=${customPeriodEnd.value}`
+        }
+        const response = await axios.get(url)
         const items = response.data.data
         if (/DOCTYPE html/.test(items)) {
           window.location.reload(false)
@@ -338,7 +368,11 @@ export default {
     // Refresh QPS chart data
     const refreshDashQPS = async () => {
       try {
-        const response = await axios.get('/rpi_admin/rpidata.php?req=qps_chart&period=' + dash_period.value)
+        let url = '/rpi_admin/rpidata.php?req=qps_chart&period=' + dash_period.value
+        if (dash_period.value === 'custom' && customPeriodStart.value && customPeriodEnd.value) {
+          url += `&start_dt=${customPeriodStart.value}&end_dt=${customPeriodEnd.value}`
+        }
+        const response = await axios.get(url)
         qps_series.value = response.data
       } catch (error) {
         console.error('Error fetching QPS data:', error)
@@ -368,15 +402,46 @@ export default {
     const onPeriodChange = () => { refreshDash() }
 
     const selectPeriod = (value) => {
-      if (value !== 'custom') {
+      if (value === 'custom') {
+        showCustomPicker.value = true
+      } else {
         dash_period.value = value
         refreshDash()
       }
     }
+    
+    // Custom period handlers
+    const onCustomPeriodApply = ({ start_dt, end_dt }) => {
+      customPeriodStart.value = start_dt
+      customPeriodEnd.value = end_dt
+      dash_period.value = 'custom'
+      showCustomPicker.value = false
+      // Emit custom period change to parent for persistence across tabs
+      emit('custom-period-change', { start_dt, end_dt })
+      refreshDash()
+    }
+    
+    const onCustomPeriodCancel = () => {
+      showCustomPicker.value = false
+    }
 
     // Navigation helpers
-    const showQueries = (filter) => { emit('navigate', { tab: 1, filter, period: dash_period.value, type: 'qlogs' }) }
-    const showHits = (filter) => { emit('navigate', { tab: 2, filter, period: dash_period.value, type: 'hits' }) }
+    const showQueries = (filter) => { 
+      const navData = { tab: 1, filter, period: dash_period.value, type: 'qlogs' }
+      if (dash_period.value === 'custom') {
+        navData.customStart = customPeriodStart.value
+        navData.customEnd = customPeriodEnd.value
+      }
+      emit('navigate', navData)
+    }
+    const showHits = (filter) => { 
+      const navData = { tab: 2, filter, period: dash_period.value, type: 'hits' }
+      if (dash_period.value === 'custom') {
+        navData.customStart = customPeriodStart.value
+        navData.customEnd = customPeriodEnd.value
+      }
+      emit('navigate', navData)
+    }
     const showQueriesForClient = (item) => {
       const filter = (item.mac == null || item.mac === '') ? 'client_ip=' + item.fname : 'mac=' + item.mac
       showQueries(filter)
@@ -399,16 +464,29 @@ export default {
     const blockDomain = (domain) => { emit('add-ioc', { ioc: domain, type: 'bl' }) }
     const allowDomain = (domain) => { emit('add-ioc', { ioc: domain, type: 'wl' }) }
 
+    // Watch for custom period props from parent
+    watch(() => props.customStart, (newVal) => { 
+      if (newVal !== null) {
+        customPeriodStart.value = newVal
+      }
+    })
+    watch(() => props.customEnd, (newVal) => { 
+      if (newVal !== null) {
+        customPeriodEnd.value = newVal
+      }
+    })
+
     onMounted(() => { refreshDash() })
 
     return {
       dash_period, period_options, topXReq, topXClient, topXReqType, serverStats,
       topXBreq, topXBclient, topXFeeds, topXServer, loading, qps_series, qps_options,
-      autoRefreshEnabled,
+      autoRefreshEnabled, showCustomPicker, customPeriodStart, customPeriodEnd,
+      customPeriodStartDate, customPeriodEndDate,
       refreshDash, refreshDashQPS, onPeriodChange, selectPeriod, showQueries, showHits,
       showQueriesForClient, showHitsForClient, onAllowedRequestClick, onAllowedClientClick,
       onRequestTypeClick, onBlockedRequestClick, onBlockedClientClick, onFeedClick,
-      onServerClick, blockDomain, allowDomain
+      onServerClick, blockDomain, allowDomain, onCustomPeriodApply, onCustomPeriodCancel
     }
   }
 }

@@ -6,7 +6,7 @@ This implementation plan breaks down the custom period feature into discrete tas
 
 ## Tasks
 
-- [ ] 1. Create CustomPeriodPicker component
+- [x] 1. Create CustomPeriodPicker component
   - Create new `rpidns-frontend/src/components/CustomPeriodPicker.vue` component
   - Implement date and time input fields for start and end
   - Implement validation logic (start must be before end)
@@ -19,7 +19,7 @@ This implementation plan breaks down the custom period feature into discrete tas
   - **Property 1: Date Validation Correctness**
   - **Validates: Requirements 1.4, 1.5**
 
-- [ ] 2. Add backend support for custom period in queries endpoint
+- [x] 2. Add backend support for custom period in queries endpoint
   - Modify `www/rpi_admin/rpidata.php` to accept `start_dt` and `end_dt` parameters
   - Add new case `custom` in the period switch statement
   - Implement aggregation level selection based on duration
@@ -31,13 +31,13 @@ This implementation plan breaks down the custom period feature into discrete tas
   - **Property 5: Aggregation Level Selection**
   - **Validates: Requirements 6.1, 6.2, 6.3, 6.4**
 
-- [ ] 3. Add backend support for custom period in hits endpoint
+- [x] 3. Add backend support for custom period in hits endpoint
   - Extend custom period handling in `rpidata.php` for hits_raw endpoint
   - Implement aggregation level selection for hits tables
   - Support both logs and stats modes for hits_raw endpoint
   - _Requirements: 5.4, 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 4. Add backend support for custom period in dashboard endpoints
+- [x] 4. Add backend support for custom period in dashboard endpoints
   - Extend custom period handling for dash_topX_req endpoint
   - Extend custom period handling for dash_topX_client endpoint
   - Extend custom period handling for dash_topX_req_type endpoint
@@ -48,12 +48,12 @@ This implementation plan breaks down the custom period feature into discrete tas
   - Extend custom period handling for qps_chart endpoint
   - _Requirements: 5.5, 5.6_
 
-- [ ] 5. Checkpoint - Backend validation
+- [x] 5. Checkpoint - Backend validation
   - Ensure backend changes work correctly
   - Test API endpoints manually with custom period parameters
   - Verify aggregation level selection works as expected
 
-- [ ] 6. Integrate CustomPeriodPicker into Dashboard
+- [x] 6. Integrate CustomPeriodPicker into Dashboard
   - Import CustomPeriodPicker component in Dashboard.vue
   - Add custom period state (customPeriodStart, customPeriodEnd, showCustomPicker)
   - Enable the "custom" button in period_options
@@ -67,7 +67,7 @@ This implementation plan breaks down the custom period feature into discrete tas
   - **Property 3: Frontend API Calls Include Custom Period Parameters**
   - **Validates: Requirements 2.1, 2.2, 2.3**
 
-- [ ] 7. Integrate CustomPeriodPicker into QueryLog
+- [x] 7. Integrate CustomPeriodPicker into QueryLog
   - Import CustomPeriodPicker component in QueryLog.vue
   - Add custom period state and props for receiving from parent
   - Enable the "custom" button in qperiod_options
@@ -80,7 +80,7 @@ This implementation plan breaks down the custom period feature into discrete tas
   - **Property 6: View Mode Preservation**
   - **Validates: Requirements 3.4**
 
-- [ ] 8. Integrate CustomPeriodPicker into RpzHits
+- [x] 8. Integrate CustomPeriodPicker into RpzHits
   - Import CustomPeriodPicker component in RpzHits.vue
   - Add custom period state and props for receiving from parent
   - Enable the "custom" button in period_options
@@ -89,7 +89,7 @@ This implementation plan breaks down the custom period feature into discrete tas
   - Ensure custom period persists when switching between logs/stats modes
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 9. Implement period state persistence in App.vue
+- [x] 9. Implement period state persistence in App.vue
   - Add custom period state at App level
   - Pass custom period props to Dashboard, QueryLog, RpzHits
   - Handle navigation events to preserve custom period across tabs
@@ -99,7 +99,7 @@ This implementation plan breaks down the custom period feature into discrete tas
   - **Property 7: Navigation Period Persistence**
   - **Validates: Requirements 7.1, 7.2, 7.3**
 
-- [ ] 10. Final checkpoint - Full integration testing
+- [x] 10. Final checkpoint - Full integration testing
   - Ensure all tests pass
   - Verify custom period works end-to-end on Dashboard
   - Verify custom period works end-to-end on QueryLog (logs and stats)

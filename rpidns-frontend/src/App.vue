@@ -87,8 +87,11 @@
           </template>
           <Dashboard 
             :is-active="cfgTab === 0"
+            :custom-start="customPeriodStart"
+            :custom-end="customPeriodEnd"
             @navigate="handleNavigate"
             @add-ioc="handleAddIOC"
+            @custom-period-change="handleCustomPeriodChange"
           />
         </BTab>
 
@@ -104,7 +107,10 @@
             :period="qlogs_period"
             :logs_height="logs_height"
             :is-active="cfgTab === 1"
+            :custom-start="customPeriodStart"
+            :custom-end="customPeriodEnd"
             @add-ioc="handleAddIOC"
+            @custom-period-change="handleCustomPeriodChange"
           />
         </BTab>
 
@@ -120,7 +126,10 @@
             :period="hits_period"
             :logs_height="logs_height"
             :is-active="cfgTab === 2"
+            :custom-start="customPeriodStart"
+            :custom-end="customPeriodEnd"
             @add-ioc="handleAddIOC"
+            @custom-period-change="handleCustomPeriodChange"
           />
         </BTab>
 
@@ -326,6 +335,10 @@ export default {
     const hits_Filter = ref('')
     const hits_period = ref('30m')
 
+    // Custom period state (shared across tabs)
+    const customPeriodStart = ref(null)  // Unix timestamp
+    const customPeriodEnd = ref(null)    // Unix timestamp
+
     // IOC Modal state
     const addIOC = ref('')
     const addIOCtype = ref('')
@@ -395,6 +408,17 @@ export default {
         hits_Filter.value = data.filter
         hits_period.value = data.period
       }
+      
+      // Handle custom period persistence across tabs
+      if (data.customStart !== undefined && data.customEnd !== undefined) {
+        customPeriodStart.value = data.customStart
+        customPeriodEnd.value = data.customEnd
+      } else if (data.period !== 'custom') {
+        // Clear custom period when switching to a non-custom period
+        customPeriodStart.value = null
+        customPeriodEnd.value = null
+      }
+      
       // Change tab - use direct assignment
       cfgTab.value = data.tab
       // Also update URL hash
@@ -449,6 +473,12 @@ export default {
       if (rpzHits.value) {
         rpzHits.value.refreshTable()
       }
+    }
+
+    // Handle custom period changes from child components
+    const handleCustomPeriodChange = ({ start_dt, end_dt }) => {
+      customPeriodStart.value = start_dt
+      customPeriodEnd.value = end_dt
     }
 
     const handleAddAsset = (data) => {
@@ -678,6 +708,8 @@ export default {
       qlogs_period,
       hits_Filter,
       hits_period,
+      customPeriodStart,
+      customPeriodEnd,
       addIOC,
       addIOCtype,
       addIOCcomment,
@@ -708,6 +740,7 @@ export default {
       handleDeleteIOC,
       refreshQueryLog,
       refreshRpzHits,
+      handleCustomPeriodChange,
       handleAddAsset,
       handleDeleteAsset,
       showInfo,
