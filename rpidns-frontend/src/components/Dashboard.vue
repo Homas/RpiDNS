@@ -8,6 +8,9 @@
             <span class="bold"><i class="fas fa-tachometer-alt"></i>&nbsp;&nbsp;Dashboard</span>
           </BCol>
           <BCol cols="12" lg="10" class="text-end">
+            <small v-if="lastRefreshFormatted" class="text-muted me-3">
+              <i class="fas fa-clock"></i> {{ lastRefreshFormatted }}
+            </small>
             <BFormCheckbox
               v-model="autoRefreshEnabled"
               switch
@@ -309,7 +312,9 @@ export default {
     const topXBclient = ref([])
     const topXFeeds = ref([])
     const topXServer = ref([])
-
+    
+    // Last refresh timestamp
+    const lastRefresh = ref(null)
     // Loading states
     const loading = reactive({
       topXReq: false,
@@ -381,6 +386,7 @@ export default {
 
     // Refresh all dashboard data
     const refreshDash = () => {
+      lastRefresh.value = new Date()
       refreshDashQPS()
       fetchTableData('dash_topX_req', 'topXReq', topXReq)
       fetchTableData('dash_topX_client', 'topXClient', topXClient)
@@ -391,6 +397,12 @@ export default {
       fetchTableData('dash_topX_feeds', 'topXFeeds', topXFeeds)
       fetchTableData('dash_topX_server', 'topXServer', topXServer)
     }
+    
+    // Format last refresh time
+    const lastRefreshFormatted = computed(() => {
+      if (!lastRefresh.value) return ''
+      return lastRefresh.value.toLocaleTimeString()
+    })
 
     // Auto-refresh setup
     const { autoRefreshEnabled } = useAutoRefresh(
@@ -482,7 +494,7 @@ export default {
       dash_period, period_options, topXReq, topXClient, topXReqType, serverStats,
       topXBreq, topXBclient, topXFeeds, topXServer, loading, qps_series, qps_options,
       autoRefreshEnabled, showCustomPicker, customPeriodStart, customPeriodEnd,
-      customPeriodStartDate, customPeriodEndDate,
+      customPeriodStartDate, customPeriodEndDate, lastRefreshFormatted,
       refreshDash, refreshDashQPS, onPeriodChange, selectPeriod, showQueries, showHits,
       showQueriesForClient, showHitsForClient, onAllowedRequestClick, onAllowedClientClick,
       onRequestTypeClick, onBlockedRequestClick, onBlockedClientClick, onFeedClick,
