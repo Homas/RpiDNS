@@ -151,24 +151,23 @@
           />
         </BTab>
 
-        <!-- Help Tab -->
+        <!-- Donate Tab -->
+        <BTab lazy>
+          <template #title>
+            <i class="fas fa-money-bill-wave text-success"></i>
+            <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Donate</span>
+          </template>
+          <DonateContent />
+        </BTab>
 
-<!--
-         <BTab lazy>
+        <!-- Help Tab -->
+        <BTab lazy>
           <template #title>
             <i class="fas fa-hands-helping"></i>
             <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Help</span>
           </template>
-          <div class="p-3">
-            <BCard>
-              <template #header>
-                <span class="bold"><i class="fas fa-hands-helping"></i>&nbsp;&nbsp;Help</span>
-              </template>
-              <p>Help content</p>
-            </BCard>
-          </div>
+          <HelpContent />
         </BTab>
- -->
 
       </BTabs>
     </BContainer>
@@ -254,6 +253,8 @@ import AddIOC from './components/modals/AddIOC.vue'
 import ImportDB from './components/modals/ImportDB.vue'
 import LoginPage from './components/LoginPage.vue'
 import PasswordChange from './components/modals/PasswordChange.vue'
+import HelpContent from './components/HelpContent.vue'
+import DonateContent from './components/DonateContent.vue'
 
 export default {
   name: 'App',
@@ -266,7 +267,9 @@ export default {
     AddIOC,
     ImportDB,
     LoginPage,
-    PasswordChange
+    PasswordChange,
+    HelpContent,
+    DonateContent
   },
   setup() {
     // Refs for child components

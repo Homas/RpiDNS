@@ -74,8 +74,8 @@
     >
       <p class="text-center">
         Are you sure you want to reset the password for <strong>{{ resetConfirmUsername }}</strong>?
-        <br><br>
-        <span class="text-warning"><i class="fa fa-exclamation-triangle"></i> This action cannot be undone.</span>
+        <br>
+        <span class="text-danger"><i class="fa fa-exclamation-triangle"></i> Irreversible action.</span>
         <br>
         <span class="text-muted small">A new random password will be generated.</span>
       </p>
@@ -109,9 +109,8 @@
       @ok="confirmDeleteUser"
     >
       <p class="text-center">
-        Are you sure you want to delete user <strong>{{ deleteUsername }}</strong>?
+        Do you want to delete user <strong>{{ deleteUsername }}</strong>?
         <br><br>
-        <span class="text-danger">This action cannot be undone.</span>
       </p>
     </BModal>
   </div>
