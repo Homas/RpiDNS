@@ -28,6 +28,9 @@
         <BButton v-b-tooltip.hover :title="selectedFeed && selectedFeed.enabled ? 'Disable' : 'Enable'" variant="outline-secondary" size="sm" :disabled="!selectedFeed" @click.stop="toggleFeedStatus" class="me-1">
           <i :class="selectedFeed && selectedFeed.enabled ? 'fas fa-toggle-on' : 'fas fa-toggle-off'"></i>
         </BButton>
+        <BButton v-b-tooltip.hover title="Retransfer Zone" variant="outline-secondary" size="sm" :disabled="!canRetransfer" @click.stop="retransferRPZ" class="me-1">
+          <i class="fas fa-redo"></i>
+        </BButton>
         <BButton v-b-tooltip.hover title="Refresh" variant="outline-secondary" size="sm" @click.stop="fetchData">
           <i class="fa fa-sync"></i>
         </BButton>
@@ -52,7 +55,6 @@
               <BTh class="d-none d-md-table-cell">Source</BTh>
               <BTh class="d-none d-md-table-cell">Status</BTh>
               <BTh class="d-none d-lg-table-cell">Description</BTh>
-              <BTh class="width050">Actions</BTh>
             </BTr>
           </BThead>
           <BTbody>
@@ -93,11 +95,6 @@
                 </span>
               </BTd>
               <BTd class="d-none d-lg-table-cell mw300">{{ item.desc }}</BTd>
-              <BTd class="width050">
-                <BButton v-b-tooltip.hover title="Retransfer" variant="outline-secondary" size="sm" @click.stop="retransferRPZ(item)">
-                  <i class="fas fa-redo"></i>
-                </BButton>
-              </BTd>
             </BTr>
           </BTbody>
         </BTableSimple>
@@ -143,7 +140,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import AddIoc2rpzFeed from '@/components/modals/AddIoc2rpzFeed.vue'
 import AddLocalFeed from '@/components/modals/AddLocalFeed.vue'
@@ -318,18 +315,24 @@ export default {
       }
     }
 
-    // Retransfer
-    const retransferRPZ = async (item) => {
+    // Retransfer - only available for non-local (secondary) zones
+    const canRetransfer = computed(() => {
+      return selectedFeed.value && selectedFeed.value.source !== 'local'
+    })
+
+    const retransferRPZ = async () => {
+      if (!selectedFeed.value || selectedFeed.value.source === 'local') return
+      
       try {
-        const response = await api.put({ req: 'retransfer_feed' }, { feed: item.feed })
-        if (response.status !== 'success') {
-          emit('show-info', { msg: response.reason, time: 3 })
-        } else {
+        const response = await api.put({ req: 'retransfer_feed' }, { feed: selectedFeed.value.feed })
+        if (response.status === 'success') {
           emit('show-info', { msg: 'Retransfer requested', time: 3 })
+        } else {
+          emit('show-info', { msg: response.reason || 'Failed to request retransfer', time: 3 })
         }
       } catch (error) {
         console.error('Error requesting retransfer:', error)
-        emit('show-info', { msg: 'Unknown error!!!', time: 3 })
+        emit('show-info', { msg: 'Failed to request retransfer', time: 3 })
       }
     }
 
@@ -432,6 +435,7 @@ export default {
       confirmDelete,
       deleteFeed,
       toggleFeedStatus,
+      canRetransfer,
       retransferRPZ,
       handleDragStart,
       handleDragOver,

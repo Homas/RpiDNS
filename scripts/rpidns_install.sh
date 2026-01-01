@@ -268,6 +268,8 @@ EOF
 else
     echo "Skipping local DB and cron setup in container's env"
     echo "Frontend assets are pre-built in Docker image"
+    echo "Fixing owner for named.conf"
+    chown 82:82 /opt/rpidns/config/bind/named.conf
     # Pull named root hints
     curl https://www.internic.net/domain/named.root -o /opt/rpidns/config/bind/named.root
 fi

@@ -787,6 +787,78 @@ class BindConfigManager {
     public function setBackupDir(string $dir): void {
         $this->backupDir = $dir;
     }
+    
+    /**
+     * Request a zone retransfer via rndc
+     * 
+     * This is only valid for secondary (slave) zones, not local (master) zones.
+     * 
+     * @param string $zoneName The name of the zone to retransfer
+     * @return array ['success' => bool, 'error' => string|null, 'output' => string]
+     */
+    public function retransferZone(string $zoneName): array {
+        if (empty($zoneName)) {
+            return ['success' => false, 'error' => 'Zone name is required', 'output' => ''];
+        }
+        
+        // Sanitize zone name
+        $zoneName = escapeshellarg($zoneName);
+        
+        // Check if running in container environment
+        $isContainer = $this->isContainerEnvironment();
+        
+        if ($isContainer) {
+            return $this->retransferZoneContainer($zoneName);
+        } else {
+            return $this->retransferZoneLocal($zoneName);
+        }
+    }
+    
+    /**
+     * Request zone retransfer on local BIND installation
+     * 
+     * @param string $zoneName The sanitized zone name
+     * @return array ['success' => bool, 'error' => string|null, 'output' => string]
+     */
+    private function retransferZoneLocal(string $zoneName): array {
+        $command = "/usr/sbin/rndc retransfer {$zoneName} 2>&1";
+        exec($command, $output, $returnCode);
+        
+        $outputStr = implode("\n", $output);
+        $success = ($returnCode === 0);
+        
+        return [
+            'success' => $success,
+            'error' => $success ? null : ($outputStr ?: "rndc retransfer failed with code $returnCode"),
+            'output' => $outputStr
+        ];
+    }
+    
+    /**
+     * Request zone retransfer in container environment
+     * 
+     * @param string $zoneName The sanitized zone name
+     * @return array ['success' => bool, 'error' => string|null, 'output' => string]
+     */
+    private function retransferZoneContainer(string $zoneName): array {
+        $containerName = 'rpidns-bind';
+        
+        $command = "docker exec {$containerName} rndc retransfer {$zoneName} 2>&1";
+        exec($command, $output, $returnCode);
+        
+        $outputStr = implode("\n", $output);
+        $success = ($returnCode === 0);
+        
+        if (!$success && empty($outputStr)) {
+            $outputStr = "Failed to execute: docker exec {$containerName} rndc retransfer (return code: $returnCode)";
+        }
+        
+        return [
+            'success' => $success,
+            'error' => $success ? null : $outputStr,
+            'output' => $outputStr
+        ];
+    }
 
     
     /**
@@ -1543,14 +1615,18 @@ class BindConfigManager {
         // Pattern to match the zone block including any preceding comment
         // Format: // Zone configuration for feedname\nzone "feedname" { ... };
         // Use a more robust pattern that handles nested braces by matching balanced braces
-        $pattern = '/\n?\/\/\s*Zone configuration for\s+' . $escapedName . '\s*\n?zone\s+["\']' . $escapedName . '["\']\s*\{(?:[^{}]|\{[^{}]*\})*\};\s*/is';
+        // The replacement ensures a newline is preserved to prevent merging with previous content
+        $pattern = '/(\n?)\/\/\s*Zone configuration for\s+' . $escapedName . '\s*\nzone\s+["\']' . $escapedName . '["\']\s*\{(?:[^{}]|\{[^{}]*\})*\};\s*\n?/is';
         
-        $content = preg_replace($pattern, '', $content);
+        $content = preg_replace($pattern, "\n", $content);
         
         // Also try without the comment (for existing configs)
         // This pattern handles one level of nested braces (e.g., allow-update { localhost; })
-        $pattern2 = '/\n?zone\s+["\']' . $escapedName . '["\']\s*\{(?:[^{}]|\{[^{}]*\})*\};\s*/is';
-        $content = preg_replace($pattern2, '', $content);
+        $pattern2 = '/(\n?)zone\s+["\']' . $escapedName . '["\']\s*\{(?:[^{}]|\{[^{}]*\})*\};\s*\n?/is';
+        $content = preg_replace($pattern2, "\n", $content);
+        
+        // Clean up multiple consecutive newlines (more than 2)
+        $content = preg_replace('/\n{3,}/', "\n\n", $content);
         
         return $content;
     }

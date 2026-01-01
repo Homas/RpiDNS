@@ -1264,18 +1264,70 @@ RpiDNS powered by https://ioc2rpz.net
 		break;
 		//
 	case "PUT retransfer_feed":
-		$bind_conf = file_exists('/etc/bind/named.conf.options') ? '/etc/bind/named.conf.options' : '/etc/bind/named.conf';
-		exec('/bin/grep "zone.*policy" '.$bind_conf,$out);
-		#zone "wl-ip.ioc2rpz.rpidns" policy passthru log no;#local whitelist ip-based
-		foreach ($out as $line){
-			if (preg_match('/^\s*zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
-				$feeds[trim($rpz[1])]=["feed"=>trim($rpz[1]), "action"=>trim($rpz[2]), "desc"=>trim($rpz[3])];
-			};
-		};
-		if (array_key_exists($REQUEST['feed'],$feeds)) {
-			exec('/usr/sbin/rndc -Vr retransfer '.escapeshellcmd($REQUEST['feed']),$out2,$exres);
-			$response='{"status":"success","details":"feed retransfer was requested"}'; #'.$REQUEST['feed'].implode($out2).' result:'.$exres.'
-			} else $response='{"status":"failed", "reason":"feed was not provisioned"}';
+		try {
+			$bindManager = new BindConfigManager();
+			$feedName = $REQUEST['feed'] ?? '';
+			
+			if (empty($feedName)) {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => 'Feed name is required',
+					'code' => 'INVALID_REQUEST'
+				]);
+				break;
+			}
+			
+			// Get feed info to check if it's a secondary zone
+			$feeds = $bindManager->getFeeds();
+			$feedInfo = null;
+			foreach ($feeds as $feed) {
+				if ($feed['feed'] === $feedName) {
+					$feedInfo = $feed;
+					break;
+				}
+			}
+			
+			if ($feedInfo === null) {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => 'Feed not found',
+					'code' => 'FEED_NOT_FOUND'
+				]);
+				break;
+			}
+			
+			// Only allow retransfer for secondary zones (ioc2rpz and third-party)
+			if ($feedInfo['source'] === 'local') {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => 'Cannot retransfer local zones. Retransfer is only available for secondary zones.',
+					'code' => 'INVALID_ZONE_TYPE'
+				]);
+				break;
+			}
+			
+			// Request retransfer via rndc
+			$result = $bindManager->retransferZone($feedName);
+			
+			if ($result['success']) {
+				$response = json_encode([
+					'status' => 'success',
+					'details' => 'Zone retransfer requested'
+				]);
+			} else {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => $result['error'],
+					'code' => 'RETRANSFER_FAILED'
+				]);
+			}
+		} catch (Exception $e) {
+			$response = json_encode([
+				'status' => 'error',
+				'reason' => $e->getMessage(),
+				'code' => 'RETRANSFER_FAILED'
+			]);
+		}
 		break;
 
   case "POST import":
