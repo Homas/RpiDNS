@@ -60,6 +60,7 @@ RUN apk add --no-cache \
     iproute2 \
     bind-tools \
     file \
+    docker-cli \
     && rm -rf /var/cache/apk/*
 
 # Create www-data user/group (matching common web server conventions)

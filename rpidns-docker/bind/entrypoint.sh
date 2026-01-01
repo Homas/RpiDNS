@@ -9,6 +9,55 @@ echo "Hostname: ${RPIDNS_HOSTNAME}"
 echo "DNS Type: ${RPIDNS_DNS_TYPE}"
 echo "Logging Mode: ${RPIDNS_LOGGING:-local}"
 
+# Generate rndc key if not present
+if [ ! -f /etc/bind/rndc.key ]; then
+    echo "Generating rndc key..."
+    rndc-confgen -a -k rndc-key -c /etc/bind/rndc.key
+    chown named:named /etc/bind/rndc.key
+    chmod 640 /etc/bind/rndc.key
+fi
+
+# Create rndc.conf if not present (for rndc client)
+if [ ! -f /etc/bind/rndc.conf ]; then
+    echo "Creating rndc.conf..."
+    cat > /etc/bind/rndc.conf << EOF
+// rndc configuration for RpiDNS
+options {
+    default-key "rndc-key";
+    default-server 127.0.0.1;
+    default-port 953;
+};
+
+include "/etc/bind/rndc.key";
+EOF
+    chown named:named /etc/bind/rndc.conf
+    chmod 640 /etc/bind/rndc.conf
+fi
+
+# Ensure named.conf has rndc controls configured
+if [ -f /etc/bind/named.conf ]; then
+    if ! grep -q 'include.*rndc.key' /etc/bind/named.conf; then
+        echo "Adding rndc configuration to named.conf..."
+        # Create a temporary file with rndc config prepended
+        TEMP_CONF=$(mktemp)
+        cat > "$TEMP_CONF" << 'EOF'
+// Include rndc key for remote control (auto-added by entrypoint)
+include "/etc/bind/rndc.key";
+
+// Controls for rndc (auto-added by entrypoint)
+controls {
+    inet 127.0.0.1 port 953 allow { 127.0.0.1; } keys { "rndc-key"; };
+};
+
+EOF
+        cat /etc/bind/named.conf >> "$TEMP_CONF"
+        mv "$TEMP_CONF" /etc/bind/named.conf
+        chown named:named /etc/bind/named.conf
+        chmod 644 /etc/bind/named.conf
+        echo "rndc configuration added to named.conf"
+    fi
+fi
+
 # Initialize zone files if not present
 if [ ! -f /var/cache/bind/db.local ]; then
     echo "Initializing local zone file..."
