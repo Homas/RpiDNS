@@ -4,7 +4,7 @@
     <BRow class="d-none d-sm-flex mb-2">
       <BCol cols="6" lg="6">
         <!-- Add Dropdown -->
-        <BDropdown variant="outline-secondary" size="sm" class="me-1">
+        <BDropdown variant="outline-secondary" size="sm" class="d-inline-block me-1">
           <template #button-content>
             <i class="fa fa-plus"></i> Add
           </template>

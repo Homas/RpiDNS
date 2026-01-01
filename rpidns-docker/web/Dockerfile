@@ -95,6 +95,7 @@ COPY www/rpi_admin/index.php /opt/rpidns/www/rpi_admin/index.php
 COPY www/rpi_admin/rpidata.php /opt/rpidns/www/rpi_admin/rpidata.php
 COPY www/rpi_admin/auth.php /opt/rpidns/www/rpi_admin/auth.php
 COPY www/rpi_admin/db_migrate.php /opt/rpidns/www/rpi_admin/db_migrate.php
+COPY www/rpi_admin/BindConfigManager.php /opt/rpidns/www/rpi_admin/BindConfigManager.php
 COPY www/blocked /opt/rpidns/www/blocked
 COPY scripts /opt/rpidns/scripts
 

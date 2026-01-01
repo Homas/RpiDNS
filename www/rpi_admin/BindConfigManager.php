@@ -217,17 +217,42 @@ class BindConfigManager {
         $rpBlock = $rpMatch[1];
         
         // Match each zone line in response-policy
-        // Format: zone "name" policy action [log yes|no]; # comment
-        // Or commented: // zone "name" policy action;
-        $pattern = '/^\s*(\/\/|#)?\s*zone\s+["\']([^"\']+)["\']\s+policy\s+(\S+)(?:\s+log\s+\S+)?(?:\s+cname\s+([^\s;]+))?\s*;?\s*(?:#(.*))?$/im';
+        // Formats supported:
+        // - zone "name" policy nxdomain; # comment
+        // - zone "name" policy passthru log no; # comment
+        // - zone "name" policy cname target.domain; # comment (CNAME action with target)
+        // - // zone "name" policy action; (commented/disabled)
+        // 
+        // The regex captures everything after "policy" up to the semicolon,
+        // then we parse the action and optional cname target separately
+        $pattern = '/^\s*(\/\/|#)?\s*zone\s+["\']([^"\']+)["\']\s+policy\s+([^;]+);\s*(?:#(.*))?$/im';
         
         if (preg_match_all($pattern, $rpBlock, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
                 $isCommented = !empty($match[1]);
                 $feedName = $match[2];
-                $action = strtolower(trim($match[3], " \t\n\r\0\x0B;"));
-                $cnameTarget = isset($match[4]) ? trim($match[4]) : null;
-                $desc = isset($match[5]) ? trim($match[5]) : '';
+                $policyPart = trim($match[3]);
+                $desc = isset($match[4]) ? trim($match[4]) : '';
+                
+                // Parse the policy part to extract action and optional cname target
+                // Possible formats:
+                // - "nxdomain"
+                // - "passthru log no"
+                // - "cname target.domain"
+                // - "cname target.domain log no"
+                $action = '';
+                $cnameTarget = null;
+                
+                // Check if it's a CNAME action (format: "cname target [log yes|no]")
+                if (preg_match('/^cname\s+([^\s]+)(?:\s+log\s+\S+)?$/i', $policyPart, $cnameMatch)) {
+                    $action = 'cname';
+                    $cnameTarget = $cnameMatch[1];
+                } else {
+                    // Regular action (format: "action [log yes|no]")
+                    // Remove optional "log yes|no" suffix
+                    $action = preg_replace('/\s+log\s+\S+$/i', '', $policyPart);
+                    $action = strtolower(trim($action));
+                }
                 
                 $feeds[$feedName] = [
                     'action' => $action,
@@ -252,24 +277,28 @@ class BindConfigManager {
         
         // Match zone lines with policy (legacy format used in existing RpiDNS)
         // Format: zone "name" policy action; #comment
+        // Or: zone "name" policy cname target; #comment
         $pattern = '/^\s*(\/\/|#)?\s*zone\s+["\']([^"\']+)["\']\s+policy\s+([^;]+);\s*(?:#(.*))?$/im';
         
         if (preg_match_all($pattern, $content, $matches, PREG_SET_ORDER)) {
             foreach ($matches as $match) {
                 $isCommented = !empty($match[1]);
                 $feedName = $match[2];
-                $actionPart = trim($match[3]);
+                $policyPart = trim($match[3]);
                 $desc = isset($match[4]) ? trim($match[4]) : '';
                 
-                // Parse action and optional cname target
-                $action = $actionPart;
+                // Parse the policy part to extract action and optional cname target
+                $action = '';
                 $cnameTarget = null;
                 
-                if (preg_match('/^(\S+)\s+cname\s+(\S+)/i', $actionPart, $actionMatch)) {
-                    $action = strtolower($actionMatch[1]);
-                    $cnameTarget = $actionMatch[2];
+                // Check if it's a CNAME action (format: "cname target [log yes|no]")
+                if (preg_match('/^cname\s+([^\s]+)(?:\s+log\s+\S+)?$/i', $policyPart, $cnameMatch)) {
+                    $action = 'cname';
+                    $cnameTarget = $cnameMatch[1];
                 } else {
-                    $action = strtolower(preg_replace('/\s+log\s+\S+$/i', '', $actionPart));
+                    // Regular action (format: "action [log yes|no]")
+                    $action = preg_replace('/\s+log\s+\S+$/i', '', $policyPart);
+                    $action = strtolower(trim($action));
                 }
                 
                 $feeds[$feedName] = [
@@ -1022,11 +1051,12 @@ class BindConfigManager {
         $action = strtolower($action);
         
         // Build the policy line
-        $policyLine = "    zone \"{$zoneName}\" policy {$action}";
-        
-        // Add CNAME target if applicable
+        // For CNAME action, format is: zone "name" policy cname target;
+        // For other actions, format is: zone "name" policy action;
         if ($action === 'cname' && !empty($feed['cnameTarget'])) {
-            $policyLine .= " cname " . $feed['cnameTarget'];
+            $policyLine = "    zone \"{$zoneName}\" policy cname " . $feed['cnameTarget'];
+        } else {
+            $policyLine = "    zone \"{$zoneName}\" policy {$action}";
         }
         
         $policyLine .= ";";
@@ -1191,14 +1221,15 @@ class BindConfigManager {
         $enabled = $existingFeed['enabled'];
         
         // Build the new policy line
+        // For CNAME action, format is: zone "name" policy cname target;
+        // For other actions, format is: zone "name" policy action;
         $prefix = $enabled ? '    ' : '    // ';
-        $newLine = $prefix . "zone \"{$feedName}\" policy {$action}";
         
         if ($action === 'cname' && $cnameTarget) {
-            $newLine .= " cname " . $cnameTarget;
+            $newLine = $prefix . "zone \"{$feedName}\" policy cname " . $cnameTarget . ";";
+        } else {
+            $newLine = $prefix . "zone \"{$feedName}\" policy {$action};";
         }
-        
-        $newLine .= ";";
         
         if (!empty($description)) {
             $newLine .= " # " . $description;
@@ -1477,14 +1508,15 @@ class BindConfigManager {
         $description = $existingFeed['desc'] ?? '';
         
         // Build the new policy line
+        // For CNAME action, format is: zone "name" policy cname target;
+        // For other actions, format is: zone "name" policy action;
         $prefix = $enabled ? '    ' : '    // ';
-        $newLine = $prefix . "zone \"{$feedName}\" policy {$action}";
         
         if ($action === 'cname' && $cnameTarget) {
-            $newLine .= " cname " . $cnameTarget;
+            $newLine = $prefix . "zone \"{$feedName}\" policy cname " . $cnameTarget . ";";
+        } else {
+            $newLine = $prefix . "zone \"{$feedName}\" policy {$action};";
         }
-        
-        $newLine .= ";";
         
         if (!empty($description)) {
             $newLine .= " # " . $description;
@@ -1606,13 +1638,15 @@ class BindConfigManager {
             
             // Build the policy line
             $prefix = $enabled ? '    ' : '    // ';
-            $line = $prefix . "zone \"{$feedName}\" policy {$action}";
             
+            // Build the policy line
+            // For CNAME action, format is: zone "name" policy cname target;
+            // For other actions, format is: zone "name" policy action;
             if ($action === 'cname' && $cnameTarget) {
-                $line .= " cname " . $cnameTarget;
+                $line = $prefix . "zone \"{$feedName}\" policy cname " . $cnameTarget . ";";
+            } else {
+                $line = $prefix . "zone \"{$feedName}\" policy {$action};";
             }
-            
-            $line .= ";";
             
             if (!empty($description)) {
                 $line .= " # " . $description;
