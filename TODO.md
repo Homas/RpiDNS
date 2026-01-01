@@ -3,6 +3,8 @@
 - [ ] RPZ 1d,1w shows more than 1h by one (4 vs 3)
 - [ ] me-3 in between the tab pills and content
 - [ ] "Given" not available for 3rd party feeds
+- [ ] chown 82:82 config/bind/named.conf
+- [ ] Feeds added but BIND reload failed: sh: docker-compose: not found","added":1,"details":"Configuration saved. Manual BIND reload may be required.
 
 - [x] Import DB for ZIP
 TypeError: Cannot read properties of undefined (reading 'length')

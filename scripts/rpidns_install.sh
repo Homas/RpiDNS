@@ -199,6 +199,67 @@ EOF
     adduser $SUDO_USER www-data
     sed -i 's/\$bind_host="bind"/\$bind_host="127.0.0.1"/' /opt/rpidns/www/rpidns_vars.php
 
+    # Configure rndc for BIND management
+    echo "Configuring rndc for BIND management..."
+    BIND_CONF_DIR="/etc/bind"
+    
+    # Generate rndc key if not present
+    if [ ! -f "$BIND_CONF_DIR/rndc.key" ]; then
+        echo "Generating rndc key..."
+        rndc-confgen -a -k rndc-key -c "$BIND_CONF_DIR/rndc.key"
+        chown root:bind "$BIND_CONF_DIR/rndc.key"
+        chmod 640 "$BIND_CONF_DIR/rndc.key"
+    fi
+    
+    # Create rndc.conf if not present
+    if [ ! -f "$BIND_CONF_DIR/rndc.conf" ]; then
+        echo "Creating rndc.conf..."
+        cat > "$BIND_CONF_DIR/rndc.conf" << EOF
+// rndc configuration for RpiDNS
+options {
+    default-key "rndc-key";
+    default-server 127.0.0.1;
+    default-port 953;
+};
+
+include "$BIND_CONF_DIR/rndc.key";
+EOF
+        chown root:bind "$BIND_CONF_DIR/rndc.conf"
+        chmod 640 "$BIND_CONF_DIR/rndc.conf"
+    fi
+    
+    # Add rndc controls to named.conf.options if not present
+    NAMED_CONF="$BIND_CONF_DIR/named.conf.options"
+    if [ -f "$NAMED_CONF" ]; then
+        if ! grep -q "include.*rndc.key" "$NAMED_CONF"; then
+            echo "Adding rndc configuration to named.conf.options..."
+            # Prepend rndc include and controls to the file
+            TEMP_CONF=$(mktemp)
+            cat > "$TEMP_CONF" << EOF
+// Include rndc key for remote control
+include "$BIND_CONF_DIR/rndc.key";
+
+// Controls for rndc
+controls {
+    inet 127.0.0.1 port 953 allow { 127.0.0.1; } keys { "rndc-key"; };
+};
+
+EOF
+            cat "$NAMED_CONF" >> "$TEMP_CONF"
+            mv "$TEMP_CONF" "$NAMED_CONF"
+            chown root:bind "$NAMED_CONF"
+            chmod 644 "$NAMED_CONF"
+        fi
+    fi
+    
+    # Allow www-data to use rndc
+    if [ -f "$BIND_CONF_DIR/rndc.key" ]; then
+        chown root:bind "$BIND_CONF_DIR/rndc.key"
+        chmod 640 "$BIND_CONF_DIR/rndc.key"
+    fi
+    
+    echo "rndc configuration complete"
+
     # Build frontend with Vite (replaces individual library downloads)
     # All frontend dependencies (Vue, Bootstrap-Vue, Axios, ApexCharts, FontAwesome)
     # are now bundled via npm and Vite
