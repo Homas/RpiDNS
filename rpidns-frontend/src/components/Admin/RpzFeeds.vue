@@ -282,7 +282,7 @@ export default {
       if (!selectedFeed.value) return
 
       try {
-        const response = await api.delete({ req: 'rpz_feed', feed: selectedFeed.value.feed })
+        const response = await api.del({ req: 'rpz_feed', feed: selectedFeed.value.feed })
         if (response.status === 'success') {
           emit('show-info', { msg: 'Feed deleted successfully', time: 3 })
           selectedFeed.value = null

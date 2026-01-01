@@ -2,6 +2,7 @@
 - [ ] Root hints provision for bind
 - [ ] RPZ 1d,1w shows more than 1h by one (4 vs 3)
 - [ ] me-3 in between the tab pills and content
+- [ ] "Given" not available for 3rd party feeds
 
 - [x] Import DB for ZIP
 TypeError: Cannot read properties of undefined (reading 'length')

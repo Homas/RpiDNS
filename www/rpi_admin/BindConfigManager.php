@@ -1069,16 +1069,22 @@ class BindConfigManager {
         $policyLine .= "\n";
         
         // Find response-policy block and add the new feed
-        // Match response-policy block with optional semicolon after closing brace
-        if (preg_match('/response-policy\s*\{([^}]*)\}\s*;?/is', $content, $matches, PREG_OFFSET_CAPTURE)) {
+        // Match response-policy block with optional trailing options after closing brace
+        // Format: response-policy { ... } [options] ;
+        if (preg_match('/response-policy\s*\{([^}]*)\}([^;]*);/is', $content, $matches, PREG_OFFSET_CAPTURE)) {
             $rpBlock = $matches[1][0];
+            $trailingOptions = trim($matches[2][0]);
             $rpStart = $matches[0][1];
             $rpEnd = $rpStart + strlen($matches[0][0]);
             
             // Insert new feed at the end of the response-policy block (before closing brace)
             $newRpBlock = rtrim($rpBlock) . "\n" . $policyLine;
+            
+            // Preserve trailing options if they exist
+            $trailingSuffix = $trailingOptions ? " " . $trailingOptions . ";" : ";";
+            
             $newContent = substr($content, 0, $rpStart) . 
-                          "response-policy {\n" . $newRpBlock . "};" . 
+                          "response-policy {\n" . $newRpBlock . "}" . $trailingSuffix . 
                           substr($content, $rpEnd);
             
             return $newContent;
@@ -1656,12 +1662,17 @@ class BindConfigManager {
         }
         
         // Replace the response-policy block content
-        // Match response-policy block with optional semicolon after closing brace
-        if (preg_match('/response-policy\s*\{([^}]*)\}\s*;?/is', $content, $matches, PREG_OFFSET_CAPTURE)) {
+        // Match response-policy block with optional trailing options after closing brace
+        // Format: response-policy { ... } [options] ;
+        if (preg_match('/response-policy\s*\{([^}]*)\}([^;]*);/is', $content, $matches, PREG_OFFSET_CAPTURE)) {
+            $trailingOptions = trim($matches[2][0]);
             $rpStart = $matches[0][1];
             $rpEnd = $rpStart + strlen($matches[0][0]);
             
-            $newRpBlock = "response-policy {\n" . $newRpContent . "};";
+            // Preserve trailing options if they exist
+            $trailingSuffix = $trailingOptions ? " " . $trailingOptions . ";" : ";";
+            
+            $newRpBlock = "response-policy {\n" . $newRpContent . "}" . $trailingSuffix;
             $content = substr($content, 0, $rpStart) . $newRpBlock . substr($content, $rpEnd);
         }
         

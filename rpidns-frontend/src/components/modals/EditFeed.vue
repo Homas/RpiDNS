@@ -191,13 +191,20 @@ export default {
       { value: 'cname', text: 'cname (redirect to another domain)' }
     ]
 
+    const thirdPartyPolicyOptions = [
+      ...basePolicyOptions,
+      { value: 'given', text: 'given (use feed-defined action)' }
+    ]
+
     const ioc2rpzPolicyOptions = [
       { value: 'given', text: 'given (use feed-defined action)' },
       ...basePolicyOptions
     ]
 
     const policyOptions = computed(() => {
-      return source.value === 'ioc2rpz' ? ioc2rpzPolicyOptions : basePolicyOptions
+      if (source.value === 'ioc2rpz') return ioc2rpzPolicyOptions
+      if (source.value === 'third-party') return thirdPartyPolicyOptions
+      return basePolicyOptions
     })
 
     const isIoc2rpz = computed(() => source.value === 'ioc2rpz')

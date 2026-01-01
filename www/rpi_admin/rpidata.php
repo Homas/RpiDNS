@@ -882,7 +882,7 @@ RpiDNS powered by https://ioc2rpz.net
 				}
 				
 				// Fetch available feeds from ioc2rpz.net API
-				$apiUrl = 'https://www.ioc2rpz.net/ioc2rpz/feeds/' . urlencode($tsigKeyName);
+				$apiUrl = 'https://ioc2rpz.net/get_feeds.php?tkey_name=' . urlencode($tsigKeyName);
 				
 				$ch = curl_init();
 				curl_setopt($ch, CURLOPT_URL, $apiUrl);

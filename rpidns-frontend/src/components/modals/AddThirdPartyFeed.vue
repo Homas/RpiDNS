@@ -205,7 +205,8 @@ export default {
       { value: 'nodata', text: 'nodata (no records for query type)' },
       { value: 'passthru', text: 'passthru (allow query)' },
       { value: 'drop', text: 'drop (silently drop query)' },
-      { value: 'cname', text: 'cname (redirect to another domain)' }
+      { value: 'cname', text: 'cname (redirect to another domain)' },
+      { value: 'given', text: 'given (use feed-defined action)' }
     ]
 
     const show = () => { isVisible.value = true }

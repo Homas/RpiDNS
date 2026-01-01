@@ -55,16 +55,10 @@
           </BCol>
         </BRow>
 
-        <!-- Select All / Deselect All -->
+        <!-- Selection count -->
         <BRow class="pb-2">
           <BCol md="12" class="p-0">
-            <BButton variant="outline-secondary" size="sm" @click="selectAll" class="me-2">
-              Select All
-            </BButton>
-            <BButton variant="outline-secondary" size="sm" @click="deselectAll">
-              Deselect All
-            </BButton>
-            <span class="ms-3 text-muted">{{ selectedFeeds.length }} selected</span>
+            <span class="text-muted">{{ selectedFeeds.length }} of {{ selectableFeeds.length }} feeds selected</span>
           </BCol>
         </BRow>
 
@@ -75,7 +69,13 @@
               <BTableSimple striped hover small>
                 <BThead>
                   <BTr>
-                    <BTh style="width: 40px;"></BTh>
+                    <BTh style="width: 40px;">
+                      <BFormCheckbox 
+                        :checked="allSelectableSelected"
+                        :indeterminate="someSelected && !allSelectableSelected"
+                        @change="toggleSelectAll"
+                      />
+                    </BTh>
                     <BTh>Feed Name</BTh>
                     <BTh class="d-none d-md-table-cell">Type</BTh>
                     <BTh class="d-none d-sm-table-cell">Rules</BTh>
@@ -105,7 +105,12 @@
                       </BBadge>
                     </BTd>
                     <BTd class="d-none d-sm-table-cell">{{ feed.rules_count || '0' }}</BTd>
-                    <BTd class="d-none d-lg-table-cell text-truncate" style="max-width: 250px;">
+                    <BTd 
+                      class="d-none d-lg-table-cell text-truncate" 
+                      style="max-width: 250px;"
+                      v-b-tooltip.hover.left
+                      :title="feed.description"
+                    >
                       {{ feed.description }}
                     </BTd>
                   </BTr>
@@ -230,6 +235,27 @@ export default {
       selectedFeeds.value = []
     }
 
+    const selectableFeeds = computed(() => {
+      return availableFeeds.value.filter(f => !f.already_configured)
+    })
+
+    const allSelectableSelected = computed(() => {
+      const selectable = selectableFeeds.value
+      return selectable.length > 0 && selectedFeeds.value.length === selectable.length
+    })
+
+    const someSelected = computed(() => {
+      return selectedFeeds.value.length > 0
+    })
+
+    const toggleSelectAll = () => {
+      if (allSelectableSelected.value) {
+        deselectAll()
+      } else {
+        selectAll()
+      }
+    }
+
     const addSelectedFeeds = async (event) => {
       event.preventDefault()
       
@@ -279,6 +305,9 @@ export default {
       tsigKeyFound,
       tsigKeyName,
       canRetry,
+      selectableFeeds,
+      allSelectableSelected,
+      someSelected,
       show,
       hide,
       onShow,
@@ -288,6 +317,7 @@ export default {
       toggleFeedSelection,
       selectAll,
       deselectAll,
+      toggleSelectAll,
       addSelectedFeeds
     }
   }
