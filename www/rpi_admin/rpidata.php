@@ -845,17 +845,420 @@ RpiDNS powered by https://ioc2rpz.net
 			$response='{"status":"ok", "records":"4","data":'.json_encode($server_stats).'}';
 		break;
 	case "GET rpz_feeds":
-			$feeds=[];
-			$bind_conf = file_exists('/etc/bind/named.conf.options') ? '/etc/bind/named.conf.options' : '/etc/bind/named.conf';
-			exec('/bin/grep "zone.*policy" '.$bind_conf,$out);
-			#zone "wl-ip.ioc2rpz.rpidns" policy passthru log no;#local whitelist ip-based
-			foreach ($out as $line){
-				if (preg_match('/^\s*zone "([^"]+)" policy ([^;]+);\h*#?(.*)$/',$line,$rpz)){
-					$feeds[]=["feed"=>trim($rpz[1]), "action"=>trim($rpz[2]), "desc"=>trim($rpz[3])];
-				};
-			};
+			// Enhanced endpoint using BindConfigManager for full metadata
+			require_once __DIR__ . '/BindConfigManager.php';
+			try {
+				$bindManager = new BindConfigManager();
+				$feeds = $bindManager->getFeeds();
+				$response = json_encode([
+					'status' => 'ok',
+					'records' => count($feeds),
+					'data' => $feeds
+				]);
+			} catch (Exception $e) {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => $e->getMessage(),
+					'code' => 'CONFIG_PARSE_ERROR'
+				]);
+			}
+		break;
 
-			$response='{"status":"ok", "records":"'.count($feeds).'","data":'.json_encode($feeds).'}';
+	case "GET ioc2rpz_available":
+			// Fetch available feeds from ioc2rpz.net API
+			require_once __DIR__ . '/BindConfigManager.php';
+			try {
+				$bindManager = new BindConfigManager();
+				$tsigKeyName = $bindManager->getTsigKeyName();
+				
+				if ($tsigKeyName === null) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => 'No TSIG key configured for ioc2rpz.net',
+						'code' => 'TSIG_NOT_FOUND',
+						'tsig_key_found' => false
+					]);
+					break;
+				}
+				
+				// Fetch available feeds from ioc2rpz.net API
+				$apiUrl = 'https://www.ioc2rpz.net/ioc2rpz/feeds/' . urlencode($tsigKeyName);
+				
+				$ch = curl_init();
+				curl_setopt($ch, CURLOPT_URL, $apiUrl);
+				curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+				curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+				curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+				curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
+				
+				$apiResponse = curl_exec($ch);
+				$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+				$curlError = curl_error($ch);
+				curl_close($ch);
+				
+				if ($apiResponse === false || $httpCode !== 200) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => 'Failed to fetch feeds from ioc2rpz.net: ' . ($curlError ?: "HTTP $httpCode"),
+						'code' => 'IOC2RPZ_API_ERROR',
+						'tsig_key_found' => true,
+						'tsig_key_name' => $tsigKeyName
+					]);
+					break;
+				}
+				
+				$availableFeeds = json_decode($apiResponse, true);
+				if ($availableFeeds === null) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => 'Invalid response from ioc2rpz.net API',
+						'code' => 'IOC2RPZ_API_ERROR',
+						'tsig_key_found' => true,
+						'tsig_key_name' => $tsigKeyName
+					]);
+					break;
+				}
+				
+				// Get currently configured feeds to mark which are already added
+				$configuredFeeds = $bindManager->getFeeds();
+				$configuredNames = array_column($configuredFeeds, 'feed');
+				
+				// Mark feeds that are already configured
+				foreach ($availableFeeds as &$feed) {
+					$feed['already_configured'] = in_array($feed['rpz'] ?? '', $configuredNames);
+				}
+				
+				$response = json_encode([
+					'status' => 'ok',
+					'tsig_key_found' => true,
+					'tsig_key_name' => $tsigKeyName,
+					'data' => $availableFeeds
+				]);
+			} catch (Exception $e) {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => $e->getMessage(),
+					'code' => 'CONFIG_PARSE_ERROR'
+				]);
+			}
+		break;
+
+	case "POST rpz_feed":
+			// Add new feed(s)
+			require_once __DIR__ . '/BindConfigManager.php';
+			try {
+				$bindManager = new BindConfigManager();
+				
+				// Get JSON input
+				$input = json_decode(file_get_contents('php://input'), true);
+				if ($input === null) {
+					$input = $REQUEST;
+				}
+				
+				$feeds = $input['feeds'] ?? [$input];
+				
+				if (empty($feeds)) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => 'No feeds provided',
+						'code' => 'INVALID_REQUEST'
+					]);
+					break;
+				}
+				
+				// Add feeds using BindConfigManager
+				$result = $bindManager->addFeeds($feeds);
+				
+				if (!$result['success']) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => $result['error'],
+						'code' => 'FEED_ADD_FAILED'
+					]);
+					break;
+				}
+				
+				// Reload BIND to apply changes
+				$reloadResult = $bindManager->reloadBind();
+				
+				if (!$reloadResult['success']) {
+					$response = json_encode([
+						'status' => 'warning',
+						'reason' => 'Feeds added but BIND reload failed: ' . $reloadResult['error'],
+						'added' => $result['added'],
+						'details' => 'Configuration saved. Manual BIND reload may be required.'
+					]);
+					break;
+				}
+				
+				$response = json_encode([
+					'status' => 'success',
+					'added' => $result['added'],
+					'details' => 'Feed(s) added successfully'
+				]);
+			} catch (Exception $e) {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => $e->getMessage(),
+					'code' => 'FEED_ADD_FAILED'
+				]);
+			}
+		break;
+
+	case "PUT rpz_feed":
+			// Update existing feed configuration
+			require_once __DIR__ . '/BindConfigManager.php';
+			try {
+				$bindManager = new BindConfigManager();
+				
+				// Get JSON input
+				$input = json_decode(file_get_contents('php://input'), true);
+				if ($input === null) {
+					$input = $REQUEST;
+				}
+				
+				$feedName = $input['feed'] ?? '';
+				
+				if (empty($feedName)) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => 'Feed name is required',
+						'code' => 'INVALID_REQUEST'
+					]);
+					break;
+				}
+				
+				// Build config array from input
+				$config = [];
+				if (isset($input['action'])) $config['action'] = $input['action'];
+				if (isset($input['description'])) $config['description'] = $input['description'];
+				if (isset($input['cnameTarget'])) $config['cnameTarget'] = $input['cnameTarget'];
+				if (isset($input['primaryServer'])) $config['primaryServer'] = $input['primaryServer'];
+				if (isset($input['tsigKeyName'])) $config['tsigKeyName'] = $input['tsigKeyName'];
+				
+				// Update feed using BindConfigManager
+				$result = $bindManager->updateFeed($feedName, $config);
+				
+				if (!$result['success']) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => $result['error'],
+						'code' => 'FEED_UPDATE_FAILED'
+					]);
+					break;
+				}
+				
+				// Reload BIND to apply changes
+				$reloadResult = $bindManager->reloadBind();
+				
+				if (!$reloadResult['success']) {
+					$response = json_encode([
+						'status' => 'warning',
+						'reason' => 'Feed updated but BIND reload failed: ' . $reloadResult['error'],
+						'details' => 'Configuration saved. Manual BIND reload may be required.'
+					]);
+					break;
+				}
+				
+				$response = json_encode([
+					'status' => 'success',
+					'details' => 'Feed updated successfully'
+				]);
+			} catch (Exception $e) {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => $e->getMessage(),
+					'code' => 'FEED_UPDATE_FAILED'
+				]);
+			}
+		break;
+
+	case "DELETE rpz_feed":
+			// Remove a feed from configuration
+			require_once __DIR__ . '/BindConfigManager.php';
+			try {
+				$bindManager = new BindConfigManager();
+				
+				$feedName = $REQUEST['feed'] ?? '';
+				$deleteZoneFile = ($REQUEST['delete_zone_file'] ?? 'false') === 'true';
+				
+				if (empty($feedName)) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => 'Feed name is required',
+						'code' => 'INVALID_REQUEST'
+					]);
+					break;
+				}
+				
+				// Remove feed using BindConfigManager
+				$result = $bindManager->removeFeed($feedName, $deleteZoneFile);
+				
+				if (!$result['success']) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => $result['error'],
+						'code' => 'FEED_REMOVE_FAILED'
+					]);
+					break;
+				}
+				
+				// Reload BIND to apply changes
+				$reloadResult = $bindManager->reloadBind();
+				
+				if (!$reloadResult['success']) {
+					$response = json_encode([
+						'status' => 'warning',
+						'reason' => 'Feed removed but BIND reload failed: ' . $reloadResult['error'],
+						'details' => 'Configuration saved. Manual BIND reload may be required.'
+					]);
+					break;
+				}
+				
+				$response = json_encode([
+					'status' => 'success',
+					'details' => 'Feed removed successfully'
+				]);
+			} catch (Exception $e) {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => $e->getMessage(),
+					'code' => 'FEED_REMOVE_FAILED'
+				]);
+			}
+		break;
+
+	case "PUT rpz_feeds_order":
+			// Update the order of feeds
+			require_once __DIR__ . '/BindConfigManager.php';
+			try {
+				$bindManager = new BindConfigManager();
+				
+				// Get JSON input
+				$input = json_decode(file_get_contents('php://input'), true);
+				if ($input === null) {
+					$input = $REQUEST;
+				}
+				
+				$order = $input['order'] ?? [];
+				
+				if (empty($order) || !is_array($order)) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => 'Feed order array is required',
+						'code' => 'INVALID_REQUEST'
+					]);
+					break;
+				}
+				
+				// Update order using BindConfigManager
+				$result = $bindManager->updateFeedOrder($order);
+				
+				if (!$result['success']) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => $result['error'],
+						'code' => 'ORDER_UPDATE_FAILED'
+					]);
+					break;
+				}
+				
+				// Reload BIND to apply changes
+				$reloadResult = $bindManager->reloadBind();
+				
+				if (!$reloadResult['success']) {
+					$response = json_encode([
+						'status' => 'warning',
+						'reason' => 'Order updated but BIND reload failed: ' . $reloadResult['error'],
+						'details' => 'Configuration saved. Manual BIND reload may be required.'
+					]);
+					break;
+				}
+				
+				$response = json_encode([
+					'status' => 'success',
+					'details' => 'Feed order updated'
+				]);
+			} catch (Exception $e) {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => $e->getMessage(),
+					'code' => 'ORDER_UPDATE_FAILED'
+				]);
+			}
+		break;
+
+	case "PUT rpz_feed_status":
+			// Enable or disable a feed
+			require_once __DIR__ . '/BindConfigManager.php';
+			try {
+				$bindManager = new BindConfigManager();
+				
+				// Get JSON input
+				$input = json_decode(file_get_contents('php://input'), true);
+				if ($input === null) {
+					$input = $REQUEST;
+				}
+				
+				$feedName = $input['feed'] ?? '';
+				$enabled = $input['enabled'] ?? null;
+				
+				if (empty($feedName)) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => 'Feed name is required',
+						'code' => 'INVALID_REQUEST'
+					]);
+					break;
+				}
+				
+				if ($enabled === null) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => 'Enabled status is required',
+						'code' => 'INVALID_REQUEST'
+					]);
+					break;
+				}
+				
+				// Convert to boolean
+				$enabledBool = filter_var($enabled, FILTER_VALIDATE_BOOLEAN);
+				
+				// Update status using BindConfigManager
+				$result = $bindManager->setFeedEnabled($feedName, $enabledBool);
+				
+				if (!$result['success']) {
+					$response = json_encode([
+						'status' => 'error',
+						'reason' => $result['error'],
+						'code' => 'STATUS_UPDATE_FAILED'
+					]);
+					break;
+				}
+				
+				// Reload BIND to apply changes
+				$reloadResult = $bindManager->reloadBind();
+				
+				if (!$reloadResult['success']) {
+					$response = json_encode([
+						'status' => 'warning',
+						'reason' => 'Status updated but BIND reload failed: ' . $reloadResult['error'],
+						'details' => 'Configuration saved. Manual BIND reload may be required.'
+					]);
+					break;
+				}
+				
+				$response = json_encode([
+					'status' => 'success',
+					'details' => $enabledBool ? 'Feed enabled' : 'Feed disabled'
+				]);
+			} catch (Exception $e) {
+				$response = json_encode([
+					'status' => 'error',
+					'reason' => $e->getMessage(),
+					'code' => 'STATUS_UPDATE_FAILED'
+				]);
+			}
 		break;
 		//
 	case "PUT retransfer_feed":

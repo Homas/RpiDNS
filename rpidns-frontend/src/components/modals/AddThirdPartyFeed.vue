@@ -1,0 +1,361 @@
+<template>
+  <BModal 
+    v-model="isVisible"
+    centered 
+    title="Add Third-Party Feed" 
+    id="mAddThirdPartyFeed" 
+    body-class="pt-0 pb-0" 
+    size="lg"
+    ok-title="Add Feed" 
+    :ok-disabled="!isFormValid || loading"
+    @ok="addFeed"
+    @show="onShow"
+    @hidden="onHidden"
+  >
+    <BContainer fluid>
+      <!-- Feed Name -->
+      <BRow class="pb-2">
+        <BCol md="12" class="p-0">
+          <label class="form-label mb-1">Feed Name <span class="text-danger">*</span></label>
+          <BFormInput 
+            v-model.trim="feedName" 
+            placeholder="e.g., threat-intel.example.com"
+            :state="feedNameState"
+            @input="validateFeedName"
+          />
+          <BFormInvalidFeedback :state="feedNameState">
+            {{ feedNameError }}
+          </BFormInvalidFeedback>
+          <small class="text-muted d-block text-start mt-1">
+            Must follow DNS naming conventions (alphanumeric, hyphens, dots)
+          </small>
+        </BCol>
+      </BRow>
+
+      <!-- Primary Server -->
+      <BRow class="pb-2">
+        <BCol md="12" class="p-0">
+          <label class="form-label mb-1">Primary Server <span class="text-danger">*</span></label>
+          <BFormInput 
+            v-model.trim="primaryServer" 
+            placeholder="e.g., 192.168.1.100 or ns1.example.com"
+            :state="primaryServerState"
+          />
+          <BFormInvalidFeedback :state="primaryServerState">
+            Primary server IP or hostname is required
+          </BFormInvalidFeedback>
+          <small class="text-muted d-block text-start mt-1">
+            IP address or hostname of the zone transfer source
+          </small>
+        </BCol>
+      </BRow>
+
+      <!-- TSIG Key Section -->
+      <BRow class="pb-2">
+        <BCol md="12" class="p-0">
+          <BFormCheckbox v-model="useTsig" switch>
+            Use TSIG authentication for zone transfers
+          </BFormCheckbox>
+        </BCol>
+      </BRow>
+
+      <template v-if="useTsig">
+        <!-- TSIG Key Name -->
+        <BRow class="pb-2">
+          <BCol md="12" class="p-0">
+            <label class="form-label mb-1">TSIG Key Name</label>
+            <BFormInput 
+              v-model.trim="tsigKeyName" 
+              placeholder="e.g., transfer-key"
+              :state="tsigKeyNameState"
+            />
+            <BFormInvalidFeedback :state="tsigKeyNameState">
+              TSIG key name is required when using TSIG authentication
+            </BFormInvalidFeedback>
+          </BCol>
+        </BRow>
+
+        <!-- TSIG Key Secret -->
+        <BRow class="pb-2">
+          <BCol md="12" class="p-0">
+            <label class="form-label mb-1">TSIG Key Secret</label>
+            <BFormInput 
+              v-model.trim="tsigKeySecret" 
+              type="password"
+              placeholder="Base64-encoded TSIG secret"
+              :state="tsigKeySecretState"
+            />
+            <BFormInvalidFeedback :state="tsigKeySecretState">
+              TSIG key secret is required when using TSIG authentication
+            </BFormInvalidFeedback>
+            <small class="text-muted d-block text-start mt-1">
+              The shared secret for TSIG authentication (base64 encoded)
+            </small>
+          </BCol>
+        </BRow>
+      </template>
+
+      <!-- Policy Action -->
+      <BRow class="pb-2">
+        <BCol md="12" class="p-0">
+          <label class="form-label mb-1">Policy Action</label>
+          <BFormSelect v-model="policyAction" :options="policyOptions" />
+        </BCol>
+      </BRow>
+
+      <!-- CNAME Target (shown when CNAME selected) -->
+      <BRow v-if="policyAction === 'cname'" class="pb-2">
+        <BCol md="12" class="p-0">
+          <label class="form-label mb-1">CNAME Target <span class="text-danger">*</span></label>
+          <BFormInput 
+            v-model.trim="cnameTarget" 
+            placeholder="e.g., blocked.example.com"
+            :state="cnameTargetState"
+          />
+          <BFormInvalidFeedback :state="cnameTargetState">
+            CNAME target is required when using CNAME action
+          </BFormInvalidFeedback>
+        </BCol>
+      </BRow>
+
+      <!-- Description -->
+      <BRow class="pb-2">
+        <BCol md="12" class="p-0">
+          <label class="form-label mb-1">Description</label>
+          <BFormTextarea 
+            v-model.trim="description" 
+            placeholder="Optional description for this feed"
+            rows="2"
+            max-rows="4"
+            maxlength="500"
+          />
+        </BCol>
+      </BRow>
+
+      <!-- Error Alert -->
+      <BRow v-if="error" class="pb-1">
+        <BCol md="12" class="p-0">
+          <BAlert variant="danger" show class="mb-0 py-2">{{ error }}</BAlert>
+        </BCol>
+      </BRow>
+
+      <!-- Loading State -->
+      <BRow v-if="loading" class="pb-1">
+        <BCol md="12" class="p-0 text-center">
+          <BSpinner small type="grow"></BSpinner>&nbsp;&nbsp;Adding feed...
+        </BCol>
+      </BRow>
+    </BContainer>
+  </BModal>
+</template>
+
+<script>
+import { ref, computed } from 'vue'
+import { useApi } from '@/composables/useApi'
+
+// DNS name validation regex
+const DNS_NAME_REGEX = /^(?!-)(?!.*--)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.(?!-)(?!.*--)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/
+
+function validateDnsName(name) {
+  if (!name) {
+    return { valid: false, message: 'Feed name is required' }
+  }
+  
+  if (name.length > 253) {
+    return { valid: false, message: 'Feed name must be 253 characters or less' }
+  }
+  
+  const labels = name.split('.')
+  for (const label of labels) {
+    if (label.length > 63) {
+      return { valid: false, message: 'Each label must be 63 characters or less' }
+    }
+    if (label.startsWith('-') || label.endsWith('-')) {
+      return { valid: false, message: 'Labels cannot start or end with hyphens' }
+    }
+  }
+  
+  if (!DNS_NAME_REGEX.test(name)) {
+    return { valid: false, message: 'Invalid DNS name format. Use alphanumeric characters, hyphens, and dots.' }
+  }
+  
+  return { valid: true, message: '' }
+}
+
+export default {
+  name: 'AddThirdPartyFeed',
+  emits: ['show-info', 'refresh-feeds'],
+  setup(_, { emit, expose }) {
+    const api = useApi()
+    const isVisible = ref(false)
+    const feedName = ref('')
+    const primaryServer = ref('')
+    const useTsig = ref(false)
+    const tsigKeyName = ref('')
+    const tsigKeySecret = ref('')
+    const policyAction = ref('nxdomain')
+    const cnameTarget = ref('')
+    const description = ref('')
+    const loading = ref(false)
+    const error = ref('')
+    const feedNameError = ref('')
+
+    const policyOptions = [
+      { value: 'nxdomain', text: 'nxdomain (domain does not exist)' },
+      { value: 'nodata', text: 'nodata (no records for query type)' },
+      { value: 'passthru', text: 'passthru (allow query)' },
+      { value: 'drop', text: 'drop (silently drop query)' },
+      { value: 'cname', text: 'cname (redirect to another domain)' }
+    ]
+
+    const show = () => { isVisible.value = true }
+    const hide = () => { isVisible.value = false }
+
+    const onShow = () => {
+      feedName.value = ''
+      primaryServer.value = ''
+      useTsig.value = false
+      tsigKeyName.value = ''
+      tsigKeySecret.value = ''
+      policyAction.value = 'nxdomain'
+      cnameTarget.value = ''
+      description.value = ''
+      error.value = ''
+      feedNameError.value = ''
+    }
+
+    const onHidden = () => {
+      feedName.value = ''
+      primaryServer.value = ''
+      useTsig.value = false
+      tsigKeyName.value = ''
+      tsigKeySecret.value = ''
+      policyAction.value = 'nxdomain'
+      cnameTarget.value = ''
+      description.value = ''
+      error.value = ''
+      feedNameError.value = ''
+    }
+
+    const validateFeedName = () => {
+      if (feedName.value.length === 0) {
+        feedNameError.value = ''
+        return
+      }
+      const result = validateDnsName(feedName.value)
+      feedNameError.value = result.message
+    }
+
+    const feedNameState = computed(() => {
+      if (feedName.value.length === 0) return null
+      return validateDnsName(feedName.value).valid
+    })
+
+    const primaryServerState = computed(() => {
+      if (primaryServer.value.length === 0) return null
+      return primaryServer.value.length > 0
+    })
+
+    const tsigKeyNameState = computed(() => {
+      if (!useTsig.value) return null
+      if (tsigKeyName.value.length === 0) return null
+      return tsigKeyName.value.length > 0
+    })
+
+    const tsigKeySecretState = computed(() => {
+      if (!useTsig.value) return null
+      if (tsigKeySecret.value.length === 0) return null
+      return tsigKeySecret.value.length > 0
+    })
+
+    const cnameTargetState = computed(() => {
+      if (policyAction.value !== 'cname') return null
+      if (cnameTarget.value.length === 0) return null
+      return cnameTarget.value.length > 0
+    })
+
+    const isFormValid = computed(() => {
+      const nameValid = validateDnsName(feedName.value).valid
+      const serverValid = primaryServer.value.length > 0
+      const tsigValid = !useTsig.value || (tsigKeyName.value.length > 0 && tsigKeySecret.value.length > 0)
+      const cnameValid = policyAction.value !== 'cname' || cnameTarget.value.length > 0
+      return nameValid && serverValid && tsigValid && cnameValid
+    })
+
+    const addFeed = async (event) => {
+      event.preventDefault()
+      
+      if (!isFormValid.value) return
+
+      loading.value = true
+      error.value = ''
+
+      try {
+        const feedData = {
+          feed: feedName.value,
+          source: 'third-party',
+          action: policyAction.value,
+          description: description.value,
+          primaryServer: primaryServer.value
+        }
+
+        if (useTsig.value) {
+          feedData.tsigKeyName = tsigKeyName.value
+          feedData.tsigKeySecret = tsigKeySecret.value
+        }
+
+        if (policyAction.value === 'cname') {
+          feedData.cnameTarget = cnameTarget.value
+        }
+
+        const response = await api.post({ req: 'rpz_feed' }, { feeds: [feedData] })
+
+        if (response.status === 'success' || response.status === 'warning') {
+          hide()
+          emit('refresh-feeds')
+          const msg = response.status === 'warning' 
+            ? response.reason 
+            : 'Third-party feed added successfully'
+          emit('show-info', { msg, time: 3 })
+        } else {
+          error.value = response.reason || 'Failed to add feed'
+        }
+      } catch (err) {
+        error.value = 'Failed to add feed'
+      } finally {
+        loading.value = false
+      }
+    }
+
+    expose({ show, hide })
+
+    return {
+      isVisible,
+      feedName,
+      primaryServer,
+      useTsig,
+      tsigKeyName,
+      tsigKeySecret,
+      policyAction,
+      policyOptions,
+      cnameTarget,
+      description,
+      loading,
+      error,
+      feedNameError,
+      feedNameState,
+      primaryServerState,
+      tsigKeyNameState,
+      tsigKeySecretState,
+      cnameTargetState,
+      isFormValid,
+      show,
+      hide,
+      onShow,
+      onHidden,
+      validateFeedName,
+      addFeed
+    }
+  }
+}
+</script>
