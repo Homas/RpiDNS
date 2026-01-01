@@ -63,6 +63,35 @@ class BindConfigManager {
     public function getConfigPath(): string {
         return $this->configPath;
     }
+    
+    /**
+     * Sanitize a description string for use in BIND config comments
+     * 
+     * Removes or replaces characters that could break BIND configuration:
+     * - Newlines and carriage returns (replaced with space)
+     * - Semicolons (could end statements prematurely)
+     * - Curly braces (could break block structure)
+     * - Multiple consecutive spaces (collapsed to single space)
+     * 
+     * @param string $description The description to sanitize
+     * @return string The sanitized description
+     */
+    private function sanitizeDescription(string $description): string {
+        // Replace newlines and carriage returns with spaces
+        $description = str_replace(["\r\n", "\r", "\n"], ' ', $description);
+        
+        // Remove or replace problematic characters for BIND config
+        // Semicolons could end statements, braces could break structure
+        $description = str_replace([';', '{', '}'], '', $description);
+        
+        // Collapse multiple spaces into single space
+        $description = preg_replace('/\s+/', ' ', $description);
+        
+        // Trim leading/trailing whitespace
+        $description = trim($description);
+        
+        return $description;
+    }
 
     
     /**
@@ -100,8 +129,9 @@ class BindConfigManager {
         }
         
         // Pattern 3: Look for TSIG key referenced in zone transfer configuration
-        // masters { ip key "keyname"; };
-        if (preg_match('/masters\s*\{[^}]*key\s+["\']?([^"\';\s]+)["\']?\s*;/i', $content, $matches)) {
+        // primaries { ip key "keyname"; }; (new syntax)
+        // masters { ip key "keyname"; }; (legacy syntax)
+        if (preg_match('/(?:primaries|masters)\s*\{[^}]*key\s+["\']?([^"\';\s]+)["\']?\s*;/i', $content, $matches)) {
             return $matches[1];
         }
         
@@ -192,7 +222,8 @@ class BindConfigManager {
                 'order' => $order++,
                 'cnameTarget' => $feedInfo['cnameTarget'] ?? null,
                 'primaryServer' => $zoneInfo['primaryServer'] ?? null,
-                'tsigKeyName' => $zoneInfo['tsigKeyName'] ?? null
+                'tsigKeyName' => $zoneInfo['tsigKeyName'] ?? null,
+                'tsigAlgorithm' => $zoneInfo['tsigAlgorithm'] ?? null
             ];
         }
         
@@ -322,7 +353,7 @@ class BindConfigManager {
     private function parseZoneDefinitions(string $content): array {
         $zones = [];
         
-        // Match zone blocks: zone "name" { type ...; masters { ... }; file "..."; };
+        // Match zone blocks: zone "name" { type ...; primaries/masters { ... }; file "..."; };
         $pattern = '/zone\s+["\']([^"\']+)["\']\s*\{([^}]+)\}/is';
         
         if (preg_match_all($pattern, $content, $matches, PREG_SET_ORDER)) {
@@ -337,8 +368,8 @@ class BindConfigManager {
                     $zoneInfo['type'] = strtolower(trim($typeMatch[1]));
                 }
                 
-                // Extract masters (for slave zones)
-                if (preg_match('/masters\s*\{([^}]+)\}/i', $zoneBlock, $mastersMatch)) {
+                // Extract primaries/masters (for slave zones) - support both syntaxes
+                if (preg_match('/(?:primaries|masters)\s*\{([^}]+)\}/i', $zoneBlock, $mastersMatch)) {
                     $mastersBlock = $mastersMatch[1];
                     
                     // Extract IP address
@@ -349,6 +380,12 @@ class BindConfigManager {
                     // Extract TSIG key reference
                     if (preg_match('/key\s+["\']?([^"\';\s]+)["\']?/i', $mastersBlock, $keyMatch)) {
                         $zoneInfo['tsigKeyName'] = $keyMatch[1];
+                        
+                        // Look up the algorithm from the key definition
+                        $keyConfig = $this->getTsigKeyConfig($keyMatch[1]);
+                        if ($keyConfig && isset($keyConfig['algorithm'])) {
+                            $zoneInfo['tsigAlgorithm'] = $keyConfig['algorithm'];
+                        }
                     }
                 }
                 
@@ -392,7 +429,7 @@ class BindConfigManager {
             return 'local';
         }
         
-        // Slave zones with external masters are third-party
+        // Slave zones with external primaries are third-party
         if (isset($zoneInfo['type']) && $zoneInfo['type'] === 'slave') {
             // Check if it's from ioc2rpz.net (known IPs)
             $ioc2rpzIps = ['94.130.30.123', '2a01:4f8:121:43ea::100:53'];
@@ -710,21 +747,21 @@ class BindConfigManager {
         // Get container name from environment or use default
         $containerName = getenv('BIND_CONTAINER_NAME') ?: 'rpidns-bind';
         
-        // Try docker exec first
+        // Use docker exec to run rndc reload in the bind container
         $command = 'docker exec ' . escapeshellarg($containerName) . ' rndc reload 2>&1';
         exec($command, $output, $returnCode);
         
-        if ($returnCode !== 0) {
-            // Try docker-compose if docker exec failed
-            $output = [];
-            $command = 'docker-compose exec -T bind rndc reload 2>&1';
-            exec($command, $output, $returnCode);
-        }
-        
         $outputStr = implode("\n", $output);
         
+        // Check for success - rndc reload returns 0 on success
+        // Also check output for success message
         $success = ($returnCode === 0) || 
                    (stripos($outputStr, 'server reload successful') !== false);
+        
+        // If docker exec failed, provide helpful error message
+        if (!$success && empty($outputStr)) {
+            $outputStr = "Failed to execute: $command (return code: $returnCode)";
+        }
         
         return [
             'success' => $success,
@@ -946,6 +983,11 @@ class BindConfigManager {
         $zoneName = $feed['feed'];
         $source = $feed['source'];
         
+        // For third-party feeds with TSIG, add the key definition first
+        if ($source === 'third-party' && !empty($feed['tsigKeyName']) && !empty($feed['tsigKeySecret'])) {
+            $content = $this->addTsigKeyDefinition($content, $feed);
+        }
+        
         $zoneConfig = "\n// Zone configuration for {$zoneName}\n";
         $zoneConfig .= "zone \"{$zoneName}\" {\n";
         
@@ -970,6 +1012,48 @@ class BindConfigManager {
     }
     
     /**
+     * Add TSIG key definition to the configuration
+     * 
+     * @param string $content Current config content
+     * @param array $feed Feed configuration with tsigKeyName, tsigAlgorithm, tsigKeySecret
+     * @return string Updated config content
+     */
+    private function addTsigKeyDefinition(string $content, array $feed): string {
+        $keyName = $feed['tsigKeyName'];
+        $algorithm = $feed['tsigAlgorithm'] ?? 'hmac-sha256';
+        $secret = $feed['tsigKeySecret'];
+        
+        // Check if key already exists
+        $existingKey = $this->getTsigKeyConfig($keyName);
+        if ($existingKey !== null) {
+            // Key already exists, don't add duplicate
+            return $content;
+        }
+        
+        // Build the key definition
+        $keyConfig = "\n// TSIG key for zone transfers\n";
+        $keyConfig .= "key \"{$keyName}\" {\n";
+        $keyConfig .= "    algorithm {$algorithm};\n";
+        $keyConfig .= "    secret \"{$secret}\";\n";
+        $keyConfig .= "};\n";
+        
+        // Insert key definition before zone configurations
+        // Look for the first zone definition or append at the end
+        if (preg_match('/\n\/\/\s*Zone\s+configuration/i', $content, $matches, PREG_OFFSET_MATCH)) {
+            // Insert before first zone configuration comment
+            $insertPos = $matches[0][1];
+            return substr($content, 0, $insertPos) . $keyConfig . substr($content, $insertPos);
+        } elseif (preg_match('/\nzone\s+"/i', $content, $matches, PREG_OFFSET_MATCH)) {
+            // Insert before first zone definition
+            $insertPos = $matches[0][1];
+            return substr($content, 0, $insertPos) . $keyConfig . substr($content, $insertPos);
+        }
+        
+        // Append at the end if no zone definitions found
+        return $content . $keyConfig;
+    }
+    
+    /**
      * Generate zone configuration for ioc2rpz.net feeds
      * 
      * @param array $feed Feed configuration
@@ -984,7 +1068,7 @@ class BindConfigManager {
         
         $config = "    type slave;\n";
         $config .= "    file \"/var/cache/bind/{$zoneName}\";\n";
-        $config .= "    masters { {$primaryIp}";
+        $config .= "    primaries { {$primaryIp}";
         
         if ($tsigKey) {
             $config .= " key \"{$tsigKey}\"";
@@ -1024,7 +1108,7 @@ class BindConfigManager {
         
         $config = "    type slave;\n";
         $config .= "    file \"/var/cache/bind/{$zoneName}\";\n";
-        $config .= "    masters { {$primaryServer}";
+        $config .= "    primaries { {$primaryServer}";
         
         if ($tsigKeyName) {
             $config .= " key \"{$tsigKeyName}\"";
@@ -1061,9 +1145,9 @@ class BindConfigManager {
         
         $policyLine .= ";";
         
-        // Add description as comment if provided
+        // Add description as comment if provided (sanitized for BIND config)
         if (!empty($feed['description'])) {
-            $policyLine .= " # " . $feed['description'];
+            $policyLine .= " # " . $this->sanitizeDescription($feed['description']);
         }
         
         $policyLine .= "\n";
@@ -1116,6 +1200,8 @@ class BindConfigManager {
      *   - cnameTarget: string (optional) - Required if action is 'cname'
      *   - primaryServer: string (optional) - For third-party feeds
      *   - tsigKeyName: string (optional) - For third-party feeds
+     *   - tsigAlgorithm: string (optional) - TSIG algorithm (default: hmac-sha256)
+     *   - tsigKeySecret: string (optional) - TSIG key secret (for new/updated keys)
      * @return array ['success' => bool, 'error' => string|null]
      */
     public function updateFeed(string $feedName, array $config): array {
@@ -1177,7 +1263,7 @@ class BindConfigManager {
             }
             
             // Update zone configuration for third-party feeds
-            if ($source === 'third-party' && (isset($config['primaryServer']) || isset($config['tsigKeyName']))) {
+            if ($source === 'third-party' && (isset($config['primaryServer']) || isset($config['tsigKeyName']) || isset($config['tsigKeySecret']))) {
                 $content = $this->updateZoneConfig($content, $feedName, $config);
             }
             
@@ -1238,7 +1324,7 @@ class BindConfigManager {
         }
         
         if (!empty($description)) {
-            $newLine .= " # " . $description;
+            $newLine .= " # " . $this->sanitizeDescription($description);
         }
         
         // Pattern to match the existing feed line (enabled or disabled)
@@ -1263,6 +1349,11 @@ class BindConfigManager {
     private function updateZoneConfig(string $content, string $feedName, array $config): string {
         $escapedName = preg_quote($feedName, '/');
         
+        // If a new TSIG key secret is provided, add or update the key definition
+        if (!empty($config['tsigKeyName']) && !empty($config['tsigKeySecret'])) {
+            $content = $this->addOrUpdateTsigKey($content, $config);
+        }
+        
         // Match the zone block for this feed
         $pattern = '/(zone\s+["\']' . $escapedName . '["\']\s*\{)([^}]+)(\})/is';
         
@@ -1272,24 +1363,67 @@ class BindConfigManager {
         
         $zoneBlock = $matches[2];
         
-        // Update masters if primaryServer is provided
+        // Update primaries if primaryServer is provided
         if (isset($config['primaryServer'])) {
-            $newMasters = $config['primaryServer'];
+            $newPrimary = $config['primaryServer'];
             $tsigKey = $config['tsigKeyName'] ?? null;
             
-            $mastersLine = "    masters { {$newMasters}";
+            $primariesLine = "    primaries { {$newPrimary}";
             if ($tsigKey) {
-                $mastersLine .= " key \"{$tsigKey}\"";
+                $primariesLine .= " key \"{$tsigKey}\"";
             }
-            $mastersLine .= "; }";
+            $primariesLine .= "; }";
             
-            // Replace existing masters line
-            $zoneBlock = preg_replace('/\s*masters\s*\{[^}]+\}\s*;?/i', "\n" . $mastersLine . ";\n", $zoneBlock);
+            // Replace existing primaries/masters line (support both syntaxes)
+            $zoneBlock = preg_replace('/\s*(?:primaries|masters)\s*\{[^}]+\}\s*;?/i', "\n" . $primariesLine . ";\n", $zoneBlock);
         }
         
         // Reconstruct the zone block
         $newZoneBlock = $matches[1] . $zoneBlock . $matches[3];
         $content = preg_replace($pattern, $newZoneBlock, $content);
+        
+        return $content;
+    }
+    
+    /**
+     * Add or update a TSIG key definition
+     * 
+     * @param string $content Current config content
+     * @param array $config Configuration with tsigKeyName, tsigAlgorithm, tsigKeySecret
+     * @return string Updated config content
+     */
+    private function addOrUpdateTsigKey(string $content, array $config): string {
+        $keyName = $config['tsigKeyName'];
+        $algorithm = $config['tsigAlgorithm'] ?? 'hmac-sha256';
+        $secret = $config['tsigKeySecret'];
+        
+        // Check if key already exists
+        $escapedKeyName = preg_quote($keyName, '/');
+        $keyPattern = '/key\s+["\']?' . $escapedKeyName . '["\']?\s*\{[^}]+\}/is';
+        
+        if (preg_match($keyPattern, $content)) {
+            // Update existing key
+            $newKeyBlock = "key \"{$keyName}\" {\n    algorithm {$algorithm};\n    secret \"{$secret}\";\n}";
+            $content = preg_replace($keyPattern, $newKeyBlock, $content);
+        } else {
+            // Add new key definition
+            $keyConfig = "\n// TSIG key for zone transfers\n";
+            $keyConfig .= "key \"{$keyName}\" {\n";
+            $keyConfig .= "    algorithm {$algorithm};\n";
+            $keyConfig .= "    secret \"{$secret}\";\n";
+            $keyConfig .= "};\n";
+            
+            // Insert before first zone definition
+            if (preg_match('/\n\/\/\s*Zone\s+configuration/i', $content, $matches, PREG_OFFSET_MATCH)) {
+                $insertPos = $matches[0][1];
+                $content = substr($content, 0, $insertPos) . $keyConfig . substr($content, $insertPos);
+            } elseif (preg_match('/\nzone\s+"/i', $content, $matches, PREG_OFFSET_MATCH)) {
+                $insertPos = $matches[0][1];
+                $content = substr($content, 0, $insertPos) . $keyConfig . substr($content, $insertPos);
+            } else {
+                $content .= $keyConfig;
+            }
+        }
         
         return $content;
     }
@@ -1525,7 +1659,7 @@ class BindConfigManager {
         }
         
         if (!empty($description)) {
-            $newLine .= " # " . $description;
+            $newLine .= " # " . $this->sanitizeDescription($description);
         }
         
         // Pattern to match the existing feed line (enabled or disabled)
@@ -1655,7 +1789,7 @@ class BindConfigManager {
             }
             
             if (!empty($description)) {
-                $line .= " # " . $description;
+                $line .= " # " . $this->sanitizeDescription($description);
             }
             
             $newRpContent .= $line . "\n";

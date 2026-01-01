@@ -522,9 +522,15 @@ export default {
     }
 
     const showInfo = (msg, time) => {
-      // Handle undefined/null messages
-      const message = msg || ''
-      const duration = time || 3
+      // Handle both object format { msg, time } and separate parameters (msg, time)
+      let message, duration
+      if (typeof msg === 'object' && msg !== null && 'msg' in msg) {
+        message = msg.msg || ''
+        duration = msg.time || 3
+      } else {
+        message = msg || ''
+        duration = time || 3
+      }
       
       infoModalSize.value = message.length > 30 ? 'md' : 'sm'
       infoModalMessage.value = message

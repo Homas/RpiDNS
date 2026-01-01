@@ -46,12 +46,25 @@
       <template v-if="!loading && tsigKeyFound && availableFeeds.length > 0">
         <!-- Policy Action Selector -->
         <BRow class="pb-2">
-          <BCol md="4" class="p-0">
+          <BCol md="12" class="p-0">
             <label class="form-label mb-1">Policy Action</label>
             <BFormSelect v-model="policyAction" :options="policyOptions" size="sm" />
           </BCol>
-          <BCol md="8" class="p-0 ps-2 d-flex align-items-end">
-            <small class="text-muted">Default: "given" uses the action defined by ioc2rpz.net</small>
+        </BRow>
+
+        <!-- CNAME Target (shown when CNAME selected) -->
+        <BRow v-if="policyAction === 'cname'" class="pb-2">
+          <BCol md="12" class="p-0">
+            <label class="form-label mb-1">CNAME Target <span class="text-danger">*</span></label>
+            <BFormInput 
+              v-model.trim="cnameTarget" 
+              placeholder="e.g., blocked.example.com"
+              :state="cnameTargetState"
+              size="sm"
+            />
+            <BFormInvalidFeedback :state="cnameTargetState">
+              CNAME target is required when using CNAME action
+            </BFormInvalidFeedback>
           </BCol>
         </BRow>
 
@@ -146,12 +159,13 @@ import { useApi } from '@/composables/useApi'
 export default {
   name: 'AddIoc2rpzFeed',
   emits: ['show-info', 'refresh-feeds'],
-  setup(props, { emit, expose }) {
+  setup(_props, { emit, expose }) {
     const api = useApi()
     const isVisible = ref(false)
     const availableFeeds = ref([])
     const selectedFeeds = ref([])
     const policyAction = ref('given')
+    const cnameTarget = ref('')
     const loading = ref(false)
     const submitting = ref(false)
     const error = ref('')
@@ -164,8 +178,15 @@ export default {
       { value: 'nxdomain', text: 'nxdomain (domain does not exist)' },
       { value: 'nodata', text: 'nodata (no records for query type)' },
       { value: 'passthru', text: 'passthru (allow query)' },
-      { value: 'drop', text: 'drop (silently drop query)' }
+      { value: 'drop', text: 'drop (silently drop query)' },
+      { value: 'cname', text: 'cname (redirect to another domain)' }
     ]
+
+    const cnameTargetState = computed(() => {
+      if (policyAction.value !== 'cname') return null
+      if (cnameTarget.value.length === 0) return null
+      return cnameTarget.value.length > 0
+    })
 
     const show = () => { isVisible.value = true }
     const hide = () => { isVisible.value = false }
@@ -173,6 +194,7 @@ export default {
     const onShow = () => {
       selectedFeeds.value = []
       policyAction.value = 'given'
+      cnameTarget.value = ''
       error.value = ''
       fetchAvailableFeeds()
     }
@@ -180,6 +202,7 @@ export default {
     const onHidden = () => {
       availableFeeds.value = []
       selectedFeeds.value = []
+      cnameTarget.value = ''
       error.value = ''
       tsigKeyFound.value = false
     }
@@ -260,17 +283,29 @@ export default {
       event.preventDefault()
       
       if (selectedFeeds.value.length === 0) return
+      
+      // Validate CNAME target if action is cname
+      if (policyAction.value === 'cname' && cnameTarget.value.length === 0) {
+        error.value = 'CNAME target is required when using CNAME action'
+        return
+      }
 
       submitting.value = true
       error.value = ''
 
       try {
-        const feedsToAdd = selectedFeeds.value.map(feed => ({
-          feed: feed.rpz,
-          source: 'ioc2rpz',
-          action: policyAction.value,
-          description: feed.description || ''
-        }))
+        const feedsToAdd = selectedFeeds.value.map(feed => {
+          const feedData = {
+            feed: feed.rpz,
+            source: 'ioc2rpz',
+            action: policyAction.value,
+            description: feed.description || ''
+          }
+          if (policyAction.value === 'cname') {
+            feedData.cnameTarget = cnameTarget.value
+          }
+          return feedData
+        })
 
         const response = await api.post({ req: 'rpz_feed' }, { feeds: feedsToAdd })
 
@@ -318,7 +353,9 @@ export default {
       selectAll,
       deselectAll,
       toggleSelectAll,
-      addSelectedFeeds
+      addSelectedFeeds,
+      cnameTarget,
+      cnameTargetState
     }
   }
 }

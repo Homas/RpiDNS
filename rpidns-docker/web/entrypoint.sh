@@ -10,6 +10,20 @@ echo "Starting RpiDNS Web container..."
 echo "Hostname: ${RPIDNS_HOSTNAME}"
 echo "Logging Mode: ${RPIDNS_LOGGING}"
 
+# Configure docker socket access for www-data user (needed for rndc reload via docker exec)
+if [ -S /var/run/docker.sock ]; then
+    echo "Configuring docker socket access..."
+    # Get the GID of the docker socket
+    DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+    # Create docker group with that GID if it doesn't exist
+    if ! getent group docker >/dev/null 2>&1; then
+        addgroup -g ${DOCKER_GID} docker 2>/dev/null || true
+    fi
+    # Add www-data to docker group
+    adduser www-data docker 2>/dev/null || true
+    echo "Docker socket access configured for www-data"
+fi
+
 # Verify frontend assets exist (built during Docker image creation)
 FRONTEND_DIST="/opt/rpidns/www/rpi_admin/dist"
 if [ ! -d "${FRONTEND_DIST}" ] || [ -z "$(ls -A ${FRONTEND_DIST} 2>/dev/null)" ]; then

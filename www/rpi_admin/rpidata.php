@@ -1035,6 +1035,8 @@ RpiDNS powered by https://ioc2rpz.net
 				if (isset($input['cnameTarget'])) $config['cnameTarget'] = $input['cnameTarget'];
 				if (isset($input['primaryServer'])) $config['primaryServer'] = $input['primaryServer'];
 				if (isset($input['tsigKeyName'])) $config['tsigKeyName'] = $input['tsigKeyName'];
+				if (isset($input['tsigAlgorithm'])) $config['tsigAlgorithm'] = $input['tsigAlgorithm'];
+				if (isset($input['tsigKeySecret'])) $config['tsigKeySecret'] = $input['tsigKeySecret'];
 				
 				// Update feed using BindConfigManager
 				$result = $bindManager->updateFeed($feedName, $config);

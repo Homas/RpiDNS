@@ -75,6 +75,17 @@
           </BCol>
         </BRow>
 
+        <!-- TSIG Algorithm -->
+        <BRow class="pb-2">
+          <BCol md="12" class="p-0">
+            <label class="form-label mb-1">TSIG Algorithm</label>
+            <BFormSelect v-model="tsigAlgorithm" :options="tsigAlgorithmOptions" />
+            <small class="text-muted d-block text-start mt-1">
+              Must match the algorithm used by the primary server
+            </small>
+          </BCol>
+        </BRow>
+
         <!-- TSIG Key Secret -->
         <BRow class="pb-2">
           <BCol md="12" class="p-0">
@@ -192,6 +203,7 @@ export default {
     const primaryServer = ref('')
     const useTsig = ref(false)
     const tsigKeyName = ref('')
+    const tsigAlgorithm = ref('hmac-sha256')
     const tsigKeySecret = ref('')
     const policyAction = ref('nxdomain')
     const cnameTarget = ref('')
@@ -209,6 +221,15 @@ export default {
       { value: 'given', text: 'given (use feed-defined action)' }
     ]
 
+    const tsigAlgorithmOptions = [
+      { value: 'hmac-sha256', text: 'HMAC-SHA256 (recommended)' },
+      { value: 'hmac-sha512', text: 'HMAC-SHA512' },
+      { value: 'hmac-sha384', text: 'HMAC-SHA384' },
+      { value: 'hmac-sha224', text: 'HMAC-SHA224' },
+      { value: 'hmac-sha1', text: 'HMAC-SHA1 (legacy)' },
+      { value: 'hmac-md5', text: 'HMAC-MD5 (deprecated)' }
+    ]
+
     const show = () => { isVisible.value = true }
     const hide = () => { isVisible.value = false }
 
@@ -217,6 +238,7 @@ export default {
       primaryServer.value = ''
       useTsig.value = false
       tsigKeyName.value = ''
+      tsigAlgorithm.value = 'hmac-sha256'
       tsigKeySecret.value = ''
       policyAction.value = 'nxdomain'
       cnameTarget.value = ''
@@ -230,6 +252,7 @@ export default {
       primaryServer.value = ''
       useTsig.value = false
       tsigKeyName.value = ''
+      tsigAlgorithm.value = 'hmac-sha256'
       tsigKeySecret.value = ''
       policyAction.value = 'nxdomain'
       cnameTarget.value = ''
@@ -302,6 +325,7 @@ export default {
 
         if (useTsig.value) {
           feedData.tsigKeyName = tsigKeyName.value
+          feedData.tsigAlgorithm = tsigAlgorithm.value
           feedData.tsigKeySecret = tsigKeySecret.value
         }
 
@@ -336,6 +360,8 @@ export default {
       primaryServer,
       useTsig,
       tsigKeyName,
+      tsigAlgorithm,
+      tsigAlgorithmOptions,
       tsigKeySecret,
       policyAction,
       policyOptions,

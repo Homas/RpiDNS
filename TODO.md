@@ -4,7 +4,9 @@
 - [ ] me-3 in between the tab pills and content
 - [ ] "Given" not available for 3rd party feeds
 - [ ] chown 82:82 config/bind/named.conf
-- [ ] Feeds added but BIND reload failed: sh: docker-compose: not found","added":1,"details":"Configuration saved. Manual BIND reload may be required.
+- [ ] 3rd party RPZ primary server asks for IP or hostname
+- [ ] To force the zone transfer requests to be sent over TLS, use tls keyword, e.g. primaries { 192.0.2.1 tls tls-configuration-name; }; https://bind9.readthedocs.io/en/v9.18.14/reference.html#namedconf-statement-primaries
+- [ ] replace masters to primaries
 
 - [x] Import DB for ZIP
 TypeError: Cannot read properties of undefined (reading 'length')

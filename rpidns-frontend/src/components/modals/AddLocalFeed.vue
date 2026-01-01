@@ -122,7 +122,7 @@ function validateDnsName(name) {
 export default {
   name: 'AddLocalFeed',
   emits: ['show-info', 'refresh-feeds'],
-  setup(props, { emit, expose }) {
+  setup(_props, { emit, expose }) {
     const api = useApi()
     const isVisible = ref(false)
     const feedName = ref('')
@@ -138,7 +138,8 @@ export default {
       { value: 'nodata', text: 'nodata (no records for query type)' },
       { value: 'passthru', text: 'passthru (allow query)' },
       { value: 'drop', text: 'drop (silently drop query)' },
-      { value: 'cname', text: 'cname (redirect to another domain)' }
+      { value: 'cname', text: 'cname (redirect to another domain)' },
+      { value: 'given', text: 'given (use feed-defined action)' }
     ]
 
     const show = () => { isVisible.value = true }
