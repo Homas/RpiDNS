@@ -1,15 +1,18 @@
 # Migration to VUE3
-- [ ] chown 82:82 config/bind/named.conf
+Critical
+- [x] chown 82:82 config/bind/named.conf
 - [ ] Fix README.md
+- [ ] Help
+- [ ] 3rd party RPZ primary server asks for IP or hostname
 
+Non critical
 - [ ] Root hints provision for bind
 - [ ] RPZ 1d,1w shows more than 1h by one (4 vs 3)
 - [ ] me-3 in between the tab pills and content
-- [ ] "Given" not available for 3rd party feeds
-- [ ] 3rd party RPZ primary server asks for IP or hostname
 - [ ] To force the zone transfer requests to be sent over TLS, use tls keyword, e.g. primaries { 192.0.2.1 tls tls-configuration-name; }; https://bind9.readthedocs.io/en/v9.18.14/reference.html#namedconf-statement-primaries
 - [ ] replace masters to primaries in the community website
 
+- [x] "Given" not available for 3rd party feeds
 - [x] Import DB for ZIP
 TypeError: Cannot read properties of undefined (reading 'length')
 - [x] unzipped, tried to import but Import DB modal doesn't close and generate the same error as above
@@ -27,6 +30,7 @@ PHP message: PHP Warning:  Undefined variable $feeds in /opt/rpidns/www/rpi_admi
  - [x] Drill-down from TopX Servers - wrong filter.
  - [x] Disabled (log only) feeds are not parsed.
  - [ ] Wait until DB will be unlocked
+ - [ ] Get feeds # of rules
 
 ## Widgets
  - [ ] CHR (cache hit rate)
@@ -49,7 +53,7 @@ PHP message: PHP Warning:  Undefined variable $feeds in /opt/rpidns/www/rpi_admi
 ## Backend
  - [ ] Optimize pagination (replace LIMIT) and SQL
  - [ ] Advanced filtering
- - [ ] Add RPZ Request Type/Class fields support (from Bind 9.16)
+ - [-] Add RPZ Request Type/Class fields support (from Bind 9.16)
 
 ## Tools
  - [ ] Upgrade script (download RpiDNS from github and execute upgrade script)

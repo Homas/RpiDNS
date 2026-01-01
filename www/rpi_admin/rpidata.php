@@ -1264,6 +1264,7 @@ RpiDNS powered by https://ioc2rpz.net
 		break;
 		//
 	case "PUT retransfer_feed":
+		require_once __DIR__ . '/BindConfigManager.php';
 		try {
 			$bindManager = new BindConfigManager();
 			$feedName = $REQUEST['feed'] ?? '';

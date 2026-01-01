@@ -47,7 +47,7 @@
           <label class="form-label mb-1">Primary Server <span class="text-danger">*</span></label>
           <BFormInput 
             v-model.trim="primaryServer" 
-            placeholder="e.g., 192.168.1.100 or ns1.example.com"
+            placeholder="e.g., 192.168.1.100"
             :state="primaryServerState"
           />
           <BFormInvalidFeedback :state="primaryServerState">

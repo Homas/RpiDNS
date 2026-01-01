@@ -38,14 +38,14 @@
           <label class="form-label mb-1">Primary Server <span class="text-danger">*</span></label>
           <BFormInput 
             v-model.trim="primaryServer" 
-            placeholder="e.g., 192.168.1.100 or ns1.example.com"
+            placeholder="e.g., 192.168.1.100"
             :state="primaryServerState"
           />
           <BFormInvalidFeedback :state="primaryServerState">
-            Primary server IP or hostname is required
+            Primary server IP is required
           </BFormInvalidFeedback>
           <small class="text-muted d-block text-start mt-1">
-            IP address or hostname of the zone transfer source
+            IP address of the zone transfer source
           </small>
         </BCol>
       </BRow>

@@ -22,7 +22,7 @@
         <BButton v-b-tooltip.hover title="Edit" variant="outline-secondary" size="sm" :disabled="!selectedFeed" @click.stop="openEditModal" class="me-1">
           <i class="fa fa-edit"></i>
         </BButton>
-        <BButton v-b-tooltip.hover title="Delete" variant="outline-secondary" size="sm" :disabled="!selectedFeed" @click.stop="confirmDelete" class="me-1">
+        <BButton v-b-tooltip.hover title="Delete" variant="outline-secondary" size="sm" :disabled="!canDelete" @click.stop="confirmDelete" class="me-1">
           <i class="fa fa-trash-alt"></i>
         </BButton>
         <BButton v-b-tooltip.hover :title="selectedFeed && selectedFeed.enabled ? 'Disable' : 'Enable'" variant="outline-secondary" size="sm" :disabled="!selectedFeed" @click.stop="toggleFeedStatus" class="me-1">
@@ -146,6 +146,17 @@ import AddIoc2rpzFeed from '@/components/modals/AddIoc2rpzFeed.vue'
 import AddLocalFeed from '@/components/modals/AddLocalFeed.vue'
 import AddThirdPartyFeed from '@/components/modals/AddThirdPartyFeed.vue'
 import EditFeed from '@/components/modals/EditFeed.vue'
+
+// Predefined feeds that cannot be deleted
+const PREDEFINED_FEEDS = [
+  'allow.ioc2rpz.rpidns',
+  'block.ioc2rpz.rpidns',
+  'allow-ip.ioc2rpz.rpidns',
+  'block-ip.ioc2rpz.rpidns'
+]
+
+// Helper to check if a feed is predefined
+const isPredefinedFeed = (feedName) => PREDEFINED_FEEDS.includes(feedName)
 
 export default {
   name: 'RpzFeeds',
@@ -320,6 +331,11 @@ export default {
       return selectedFeed.value && selectedFeed.value.source !== 'local'
     })
 
+    // Delete - not available for predefined feeds
+    const canDelete = computed(() => {
+      return selectedFeed.value && !isPredefinedFeed(selectedFeed.value.feed)
+    })
+
     const retransferRPZ = async () => {
       if (!selectedFeed.value || selectedFeed.value.source === 'local') return
       
@@ -435,6 +451,7 @@ export default {
       confirmDelete,
       deleteFeed,
       toggleFeedStatus,
+      canDelete,
       canRetransfer,
       retransferRPZ,
       handleDragStart,

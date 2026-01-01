@@ -23,6 +23,20 @@ class BindConfigManager {
     /** @var array Valid policy actions for RPZ feeds */
     public static $validActions = ['nxdomain', 'nodata', 'passthru', 'drop', 'cname', 'given'];
     
+    /** @var array Predefined allow feeds (can only use passthru action) */
+    private static $predefinedAllowFeeds = ['allow.ioc2rpz.rpidns', 'allow-ip.ioc2rpz.rpidns'];
+    
+    /** @var array Predefined block feeds (can use nxdomain, nodata, drop, cname) */
+    private static $predefinedBlockFeeds = ['block.ioc2rpz.rpidns', 'block-ip.ioc2rpz.rpidns'];
+    
+    /** @var array All predefined feeds (cannot be deleted) */
+    private static $predefinedFeeds = [
+        'allow.ioc2rpz.rpidns',
+        'block.ioc2rpz.rpidns',
+        'allow-ip.ioc2rpz.rpidns',
+        'block-ip.ioc2rpz.rpidns'
+    ];
+    
     /**
      * Constructor - detects and sets the BIND configuration file path
      * 
@@ -91,6 +105,73 @@ class BindConfigManager {
         $description = trim($description);
         
         return $description;
+    }
+    
+    /**
+     * Check if a feed is a predefined feed that cannot be deleted
+     * 
+     * @param string $feedName The feed name to check
+     * @return bool True if the feed is predefined
+     */
+    public static function isPredefinedFeed(string $feedName): bool {
+        return in_array($feedName, self::$predefinedFeeds);
+    }
+    
+    /**
+     * Check if a feed is a predefined allow feed
+     * 
+     * @param string $feedName The feed name to check
+     * @return bool True if the feed is a predefined allow feed
+     */
+    public static function isPredefinedAllowFeed(string $feedName): bool {
+        return in_array($feedName, self::$predefinedAllowFeeds);
+    }
+    
+    /**
+     * Check if a feed is a predefined block feed
+     * 
+     * @param string $feedName The feed name to check
+     * @return bool True if the feed is a predefined block feed
+     */
+    public static function isPredefinedBlockFeed(string $feedName): bool {
+        return in_array($feedName, self::$predefinedBlockFeeds);
+    }
+    
+    /**
+     * Validate that a policy action is allowed for a given feed
+     * 
+     * Predefined allow feeds can only use 'passthru' action.
+     * Predefined block feeds can use 'nxdomain', 'nodata', 'drop', 'cname' actions.
+     * 
+     * @param string $feedName The feed name
+     * @param string $action The policy action to validate
+     * @return array ['valid' => bool, 'error' => string|null]
+     */
+    public function validatePolicyActionForFeed(string $feedName, string $action): array {
+        $action = strtolower($action);
+        
+        // Allow feeds can only use passthru
+        if (self::isPredefinedAllowFeed($feedName)) {
+            if ($action !== 'passthru') {
+                return [
+                    'valid' => false,
+                    'error' => "Predefined allow feed '{$feedName}' can only use 'passthru' action"
+                ];
+            }
+        }
+        
+        // Block feeds can use nxdomain, nodata, drop, cname (not passthru or given)
+        if (self::isPredefinedBlockFeed($feedName)) {
+            $allowedBlockActions = ['nxdomain', 'nodata', 'drop', 'cname'];
+            if (!in_array($action, $allowedBlockActions)) {
+                return [
+                    'valid' => false,
+                    'error' => "Predefined block feed '{$feedName}' can only use 'nxdomain', 'nodata', 'drop', or 'cname' actions"
+                ];
+            }
+        }
+        
+        return ['valid' => true, 'error' => null];
     }
 
     
@@ -805,9 +886,9 @@ class BindConfigManager {
         $zoneName = escapeshellarg($zoneName);
         
         // Check if running in container environment
-        $isContainer = $this->isContainerEnvironment();
+        $deploymentType = $this->detectDeploymentType();
         
-        if ($isContainer) {
+        if ($deploymentType === 'container') {
             return $this->retransferZoneContainer($zoneName);
         } else {
             return $this->retransferZoneLocal($zoneName);
@@ -841,9 +922,9 @@ class BindConfigManager {
      * @return array ['success' => bool, 'error' => string|null, 'output' => string]
      */
     private function retransferZoneContainer(string $zoneName): array {
-        $containerName = 'rpidns-bind';
+        $containerName = getenv('BIND_CONTAINER_NAME') ?: 'rpidns-bind';
         
-        $command = "docker exec {$containerName} rndc retransfer {$zoneName} 2>&1";
+        $command = "docker exec " . escapeshellarg($containerName) . " rndc retransfer {$zoneName} 2>&1";
         exec($command, $output, $returnCode);
         
         $outputStr = implode("\n", $output);
@@ -1303,6 +1384,12 @@ class BindConfigManager {
             if ($action === 'cname' && empty($config['cnameTarget'])) {
                 return ['success' => false, 'error' => 'CNAME action requires a target domain'];
             }
+            
+            // Validate action for predefined feeds
+            $actionValidation = $this->validatePolicyActionForFeed($feedName, $action);
+            if (!$actionValidation['valid']) {
+                return ['success' => false, 'error' => $actionValidation['error']];
+            }
         }
         
         // For ioc2rpz feeds, only action can be changed
@@ -1514,6 +1601,11 @@ class BindConfigManager {
     public function removeFeed(string $feedName, bool $deleteZoneFile = false): array {
         if (empty($feedName)) {
             return ['success' => false, 'error' => 'Feed name is required'];
+        }
+        
+        // Check if this is a predefined feed that cannot be deleted
+        if (self::isPredefinedFeed($feedName)) {
+            return ['success' => false, 'error' => "Cannot delete predefined feed: {$feedName}"];
         }
         
         // Get existing feeds to verify feed exists
