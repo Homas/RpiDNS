@@ -340,6 +340,19 @@ export default {
     watch(() => props.customEnd, (newVal) => { customPeriodEnd.value = newVal })
     watch(localFilter, () => { qlogs_cp.value = 1; fetchData() })
     watch(qlogs_cp, () => { fetchData() })
+    // Refresh when stats columns are enabled/disabled
+    watch(qlogs_select_fields, () => { 
+      if (query_ltype.value === 'stats') {
+        qlogs_cp.value = 1
+        fetchData() 
+      }
+    }, { deep: true })
+    // Refresh when tab becomes active
+    watch(() => props.isActive, (newVal, oldVal) => {
+      if (newVal && !oldVal) {
+        fetchData()
+      }
+    })
 
     onMounted(() => { fetchData() })
 

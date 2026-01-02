@@ -1,17 +1,22 @@
 # Migration to VUE3
 Critical
-- [x] chown 82:82 config/bind/named.conf
 - [ ] Fix README.md
-- [ ] Help
-- [ ] 3rd party RPZ primary server asks for IP or hostname
+- [v] (Not tested) Navigation between tabs - do refresh (including drill down)
+- [v] (Not tested) Query/RPZ Stats enabling/disabling fields doesn't refresh the page
 
 Non critical
+- [ ] block-ip.ioc2rpz.rpidns is not included into RPZ list on the community website
+- [ ] replace masters to primaries in the community website
+
 - [ ] Root hints provision for bind
 - [ ] RPZ 1d,1w shows more than 1h by one (4 vs 3)
 - [ ] me-3 in between the tab pills and content
 - [ ] To force the zone transfer requests to be sent over TLS, use tls keyword, e.g. primaries { 192.0.2.1 tls tls-configuration-name; }; https://bind9.readthedocs.io/en/v9.18.14/reference.html#namedconf-statement-primaries
-- [ ] replace masters to primaries in the community website
 
+- [x] chown 82:82 config/bind/named.conf
+- [x] Help
+- [x] 3rd party RPZ primary server asks for IP or hostname
+- [x] TopX Allowed vs Blocked - inconsistent menu show queries/hits - update Allowed
 - [x] "Given" not available for 3rd party feeds
 - [x] Import DB for ZIP
 TypeError: Cannot read properties of undefined (reading 'length')

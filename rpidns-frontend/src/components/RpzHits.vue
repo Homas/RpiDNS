@@ -334,6 +334,19 @@ export default {
     watch(() => props.customEnd, (newVal) => { customPeriodEnd.value = newVal })
     watch(localFilter, () => { hits_cp.value = 1; fetchData() })
     watch(hits_cp, () => { fetchData() })
+    // Refresh when stats columns are enabled/disabled
+    watch(hits_select_fields, () => { 
+      if (hits_ltype.value === 'stats') {
+        hits_cp.value = 1
+        fetchData() 
+      }
+    }, { deep: true })
+    // Refresh when tab becomes active
+    watch(() => props.isActive, (newVal, oldVal) => {
+      if (newVal && !oldVal) {
+        fetchData()
+      }
+    })
 
     onMounted(() => { fetchData() })
 

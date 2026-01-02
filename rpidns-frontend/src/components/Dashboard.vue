@@ -97,8 +97,8 @@
                   <BTr v-for="(item, index) in topXClient" :key="'client-' + index" class="mouseoverpointer">
                     <BTd class="text-truncate" style="max-width: 200px;">
                       <BPopover :target="'tip-good_clients-' + index" triggers="hover" title="Actions">
-                        <a href="javascript:void(0)" @click.stop="onAllowedClientClick(item)">Show queries</a><br>
-                        <a href="javascript:void(0)" @click.stop="showHitsForClient(item)">Show hits</a>
+                        Show <a href="javascript:void(0)" @click.stop="onAllowedClientClick(item)">queries</a>&nbsp;|&nbsp;
+                        <a href="javascript:void(0)" @click.stop="showHitsForClient(item)">hits</a>
                       </BPopover>
                       <span :id="'tip-good_clients-' + index">{{ item.fname }}</span>
                     </BTd>
@@ -485,6 +485,12 @@ export default {
     watch(() => props.customEnd, (newVal) => { 
       if (newVal !== null) {
         customPeriodEnd.value = newVal
+      }
+    })
+    // Refresh when tab becomes active
+    watch(() => props.isActive, (newVal, oldVal) => {
+      if (newVal && !oldVal) {
+        refreshDash()
       }
     })
 
