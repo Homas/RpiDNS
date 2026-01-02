@@ -735,21 +735,19 @@
             <h4>Feed Source Types</h4>
             <p>RpiDNS supports three types of RPZ feeds, each serving different use cases:</p>
             <ul>
-              <li><strong>ioc2rpz.net Feeds</strong> - Professionally curated threat intelligence feeds from 
+              <li><strong>ioc2rpz.net Feeds</strong> - Open source threat intelligence (OSINT) feeds from 
                 <a href="https://ioc2rpz.net" target="_blank">ioc2rpz.net</a>. These feeds are automatically updated 
                 via zone transfers and require a TSIG key for authentication. They cover various threat categories 
-                including malware, phishing, advertising, and tracking. The default policy action for ioc2rpz.net 
-                feeds is "given", which uses the action defined by the feed itself. These feeds are maintained by 
-                security researchers and provide enterprise-grade protection.</li>
+                including malware, phishing, advertising, and tracking. These feeds are maintained by 
+                security researchers who share them with the community.</li>
               <li><strong>Local Feeds</strong> - Custom feeds you create and manage directly within RpiDNS. Local 
                 feeds are master zones stored on your DNS server, giving you complete control over their content. 
                 Use local feeds for organization-specific blocking rules, custom allow lists, or any domains you 
-                want to manage independently of external sources. The default policy action for local feeds is 
-                "nxdomain".</li>
+                want to manage independently of external sources.</li>
               <li><strong>Third-Party Feeds</strong> - External RPZ feeds from sources other than ioc2rpz.net. These 
                 are configured as secondary zones that transfer from a specified primary server. Third-party feeds 
                 can optionally use TSIG authentication for secure zone transfers. Use these when you have access to 
-                commercial or community threat feeds from other providers. The default policy action is "nxdomain".</li>
+                commercial or community threat feeds from other providers.</li>
             </ul>
 
             <h4>Table Columns</h4>
@@ -805,8 +803,7 @@
                 <em>Best for: General blocking of malicious or unwanted domains.</em></li>
               <li><span class="badge bg-warning">nodata</span> <strong>NODATA</strong> - Returns a response indicating 
                 the domain exists but has no records of the requested type. This is a softer block that may cause 
-                different application behavior than NXDOMAIN. <em>Best for: Situations where you want to block 
-                specific record types while allowing others.</em></li>
+                different application behavior than NXDOMAIN.</li>
               <li><span class="badge bg-success">passthru</span> <strong>PASSTHRU</strong> - Allows the query to proceed 
                 normally without any blocking. This action is used for allow/whitelist feeds to explicitly permit 
                 domains that might otherwise be blocked by subsequent feeds. <em>Best for: Allow feeds and whitelisting 
@@ -819,9 +816,7 @@
                 domain (requires specifying a target). This can redirect blocked requests to a block page or 
                 sinkhole server. <em>Best for: Displaying block pages or redirecting to internal resources.</em></li>
               <li><span class="badge bg-primary">given</span> <strong>GIVEN</strong> - Uses the action defined within 
-                the feed itself. This is the default for ioc2rpz.net feeds, allowing the feed maintainers to specify 
-                appropriate actions for different threat types. <em>Best for: ioc2rpz.net feeds where you trust the 
-                feed's built-in policy decisions.</em></li>
+                the feed rules itself.</li>
             </ul>
 
             <h4>Toolbar Actions</h4>
@@ -863,6 +858,7 @@
                 never blocked</li>
               <li>More specific feeds should generally come before more general feeds</li>
               <li>Your custom local feeds can be positioned to override or supplement external feeds</li>
+              <li><i class="fas fa-exclamation-triangle text-warning"></i> <strong>Security Concideration: IP-based feeds trigger domain resolution, which can be exploited for data exfiltration. Place these feeds after all domain-based feeds in your configuration. If that is not possible, ensure that anti-tunneling rules are evaluated first.</li>
             </ul>
             <p>
               To reorder feeds, click and drag the <i class="fas fa-grip-vertical"></i> handle on the left side 
@@ -877,12 +873,12 @@
             </p>
             <ul>
               <li><strong>allow.ioc2rpz.rpidns</strong> - Local allow list for domains. Uses passthru action to 
-                ensure listed domains are never blocked. Add domains here via the Allow List section.</li>
+                ensure listed domains are never blocked. Add domains here via the Allow section.</li>
               <li><strong>allow-ip.ioc2rpz.rpidns</strong> - Local allow list for IP-based rules. Uses passthru 
                 action for IP address allowlisting.</li>
-              <li><strong>block.ioc2rpz.rpidns</strong> - Local block list for domains. Uses nxdomain action to 
-                block listed domains. Add domains here via the Block List section.</li>
-              <li><strong>block-ip.ioc2rpz.rpidns</strong> - Local block list for IP-based rules. Uses nxdomain 
+              <li><strong>block.ioc2rpz.rpidns</strong> - Local block list for domains. Uses redirect(cname) action to 
+                block listed domains. Add domains here via the Block section.</li>
+              <li><strong>block-ip.ioc2rpz.rpidns</strong> - Local block list for IP-based rules. Uses redirect(cname) 
                 action for IP address blocking.</li>
             </ul>
             <p>
@@ -914,14 +910,14 @@
               <li>Click the <i class="fas fa-plus"></i> Add dropdown and select "ioc2rpz.net Feed"</li>
               <li>The system will fetch available feeds using your configured TSIG key</li>
               <li>Select one or more feeds from the list by clicking their checkboxes</li>
-              <li>Optionally change the policy action (default is "given")</li>
+              <li>Optionally change the policy action</li>
               <li>Click "Add Selected Feeds" to add them to your configuration</li>
             </ol>
             <p><strong>Adding a Local Feed:</strong></p>
             <ol>
               <li>Click the <i class="fas fa-plus"></i> Add dropdown and select "Local Feed"</li>
               <li>Enter a unique feed name following DNS naming conventions</li>
-              <li>Select a policy action (default is "nxdomain")</li>
+              <li>Select a policy action</li>
               <li>If using CNAME action, enter the redirect target domain</li>
               <li>Optionally add a description</li>
               <li>Click "Add Feed" to create the feed</li>
@@ -929,9 +925,9 @@
             <p><strong>Adding a Third-Party Feed:</strong></p>
             <ol>
               <li>Click the <i class="fas fa-plus"></i> Add dropdown and select "Third-Party Feed"</li>
-              <li>Enter the feed name and primary server address (IP or hostname)</li>
+              <li>Enter the feed name and primary server IP-address</li>
               <li>If the feed requires authentication, enter the TSIG key name and secret</li>
-              <li>Select a policy action (default is "nxdomain")</li>
+              <li>Select a policy action</li>
               <li>Optionally add a description</li>
               <li>Click "Add Feed" to configure the feed</li>
             </ol>
