@@ -390,7 +390,7 @@ Access Research tools by hovering over domains in Dashboard widgets or reports.
 
 RpiDNS requires ISC Bind configured with:
 - DNS query and RPZ hit logging enabled
-- Local RPZs: `wl.ioc2rpz.local`, `wl-ip.ioc2rpz.local`, `bl.ioc2rpz.local`, `bl-ip.ioc2rpz.local`
+- Local RPZs: `allow.ioc2rpz.local`, `allow-ip.ioc2rpz.local`, `block.ioc2rpz.local`, `block-ip.ioc2rpz.local`
 
 ## Built With
 
@@ -400,7 +400,7 @@ RpiDNS requires ISC Bind configured with:
 
 ## Support the Project
 
-- [GitHub Sponsors](https://github.com/sponsors/Homas) (recurring)
+- [GitHub Sponsors](https://github.com/sponsors/Homas) (one-time, recurring)
 - [PayPal](https://paypal.me/ioc2rpz) (one-time)
 
 ## Contact
@@ -410,7 +410,7 @@ RpiDNS requires ISC Bind configured with:
 
 ## License
 
-Copyright 2020 Vadim Pavlov ioc2rpz[at]gmail[.]com
+Copyright 2020-2026 Vadim Pavlov ioc2rpz[at]gmail[.]com
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License.
 
