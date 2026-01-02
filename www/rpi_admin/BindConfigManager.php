@@ -444,12 +444,19 @@ class BindConfigManager {
                 
                 $zoneInfo = [];
                 
-                // Extract zone type
+                // Extract zone type - support both legacy (master/slave) and new (primary/secondary) terminology
                 if (preg_match('/type\s+(\S+)\s*;/i', $zoneBlock, $typeMatch)) {
-                    $zoneInfo['type'] = strtolower(trim($typeMatch[1]));
+                    $type = strtolower(trim($typeMatch[1]));
+                    // Normalize legacy terminology to new terminology for internal use
+                    if ($type === 'master') {
+                        $type = 'primary';
+                    } elseif ($type === 'slave') {
+                        $type = 'secondary';
+                    }
+                    $zoneInfo['type'] = $type;
                 }
                 
-                // Extract primaries/masters (for slave zones) - support both syntaxes
+                // Extract primaries/masters (for secondary/slave zones) - support both syntaxes
                 if (preg_match('/(?:primaries|masters)\s*\{([^}]+)\}/i', $zoneBlock, $mastersMatch)) {
                     $mastersBlock = $mastersMatch[1];
                     
@@ -475,7 +482,7 @@ class BindConfigManager {
                     $zoneInfo['file'] = $fileMatch[1];
                 }
                 
-                // Extract allow-update (for local zones)
+                // Extract allow-update (for local/primary zones)
                 if (preg_match('/allow-update\s*\{([^}]+)\}/i', $zoneBlock, $updateMatch)) {
                     $zoneInfo['allowUpdate'] = trim($updateMatch[1]);
                 }
@@ -500,18 +507,20 @@ class BindConfigManager {
             return 'ioc2rpz';
         }
         
-        // Local feeds are typically master zones with .rpidns suffix
+        // Local feeds are typically primary/master zones with .rpidns suffix
         if (strpos($feedName, '.rpidns') !== false) {
             return 'local';
         }
         
-        // Check zone type - master zones without .rpidns are local
-        if (isset($zoneInfo['type']) && $zoneInfo['type'] === 'master') {
+        // Check zone type - primary/master zones without .rpidns are local
+        // Support both legacy (master) and new (primary) terminology (normalized to primary in parseZoneDefinitions)
+        if (isset($zoneInfo['type']) && $zoneInfo['type'] === 'primary') {
             return 'local';
         }
         
-        // Slave zones with external primaries are third-party
-        if (isset($zoneInfo['type']) && $zoneInfo['type'] === 'slave') {
+        // Secondary/slave zones with external primaries are third-party
+        // Support both legacy (slave) and new (secondary) terminology (normalized to secondary in parseZoneDefinitions)
+        if (isset($zoneInfo['type']) && $zoneInfo['type'] === 'secondary') {
             // Check if it's from ioc2rpz.net (known IPs)
             $ioc2rpzIps = ['94.130.30.123', '2a01:4f8:121:43ea::100:53'];
             if (isset($zoneInfo['primaryServer']) && in_array($zoneInfo['primaryServer'], $ioc2rpzIps)) {
@@ -1209,6 +1218,8 @@ class BindConfigManager {
     /**
      * Generate zone configuration for ioc2rpz.net feeds
      * 
+     * Uses new BIND terminology: 'secondary' instead of 'slave', 'primaries' instead of 'masters'
+     * 
      * @param array $feed Feed configuration
      * @return string Zone configuration content
      */
@@ -1219,7 +1230,7 @@ class BindConfigManager {
         // ioc2rpz.net server IPs
         $primaryIp = '94.130.30.123';
         
-        $config = "    type slave;\n";
+        $config = "    type secondary;\n";
         $config .= "    file \"/var/cache/bind/{$zoneName}\";\n";
         $config .= "    primaries { {$primaryIp}";
         
@@ -1235,13 +1246,15 @@ class BindConfigManager {
     /**
      * Generate zone configuration for local feeds
      * 
+     * Uses new BIND terminology: 'primary' instead of 'master'
+     * 
      * @param array $feed Feed configuration
      * @return string Zone configuration content
      */
     private function generateLocalZoneConfig(array $feed): string {
         $zoneName = $feed['feed'];
         
-        $config = "    type master;\n";
+        $config = "    type primary;\n";
         $config .= "    file \"/var/cache/bind/{$zoneName}\";\n";
         $config .= "    allow-update { localhost; };\n";
         
@@ -1251,6 +1264,8 @@ class BindConfigManager {
     /**
      * Generate zone configuration for third-party feeds
      * 
+     * Uses new BIND terminology: 'secondary' instead of 'slave', 'primaries' instead of 'masters'
+     * 
      * @param array $feed Feed configuration
      * @return string Zone configuration content
      */
@@ -1259,7 +1274,7 @@ class BindConfigManager {
         $primaryServer = $feed['primaryServer'];
         $tsigKeyName = $feed['tsigKeyName'] ?? null;
         
-        $config = "    type slave;\n";
+        $config = "    type secondary;\n";
         $config .= "    file \"/var/cache/bind/{$zoneName}\";\n";
         $config .= "    primaries { {$primaryServer}";
         

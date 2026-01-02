@@ -6,7 +6,7 @@ Critical
 
 Non critical
 - [ ] block-ip.ioc2rpz.rpidns is not included into RPZ list on the community website
-- [ ] replace masters to primaries in the community website
+- [x] replace masters to primaries in the community website
 
 - [ ] Root hints provision for bind
 - [ ] RPZ 1d,1w shows more than 1h by one (4 vs 3)
