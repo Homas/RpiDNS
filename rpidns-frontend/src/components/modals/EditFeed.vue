@@ -51,7 +51,7 @@
             :state="primaryServerState"
           />
           <BFormInvalidFeedback :state="primaryServerState">
-            Primary server IP or hostname is required
+            Primary server IP is required
           </BFormInvalidFeedback>
         </BCol>
       </BRow>
@@ -168,6 +168,10 @@
 import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 
+// Predefined feeds with restricted policy actions
+const PREDEFINED_ALLOW_FEEDS = ['allow.ioc2rpz.rpidns', 'allow-ip.ioc2rpz.rpidns']
+const PREDEFINED_BLOCK_FEEDS = ['block.ioc2rpz.rpidns', 'block-ip.ioc2rpz.rpidns']
+
 export default {
   name: 'EditFeed',
   props: {
@@ -193,8 +197,8 @@ export default {
     const loading = ref(false)
     const error = ref('')
 
-    // Policy options - all feed types support all actions
-    const policyOptions = [
+    // All policy options
+    const allPolicyOptions = [
       { value: 'nxdomain', text: 'nxdomain (domain does not exist)' },
       { value: 'nodata', text: 'nodata (no records for query type)' },
       { value: 'passthru', text: 'passthru (allow query)' },
@@ -202,6 +206,29 @@ export default {
       { value: 'cname', text: 'cname (redirect to another domain)' },
       { value: 'given', text: 'given (use feed-defined action)' }
     ]
+
+    // Filtered policy options based on predefined feed type
+    const policyOptions = computed(() => {
+      const name = feedName.value
+      
+      // Allow feeds can only use passthru
+      if (PREDEFINED_ALLOW_FEEDS.includes(name)) {
+        return [{ value: 'passthru', text: 'passthru (allow query)' }]
+      }
+      
+      // Block feeds can use nxdomain, nodata, drop, cname (not passthru or given)
+      if (PREDEFINED_BLOCK_FEEDS.includes(name)) {
+        return [
+          { value: 'nxdomain', text: 'nxdomain (domain does not exist)' },
+          { value: 'nodata', text: 'nodata (no records for query type)' },
+          { value: 'drop', text: 'drop (silently drop query)' },
+          { value: 'cname', text: 'cname (redirect to another domain)' }
+        ]
+      }
+      
+      // All other feeds get all options
+      return allPolicyOptions
+    })
 
     const tsigAlgorithmOptions = [
       { value: 'hmac-sha256', text: 'HMAC-SHA256 (recommended)' },

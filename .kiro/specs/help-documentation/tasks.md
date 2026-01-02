@@ -82,10 +82,17 @@ This implementation plan covers creating comprehensive in-app help documentation
     - Document MAC vs IP address tracking
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
-  - [x] 6.2 Document RPZ Feeds
-    - Explain RPZ Feeds table columns
-    - Document Retransfer action and when to use it
-    - _Requirements: 7.1, 7.2_
+  - [ ] 6.2 Document RPZ Feeds (comprehensive update needed)
+    - Document the three feed source types (ioc2rpz.net, Local, Third-Party)
+    - Explain RPZ Feeds table columns (Feed, Action, Source, Status, Description)
+    - Document toolbar actions (Add dropdown, Edit, Delete, Enable/Disable, Retransfer, Refresh)
+    - Explain how to add feeds from each source type with step-by-step instructions
+    - Document drag-and-drop reordering and feed order importance
+    - Explain all policy actions (nxdomain, nodata, passthru, drop, cname, given)
+    - Document predefined feeds and their restrictions
+    - Explain Retransfer is only for non-local (secondary) zones
+    - Document BIND configuration relationship and automatic reload
+    - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 7.9, 7.10, 7.11_
 
   - [x] 6.3 Document Block List management
     - Explain Block List table columns

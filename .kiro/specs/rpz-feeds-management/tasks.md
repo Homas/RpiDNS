@@ -237,39 +237,68 @@ This implementation plan breaks down the RPZ Feeds Management feature into discr
   - Verify error handling and loading states
   - Ask the user if questions arise
 
-- [ ] 10. Update Help documentation
-  - [ ] 10.1 Add RPZ Feeds section to HelpContent.vue
-    - Add navigation link in sidebar
-    - Create section with same style as existing sections
-    - _Requirements: 10.1_
+- [x] 10. Update Help documentation
+  - [x] 10.1 Add comprehensive RPZ Feeds section to HelpContent.vue
+    - Update navigation link in table of contents
+    - Expand section with same style as existing sections
+    - Document the three feed source types (ioc2rpz.net, Local, Third-Party)
+    - _Requirements: 10.1, 10.2_
 
-  - [ ] 10.2 Document feed source types
-    - Explain ioc2rpz.net feeds and TSIG key requirement
-    - Explain local feeds and use cases
-    - Explain third-party feeds and configuration
+  - [x] 10.2 Document feed source types in detail
+    - Explain ioc2rpz.net feeds: automatic updates, TSIG key requirement, "given" default action
+    - Explain local feeds: custom blocking rules, master zones, use cases
+    - Explain third-party feeds: external sources, primary server configuration, optional TSIG authentication
     - _Requirements: 10.2_
 
-  - [ ] 10.3 Document feed ordering
-    - Explain importance of feed order
-    - Document how to reorder feeds
+  - [x] 10.3 Document feed ordering and drag-and-drop
+    - Explain importance of feed order (BIND evaluates in order, first match wins)
+    - Document drag-and-drop reordering via drag handles
+    - Explain that order is saved automatically after reordering
     - _Requirements: 10.3_
 
-  - [ ] 10.4 Document feed management operations
+  - [x] 10.4 Document feed management toolbar and operations
+    - Document Add dropdown with three options (ioc2rpz.net, Local, Third-Party)
+    - Document Edit button (select feed first, restrictions for ioc2rpz feeds)
+    - Document Delete button (select feed first, predefined feeds cannot be deleted)
+    - Document Enable/Disable toggle button
+    - Document Retransfer button (only for non-local/secondary zones)
+    - Document Refresh button
     - Step-by-step for adding each feed type
     - Step-by-step for editing feeds
     - Step-by-step for removing feeds
-    - Step-by-step for enabling/disabling feeds
     - _Requirements: 10.4_
 
-  - [ ] 10.5 Document policy actions
-    - Explain each action type (nxdomain, nodata, passthru, drop, CNAME, given)
-    - Provide guidance on when to use each
+  - [x] 10.5 Document policy actions
+    - Explain nxdomain: domain does not exist (most common blocking action)
+    - Explain nodata: no records for query type
+    - Explain passthru: allow query (used for allow feeds/whitelisting)
+    - Explain drop: silently drop query (no response)
+    - Explain cname: redirect to another domain (requires target)
+    - Explain given: use feed-defined action (default for ioc2rpz.net feeds)
+    - Provide guidance on when to use each action
     - _Requirements: 10.5_
 
-  - [ ] 10.6 Document BIND configuration relationship
-    - Explain how feeds relate to named.conf
-    - Explain automatic reload behavior
+  - [x] 10.6 Document predefined feeds and restrictions
+    - Explain predefined allow feeds (allow.ioc2rpz.rpidns, allow-ip.ioc2rpz.rpidns)
+    - Explain predefined block feeds (block.ioc2rpz.rpidns, block-ip.ioc2rpz.rpidns)
+    - Document that predefined feeds cannot be deleted
+    - Document action restrictions: allow feeds can only use passthru, block feeds can use nxdomain/nodata/drop/cname
+    - _Requirements: 10.4, 10.5_
+
+  - [x] 10.7 Document BIND configuration relationship
+    - Explain how feeds relate to named.conf/named.conf.options
+    - Explain automatic reload behavior after changes
+    - Explain configuration validation before applying changes
+    - Explain automatic rollback on validation failure
     - _Requirements: 10.6_
+
+  - [x] 10.8 Update table columns documentation
+    - Document Feed column
+    - Document Action column (policy action badge)
+    - Document Source column (ioc2rpz.net, Local, Third-Party badges)
+    - Document Status column (Enabled/Disabled)
+    - Document Description column
+    - _Requirements: 10.1_
 
 - [ ] 11. Final checkpoint - Complete verification
   - Run all property tests

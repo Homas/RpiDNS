@@ -98,12 +98,21 @@ This document defines the requirements for comprehensive in-app help documentati
 
 ### Requirement 7: Admin Panel - RPZ Feeds Documentation
 
-**User Story:** As a user, I want to understand RPZ Feeds management, so that I can control which blocklists are active.
+**User Story:** As a user, I want to understand RPZ Feeds management, so that I can control which blocklists are active and manage my DNS protection.
 
 #### Acceptance Criteria
 
-1. THE Help_Tab SHALL document the RPZ Feeds table columns (Feed, Feed action, Description, Actions)
-2. THE Help_Tab SHALL explain the Retransfer action and when to use it
+1. THE Help_Tab SHALL document the three feed source types: ioc2rpz.net, Local, and Third-Party
+2. THE Help_Tab SHALL explain the RPZ Feeds table columns (Feed, Action, Source, Status, Description)
+3. THE Help_Tab SHALL document the toolbar actions (Add dropdown, Edit, Delete, Enable/Disable, Retransfer, Refresh)
+4. THE Help_Tab SHALL explain how to add feeds from each source type with step-by-step instructions
+5. THE Help_Tab SHALL document the drag-and-drop reordering functionality and explain feed order importance
+6. THE Help_Tab SHALL explain all policy actions (nxdomain, nodata, passthru, drop, cname, given) and when to use each
+7. THE Help_Tab SHALL document predefined feeds and their restrictions (allow feeds use passthru only, block feeds cannot use passthru/given)
+8. THE Help_Tab SHALL explain that predefined feeds cannot be deleted
+9. THE Help_Tab SHALL document the Retransfer action and explain it's only available for non-local (secondary) zones
+10. THE Help_Tab SHALL explain the relationship between feeds and BIND configuration
+11. THE Help_Tab SHALL document automatic configuration validation and rollback behavior
 
 ### Requirement 8: Admin Panel - Block/Allow Lists Documentation
 

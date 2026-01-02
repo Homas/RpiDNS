@@ -720,39 +720,221 @@
 
             <h3 id="admin-rpzfeeds">5.2 RPZ Feeds</h3>
             <p>
-              RPZ Feeds are curated lists of domains that should be blocked, provided by ioc2rpz.net. These feeds are 
-              automatically updated and contain domains associated with various threat categories such as malware, 
-              phishing, advertising, tracking, and more. The RPZ Feeds section shows you which feeds are active and 
-              allows you to manage their synchronization.
+              RPZ (Response Policy Zone) Feeds are curated lists of domains that control DNS-level blocking behavior. 
+              The RPZ Feeds section provides comprehensive management capabilities for adding, editing, removing, 
+              enabling/disabling, and reordering feeds from three different sources. This is the central hub for 
+              configuring your DNS protection strategy.
             </p>
             <p>
-              Each feed focuses on a specific category of unwanted content. By using multiple feeds, you get comprehensive 
-              protection against various types of threats. The feeds are maintained by security researchers and are 
-              regularly updated as new threats are discovered.
+              Feed order is critical because BIND evaluates feeds in the order they are configured, and the first 
+              matching rule wins. This means you can create sophisticated blocking policies by carefully ordering 
+              your feeds, with allow feeds typically placed before block feeds to ensure whitelisted domains are 
+              never blocked.
             </p>
+
+            <h4>Feed Source Types</h4>
+            <p>RpiDNS supports three types of RPZ feeds, each serving different use cases:</p>
+            <ul>
+              <li><strong>ioc2rpz.net Feeds</strong> - Professionally curated threat intelligence feeds from 
+                <a href="https://ioc2rpz.net" target="_blank">ioc2rpz.net</a>. These feeds are automatically updated 
+                via zone transfers and require a TSIG key for authentication. They cover various threat categories 
+                including malware, phishing, advertising, and tracking. The default policy action for ioc2rpz.net 
+                feeds is "given", which uses the action defined by the feed itself. These feeds are maintained by 
+                security researchers and provide enterprise-grade protection.</li>
+              <li><strong>Local Feeds</strong> - Custom feeds you create and manage directly within RpiDNS. Local 
+                feeds are master zones stored on your DNS server, giving you complete control over their content. 
+                Use local feeds for organization-specific blocking rules, custom allow lists, or any domains you 
+                want to manage independently of external sources. The default policy action for local feeds is 
+                "nxdomain".</li>
+              <li><strong>Third-Party Feeds</strong> - External RPZ feeds from sources other than ioc2rpz.net. These 
+                are configured as secondary zones that transfer from a specified primary server. Third-party feeds 
+                can optionally use TSIG authentication for secure zone transfers. Use these when you have access to 
+                commercial or community threat feeds from other providers. The default policy action is "nxdomain".</li>
+            </ul>
+
             <h4>Table Columns</h4>
+            <table class="table table-sm table-bordered">
+              <thead><tr><th>Column</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td><strong>Drag Handle</strong></td>
+                  <td>The <i class="fas fa-grip-vertical"></i> icon on the left side of each row. Click and drag 
+                    this handle to reorder feeds. Feed order determines evaluation priority - BIND processes feeds 
+                    from top to bottom, and the first matching rule wins.</td>
+                </tr>
+                <tr>
+                  <td><strong>Feed</strong></td>
+                  <td>The zone name/identifier of the RPZ feed. This name appears in RPZ Hits when a domain from 
+                    this feed triggers a policy action, helping you identify which feed was responsible.</td>
+                </tr>
+                <tr>
+                  <td><strong>Action</strong></td>
+                  <td>The policy action applied when a query matches a rule in this feed. Displayed as a colored 
+                    badge indicating the action type. See the Policy Actions section below for detailed explanations 
+                    of each action.</td>
+                </tr>
+                <tr>
+                  <td><strong>Source</strong></td>
+                  <td>Indicates the feed's origin: <span class="badge bg-primary">ioc2rpz.net</span> for feeds from 
+                    ioc2rpz.net, <span class="badge bg-success">Local</span> for locally managed feeds, or 
+                    <span class="badge bg-info">Third-Party</span> for external feeds from other sources.</td>
+                </tr>
+                <tr>
+                  <td><strong>Status</strong></td>
+                  <td>Shows whether the feed is currently active. <span class="text-success"><i class="fas fa-check-circle"></i> Enabled</span> 
+                    feeds are actively processing DNS queries. <span class="text-muted"><i class="fas fa-times-circle"></i> Disabled</span> 
+                    feeds remain configured but don't affect DNS resolution until re-enabled.</td>
+                </tr>
+                <tr>
+                  <td><strong>Description</strong></td>
+                  <td>Additional information about the feed's purpose and content. For ioc2rpz.net feeds, this 
+                    describes the threat category. For local and third-party feeds, this shows your custom description.</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <h4>Policy Actions</h4>
+            <p>
+              Policy actions determine how the DNS server responds when a query matches a rule in the feed. 
+              Understanding these actions helps you configure appropriate responses for different threat types:
+            </p>
             <ul>
-              <li><strong>Feed</strong> - The name/identifier of the RPZ feed. This name appears in RPZ Hits when a 
-                domain from this feed is blocked, helping you understand what category of threat was stopped.</li>
-              <li><strong>Feed action</strong> - The DNS response action applied when a domain from this feed is queried. 
-                Common actions include NXDOMAIN (domain doesn't exist), NODATA (no records available), or redirect to 
-                a block page. NXDOMAIN is the most common and effectively prevents any connection to the blocked domain.</li>
-              <li><strong>Description</strong> - Additional information about the feed, including what types of domains 
-                it contains and its purpose. This helps you understand what each feed protects against.</li>
+              <li><span class="badge bg-danger">nxdomain</span> <strong>NXDOMAIN</strong> - Returns "domain does not exist" 
+                response. This is the most common blocking action and effectively prevents any connection to the domain. 
+                The client receives a definitive "not found" response, causing applications to fail gracefully. 
+                <em>Best for: General blocking of malicious or unwanted domains.</em></li>
+              <li><span class="badge bg-warning">nodata</span> <strong>NODATA</strong> - Returns a response indicating 
+                the domain exists but has no records of the requested type. This is a softer block that may cause 
+                different application behavior than NXDOMAIN. <em>Best for: Situations where you want to block 
+                specific record types while allowing others.</em></li>
+              <li><span class="badge bg-success">passthru</span> <strong>PASSTHRU</strong> - Allows the query to proceed 
+                normally without any blocking. This action is used for allow/whitelist feeds to explicitly permit 
+                domains that might otherwise be blocked by subsequent feeds. <em>Best for: Allow feeds and whitelisting 
+                specific domains.</em></li>
+              <li><span class="badge bg-dark">drop</span> <strong>DROP</strong> - Silently drops the query without 
+                sending any response. The client receives no answer and must wait for timeout. This can slow down 
+                applications but may be useful for certain security scenarios. <em>Best for: Aggressive blocking 
+                where you don't want to reveal that blocking is occurring.</em></li>
+              <li><span class="badge bg-info">cname</span> <strong>CNAME</strong> - Redirects the query to a different 
+                domain (requires specifying a target). This can redirect blocked requests to a block page or 
+                sinkhole server. <em>Best for: Displaying block pages or redirecting to internal resources.</em></li>
+              <li><span class="badge bg-primary">given</span> <strong>GIVEN</strong> - Uses the action defined within 
+                the feed itself. This is the default for ioc2rpz.net feeds, allowing the feed maintainers to specify 
+                appropriate actions for different threat types. <em>Best for: ioc2rpz.net feeds where you trust the 
+                feed's built-in policy decisions.</em></li>
             </ul>
-            <h4>Actions</h4>
+
+            <h4>Toolbar Actions</h4>
+            <p>The toolbar provides buttons for managing feeds. Some actions require selecting a feed first:</p>
             <ul>
-              <li><i class="fas fa-redo"></i> <strong>Retransfer</strong> - Forces an immediate refresh of the selected 
-                feed from the source server. Feeds are normally updated automatically on a schedule, but you can use 
-                Retransfer to get the latest version immediately. This is useful if you know a feed has been updated 
-                or if you're troubleshooting blocking issues.</li>
+              <li><i class="fas fa-plus"></i> <strong>Add (Dropdown)</strong> - Opens a dropdown menu with three options:
+                <ul>
+                  <li><i class="fas fa-cloud-download-alt"></i> <strong>ioc2rpz.net Feed</strong> - Opens a modal to 
+                    select and add feeds from ioc2rpz.net. Requires a configured TSIG key.</li>
+                  <li><i class="fas fa-file-alt"></i> <strong>Local Feed</strong> - Opens a form to create a new 
+                    local RPZ feed with custom settings.</li>
+                  <li><i class="fas fa-server"></i> <strong>Third-Party Feed</strong> - Opens a form to configure 
+                    a feed from an external source.</li>
+                </ul>
+              </li>
+              <li><i class="fas fa-edit"></i> <strong>Edit</strong> - Modify the selected feed's configuration. 
+                Select a feed by clicking its row first. For ioc2rpz.net feeds, only the policy action can be 
+                changed. For local and third-party feeds, you can modify action, description, and server settings.</li>
+              <li><i class="fas fa-trash-alt"></i> <strong>Delete</strong> - Remove the selected feed from your 
+                configuration. Predefined system feeds (allow.ioc2rpz.rpidns, block.ioc2rpz.rpidns, etc.) cannot 
+                be deleted. A confirmation dialog appears before deletion.</li>
+              <li><i class="fas fa-toggle-on"></i> / <i class="fas fa-toggle-off"></i> <strong>Enable/Disable</strong> - 
+                Toggle the selected feed's active status. Disabled feeds remain in your configuration but don't 
+                process DNS queries. This is useful for temporarily suspending a feed without removing it.</li>
+              <li><i class="fas fa-redo"></i> <strong>Retransfer</strong> - Request an immediate zone transfer for 
+                the selected feed. Only available for non-local feeds (ioc2rpz.net and third-party). Use this to 
+                get the latest feed data immediately rather than waiting for the scheduled transfer.</li>
+              <li><i class="fas fa-sync"></i> <strong>Refresh</strong> - Reload the feed list from the server to 
+                see the current configuration.</li>
+            </ul>
+
+            <h4>Feed Ordering (Drag and Drop)</h4>
+            <p>
+              Feed order is critical for proper RPZ operation. BIND evaluates feeds from top to bottom, and the 
+              first matching rule determines the response. This means:
+            </p>
+            <ul>
+              <li>Allow feeds should typically be placed before block feeds to ensure whitelisted domains are 
+                never blocked</li>
+              <li>More specific feeds should generally come before more general feeds</li>
+              <li>Your custom local feeds can be positioned to override or supplement external feeds</li>
             </ul>
             <p>
-              <i class="fas fa-lightbulb text-warning"></i> <strong>When to Retransfer:</strong> Use the Retransfer 
-              function if you believe a feed is outdated, if you've been notified of feed updates, or if you're 
-              troubleshooting why a known malicious domain isn't being blocked. The retransfer process may take a 
-              few moments depending on the feed size.
+              To reorder feeds, click and drag the <i class="fas fa-grip-vertical"></i> handle on the left side 
+              of any row. Drop the feed at its new position. The new order is automatically saved to your BIND 
+              configuration and takes effect immediately after BIND reloads.
             </p>
+
+            <h4>Predefined Feeds</h4>
+            <p>
+              RpiDNS includes predefined feeds for common use cases. These feeds cannot be deleted but can be 
+              enabled/disabled and reordered:
+            </p>
+            <ul>
+              <li><strong>allow.ioc2rpz.rpidns</strong> - Local allow list for domains. Uses passthru action to 
+                ensure listed domains are never blocked. Add domains here via the Allow List section.</li>
+              <li><strong>allow-ip.ioc2rpz.rpidns</strong> - Local allow list for IP-based rules. Uses passthru 
+                action for IP address allowlisting.</li>
+              <li><strong>block.ioc2rpz.rpidns</strong> - Local block list for domains. Uses nxdomain action to 
+                block listed domains. Add domains here via the Block List section.</li>
+              <li><strong>block-ip.ioc2rpz.rpidns</strong> - Local block list for IP-based rules. Uses nxdomain 
+                action for IP address blocking.</li>
+            </ul>
+            <p>
+              <i class="fas fa-info-circle text-info"></i> <strong>Action Restrictions:</strong> Allow feeds 
+              (allow.ioc2rpz.rpidns, allow-ip.ioc2rpz.rpidns) can only use the passthru action. Block feeds 
+              can use nxdomain, nodata, drop, or cname actions.
+            </p>
+
+            <h4>BIND Configuration</h4>
+            <p>
+              RPZ feeds are configured in your BIND configuration file (named.conf or named.conf.options). When 
+              you make changes through the RpiDNS interface:
+            </p>
+            <ul>
+              <li>The configuration is validated using <code>named-checkconf</code> before being applied</li>
+              <li>If validation fails, changes are automatically rolled back and an error message is displayed</li>
+              <li>If validation succeeds, BIND is reloaded using <code>rndc reload</code> to apply changes</li>
+              <li>Changes take effect immediately after the reload completes</li>
+            </ul>
+            <p>
+              <i class="fas fa-shield-alt text-success"></i> <strong>Safety:</strong> The automatic validation 
+              and rollback mechanism ensures that invalid configurations never break your DNS service. If something 
+              goes wrong, your previous working configuration is preserved.
+            </p>
+
+            <h4>Adding Feeds Step-by-Step</h4>
+            <p><strong>Adding an ioc2rpz.net Feed:</strong></p>
+            <ol>
+              <li>Click the <i class="fas fa-plus"></i> Add dropdown and select "ioc2rpz.net Feed"</li>
+              <li>The system will fetch available feeds using your configured TSIG key</li>
+              <li>Select one or more feeds from the list by clicking their checkboxes</li>
+              <li>Optionally change the policy action (default is "given")</li>
+              <li>Click "Add Selected Feeds" to add them to your configuration</li>
+            </ol>
+            <p><strong>Adding a Local Feed:</strong></p>
+            <ol>
+              <li>Click the <i class="fas fa-plus"></i> Add dropdown and select "Local Feed"</li>
+              <li>Enter a unique feed name following DNS naming conventions</li>
+              <li>Select a policy action (default is "nxdomain")</li>
+              <li>If using CNAME action, enter the redirect target domain</li>
+              <li>Optionally add a description</li>
+              <li>Click "Add Feed" to create the feed</li>
+            </ol>
+            <p><strong>Adding a Third-Party Feed:</strong></p>
+            <ol>
+              <li>Click the <i class="fas fa-plus"></i> Add dropdown and select "Third-Party Feed"</li>
+              <li>Enter the feed name and primary server address (IP or hostname)</li>
+              <li>If the feed requires authentication, enter the TSIG key name and secret</li>
+              <li>Select a policy action (default is "nxdomain")</li>
+              <li>Optionally add a description</li>
+              <li>Click "Add Feed" to configure the feed</li>
+            </ol>
 
             <h3 id="admin-blocklist">5.3 Block List</h3>
             <p>
