@@ -858,7 +858,7 @@
                 never blocked</li>
               <li>More specific feeds should generally come before more general feeds</li>
               <li>Your custom local feeds can be positioned to override or supplement external feeds</li>
-              <li><i class="fas fa-exclamation-triangle text-warning"></i> <strong>Security Concideration: IP-based feeds trigger domain resolution, which can be exploited for data exfiltration. Place these feeds after all domain-based feeds in your configuration. If that is not possible, ensure that anti-tunneling rules are evaluated first.</li>
+              <li><i class="fas fa-exclamation-triangle text-warning"></i> Security Concideration: IP-based feeds trigger domain resolution, which can be exploited for data exfiltration. Place these feeds after all domain-based feeds in your configuration. If that is not possible, ensure that anti-tunneling rules are evaluated first.</li>
             </ul>
             <p>
               To reorder feeds, click and drag the <i class="fas fa-grip-vertical"></i> handle on the left side 
