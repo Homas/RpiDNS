@@ -603,9 +603,7 @@
                 </tr>
                 <tr>
                   <td><strong>Type</strong></td>
-                  <td>Indicates the source of the blocking rule. This shows either the name of the RPZ feed that contains 
-                    the rule (e.g., "malware", "ads", "tracking") or "local" for rules from your custom Block List. This 
-                    helps you understand which category of threat was blocked.</td>
+                  <td>Indicates type of the blocking rule (QNAME, RPZ-IP, RPZ-NSDNAME, RPZ-NSIP, RPZ-CLIENT-IP)</td>
                 </tr>
                 <tr>
                   <td><strong>Count</strong></td>

@@ -1,11 +1,11 @@
 # Migration to VUE3
 Critical
 - [ ] Fix README.md
-- [v] (Not tested) Navigation between tabs - do refresh (including drill down)
-- [v] (Not tested) Query/RPZ Stats enabling/disabling fields doesn't refresh the page
+- [x] (Not tested) Navigation between tabs - do refresh (including drill down)
+- [x] (Not tested) Query/RPZ Stats enabling/disabling fields doesn't refresh the page
 
 Non critical
-- [ ] block-ip.ioc2rpz.rpidns is not included into RPZ list on the community website
+- [v] block-ip.ioc2rpz.rpidns is not included into RPZ list on the community website
 - [x] replace masters to primaries in the community website
 
 - [ ] Root hints provision for bind
