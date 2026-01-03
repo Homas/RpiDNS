@@ -122,8 +122,18 @@ function createDefaultAdminUser($db) {
   $stmt->bindValue(':updated_at', $now, SQLITE3_INTEGER);
   
   if ($stmt->execute()) {
+    error_log("[init_db] **********");
+    error_log("[init_db] **********");
+    error_log("[init_db] **********");
+    error_log("[init_db] **********");
+    error_log("[init_db] **********");
     error_log("[init_db] Created default admin user. Username: admin, Password: $password");
     error_log("[init_db] *** IMPORTANT: Please change the default password immediately! ***");
+    error_log("[init_db] **********");
+    error_log("[init_db] **********");
+    error_log("[init_db] **********");
+    error_log("[init_db] **********");
+    error_log("[init_db] **********");
     
     // Write credentials to a file for the user to find
     $credFile = "/opt/rpidns/conf/default_credentials.txt";

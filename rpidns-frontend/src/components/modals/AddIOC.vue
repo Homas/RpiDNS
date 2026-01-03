@@ -4,13 +4,12 @@
     centered 
     title="Add Indicator" 
     id="mAddIOC" 
-    body-class="text-center pt-0 pb-0" 
+    body-class="pt-0 pb-0" 
     ok-title="Add" 
     @ok="addIOC"
     @show="onShow"
   >
-    <span class="text-center">
-      <BContainer fluid>
+    <BContainer fluid>
         <BRow class="pb-1">
           <BCol md="12" class="p-0">
             <BFormInput 
@@ -49,7 +48,6 @@
           </BCol>
         </BRow>
       </BContainer>
-    </span>
   </BModal>
 </template>
 
