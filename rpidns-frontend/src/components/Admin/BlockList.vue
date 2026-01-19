@@ -81,7 +81,7 @@ export default {
   name: 'BlockList',
   props: { logs_height: { type: Number, default: 150 } },
   emits: ['navigate', 'add-ioc', 'delete-ioc', 'show-info'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const api = useApi()
     const bl_Filter = ref('')
     const bl_selected = ref(null)
@@ -147,8 +147,14 @@ export default {
       } catch (error) { emit('show-info', { msg: 'Unknown error!!!', time: 3 }) }
     }
 
-    const handleRefreshEvent = (event) => {
-      if (event.detail && event.detail.table === 'blacklist') { fetchData() }
+    const handleRefreshEvent = async (event) => {
+      if (event.detail && event.detail.table === 'blacklist') { 
+        const selectedRowId = bl_selected.value?.rowid
+        await fetchData()
+        if (selectedRowId) {
+          bl_selected.value = tableItems.value.find(item => item.rowid === selectedRowId) || null
+        }
+      }
     }
 
     onMounted(() => {
@@ -159,6 +165,8 @@ export default {
     onBeforeUnmount(() => {
       window.removeEventListener('refresh-table', handleRefreshEvent)
     })
+
+    expose({ refreshTable })
 
     return {
       bl_Filter, bl_selected, filteredItems, isLoading,

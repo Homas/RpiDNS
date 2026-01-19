@@ -33,7 +33,7 @@
               rows="3" 
               max-rows="6" 
               maxlength="250" 
-              v-model.trim="localComment" 
+              v-model="localComment" 
               placeholder="Commentary"
               v-b-tooltip.hover 
               title="Commentary"

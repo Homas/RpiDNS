@@ -81,7 +81,7 @@ export default {
   name: 'AllowList',
   props: { logs_height: { type: Number, default: 150 } },
   emits: ['navigate', 'add-ioc', 'delete-ioc', 'show-info'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const api = useApi()
     const wl_Filter = ref('')
     const wl_selected = ref(null)
@@ -147,8 +147,14 @@ export default {
       } catch (error) { emit('show-info', { msg: 'Unknown error!!!', time: 3 }) }
     }
 
-    const handleRefreshEvent = (event) => {
-      if (event.detail && event.detail.table === 'whitelist') { fetchData() }
+    const handleRefreshEvent = async (event) => {
+      if (event.detail && event.detail.table === 'whitelist') { 
+        const selectedRowId = wl_selected.value?.rowid
+        await fetchData()
+        if (selectedRowId) {
+          wl_selected.value = tableItems.value.find(item => item.rowid === selectedRowId) || null
+        }
+      }
     }
 
     onMounted(() => {
@@ -159,6 +165,8 @@ export default {
     onBeforeUnmount(() => {
       window.removeEventListener('refresh-table', handleRefreshEvent)
     })
+
+    expose({ refreshTable })
 
     return {
       wl_Filter, wl_selected, filteredItems, isLoading,

@@ -75,7 +75,7 @@ export default {
   name: 'Assets',
   props: { logs_height: { type: Number, default: 150 } },
   emits: ['navigate', 'add-asset', 'delete-asset'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const api = useApi()
     const assets_Filter = ref('')
     const asset_selected = ref(null)
@@ -135,8 +135,14 @@ export default {
     const navigateToQueries = (item) => { emit('navigate', { type: 'qlogs', filter: item.address, tab: 1 }) }
     const navigateToHits = (item) => { emit('navigate', { type: 'hits', filter: item.address, tab: 2 }) }
 
-    const handleRefreshEvent = (event) => {
-      if (event.detail && event.detail.table === 'assets') { fetchData() }
+    const handleRefreshEvent = async (event) => {
+      if (event.detail && event.detail.table === 'assets') { 
+        const selectedRowId = asset_selected.value?.rowid
+        await fetchData()
+        if (selectedRowId) {
+          asset_selected.value = tableItems.value.find(item => item.rowid === selectedRowId) || null
+        }
+      }
     }
 
     onMounted(() => {
@@ -147,6 +153,8 @@ export default {
     onBeforeUnmount(() => {
       window.removeEventListener('refresh-table', handleRefreshEvent)
     })
+
+    expose({ refreshTable })
 
     return {
       assets_Filter, asset_selected, filteredItems, isLoading,

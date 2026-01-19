@@ -168,7 +168,7 @@ export default {
   },
   props: { logs_height: { type: Number, default: 150 } },
   emits: ['show-info'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const api = useApi()
     const tableItems = ref([])
     const selectedFeed = ref(null)
@@ -426,6 +426,8 @@ export default {
     }
 
     onMounted(() => { fetchData() })
+
+    expose({ fetchData })
 
     return {
       tableItems,

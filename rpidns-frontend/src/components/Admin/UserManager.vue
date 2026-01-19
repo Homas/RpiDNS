@@ -127,7 +127,7 @@ export default {
     AddUser
   },
   emits: ['show-info'],
-  setup(props, { emit }) {
+  setup(props, { emit, expose }) {
     const users = ref([])
     const loading = ref(false)
     const addUserModal = ref(null)
@@ -260,6 +260,8 @@ export default {
     onMounted(() => {
       loadUsers()
     })
+
+    expose({ fetchUsers: loadUsers })
 
     return {
       users,

@@ -2,10 +2,11 @@
   <div>
     <div class="v-spacer"></div>
     <BCard no-body>
-      <BTabs card v-model="activeTab">
+      <BTabs card v-model="activeTab" @update:model-value="onTabChange">
         <!-- Assets Tab -->
         <BTab title="Assets" active>
           <Assets 
+            ref="assetsRef"
             :logs_height="logs_height"
             @navigate="$emit('navigate', $event)"
             @add-asset="$emit('add-asset', $event)"
@@ -15,12 +16,13 @@
 
         <!-- RPZ Feeds Tab -->
         <BTab title="RPZ Feeds" lazy>
-          <RpzFeeds :logs_height="logs_height" @show-info="$emit('show-info', $event)" />
+          <RpzFeeds ref="rpzFeedsRef" :logs_height="logs_height" @show-info="$emit('show-info', $event)" />
         </BTab>
 
         <!-- Block Tab -->
         <BTab title="Block" lazy>
           <BlockList 
+            ref="blockListRef"
             :logs_height="logs_height"
             @navigate="$emit('navigate', $event)"
             @add-ioc="$emit('add-ioc', $event)"
@@ -32,6 +34,7 @@
         <!-- Allow Tab -->
         <BTab title="Allow" lazy>
           <AllowList 
+            ref="allowListRef"
             :logs_height="logs_height"
             @navigate="$emit('navigate', $event)"
             @add-ioc="$emit('add-ioc', $event)"
@@ -52,7 +55,7 @@
 
         <!-- Users Tab (Admin only) -->
         <BTab v-if="isAdmin" title="Users" lazy>
-          <UserManager @show-info="$emit('show-info', $event)" />
+          <UserManager ref="userManagerRef" @show-info="$emit('show-info', $event)" />
         </BTab>
       </BTabs>
     </BCard>
@@ -60,7 +63,7 @@
 </template>
 
 <script>
-import { ref, inject } from 'vue'
+import { ref, inject, nextTick } from 'vue'
 import Assets from './Assets.vue'
 import RpzFeeds from './RpzFeeds.vue'
 import BlockList from './BlockList.vue'
@@ -79,7 +82,30 @@ export default {
   setup() {
     const activeTab = ref(0)
     const isAdmin = inject('isAdmin', ref(false))
-    return { activeTab, isAdmin }
+    
+    const assetsRef = ref(null)
+    const rpzFeedsRef = ref(null)
+    const blockListRef = ref(null)
+    const allowListRef = ref(null)
+    const userManagerRef = ref(null)
+
+    const onTabChange = (tabIndex) => {
+      nextTick(() => {
+        switch (tabIndex) {
+          case 0: assetsRef.value?.refreshTable?.(); break
+          case 1: rpzFeedsRef.value?.fetchData?.(); break
+          case 2: blockListRef.value?.refreshTable?.(); break
+          case 3: allowListRef.value?.refreshTable?.(); break
+          case 6: userManagerRef.value?.fetchUsers?.(); break
+        }
+      })
+    }
+
+    return { 
+      activeTab, isAdmin, 
+      assetsRef, rpzFeedsRef, blockListRef, allowListRef, userManagerRef,
+      onTabChange 
+    }
   }
 }
 </script>
