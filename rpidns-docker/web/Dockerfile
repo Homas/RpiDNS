@@ -71,6 +71,12 @@ RUN addgroup -g 82 -S www-data 2>/dev/null || true \
 RUN sed -i 's/^user = .*/user = www-data/' /etc/php83/php-fpm.d/www.conf \
     && sed -i 's/^group = .*/group = www-data/' /etc/php83/php-fpm.d/www.conf
 
+# Configure PHP upload limits for large DB imports
+RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 512M/' /etc/php83/php.ini \
+    && sed -i 's/post_max_size = .*/post_max_size = 512M/' /etc/php83/php.ini \
+    && sed -i 's/max_execution_time = .*/max_execution_time = 600/' /etc/php83/php.ini \
+    && sed -i 's/memory_limit = .*/memory_limit = 512M/' /etc/php83/php.ini
+
 # Create directory structure
 RUN mkdir -p /opt/rpidns/www \
     && mkdir -p /opt/rpidns/www/db \
