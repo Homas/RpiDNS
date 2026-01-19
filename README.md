@@ -390,7 +390,7 @@ Access Research tools by hovering over domains in Dashboard widgets or reports.
 
 RpiDNS requires ISC Bind configured with:
 - DNS query and RPZ hit logging enabled
-- Local RPZs: `allow.ioc2rpz.local`, `allow-ip.ioc2rpz.local`, `block.ioc2rpz.local`, `block-ip.ioc2rpz.local`
+- Local RPZs: `allow.ioc2rpz.rpidns`, `allow-ip.ioc2rpz.rpidns`, `block.ioc2rpz.rpidns`, `block-ip.ioc2rpz.rpidns`
 
 ## Built With
 

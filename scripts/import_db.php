@@ -60,8 +60,8 @@ function importSQLiteDB($master_db_file,$import_db_file, $objects){
         DB_execute($db,$sql);
         $sql="select * from localzone where ltype='bl' and active='1';";
         foreach (DB_selectArray($db,$sql) as $RPZ) {
-          if ($RPZ['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.bl.ioc2rpz.local 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.bl.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
-              else exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.bl.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+          if ($RPZ['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
+              else exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
         };
       break;
       case "wl":
@@ -69,8 +69,8 @@ function importSQLiteDB($master_db_file,$import_db_file, $objects){
         DB_execute($db,$sql);
         $sql="select * from localzone where ltype='wl' and active='1';";
         foreach (DB_selectArray($db,$sql) as $RPZ) {
-          if ($RPZ['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.wl.ioc2rpz.local 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.wl.ioc2rpz.local 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
-              else exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.wl.ioc2rpz.local 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+          if ($RPZ['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
+              else exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
         };
       break;
 
