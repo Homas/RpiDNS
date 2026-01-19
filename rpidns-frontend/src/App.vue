@@ -1,3 +1,4 @@
+<!-- (c) Vadim Pavlov 2020 - 2026 -->
 <template>
   <!-- Loading State -->
   <div v-if="authLoading" class="auth-loading d-flex align-items-center justify-content-center min-vh-100">

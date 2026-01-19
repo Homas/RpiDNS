@@ -1,5 +1,5 @@
 /*
-(c) Vadim Pavlov 2020
+(c) Vadim Pavlov 2020 - 2026
 RpiDNS powered by https://ioc2rpz.net
 */
 

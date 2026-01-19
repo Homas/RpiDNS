@@ -1,3 +1,4 @@
+<!-- (c) Vadim Pavlov 2020 - 2026 -->
 <template>
   <div class="donate-wrapper h-100 overflow-auto p-3">
     <BCard>

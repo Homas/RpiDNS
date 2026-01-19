@@ -1,4 +1,5 @@
 <?php
+// (c) Vadim Pavlov 2020 - 2026
 	require_once "/opt/rpidns/www/rpidns_vars.php";
 	require_once "/opt/rpidns/www/rpisettings.php";
 	$join=$assets_by=="mac"?"mac":"client_ip";

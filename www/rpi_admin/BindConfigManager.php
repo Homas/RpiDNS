@@ -1,5 +1,6 @@
 <?php
 /**
+ * (c) Vadim Pavlov 2020 - 2026
  * BindConfigManager - Manages BIND DNS server configuration for RPZ feeds
  * 
  * This class handles parsing, modifying, and validating BIND configuration files

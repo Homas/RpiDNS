@@ -1,4 +1,5 @@
 /*
+ * (c) Vadim Pavlov 2020 - 2026
  * API composable for RpiDNS
  * Provides methods for interacting with the PHP backend API
  */

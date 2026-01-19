@@ -3,7 +3,7 @@
  * Authentication Service for RpiDNS
  * Handles user authentication, session management, and user administration
  * 
- * (c) Vadim Pavlov 2020-2024
+ * (c) Vadim Pavlov 2020 - 2026
  */
 
 require_once "/opt/rpidns/www/rpidns_vars.php";

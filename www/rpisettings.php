@@ -1,7 +1,7 @@
 <?php
 /*
 RpiDNS powered by https://ioc2rpz.net
-(c) Vadim Pavlov 2020
+(c) Vadim Pavlov 2020 - 2026
 */
 	$assets_by="mac";//or ip
 	$assets_autocreate=true;

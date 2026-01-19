@@ -1,3 +1,4 @@
+<!-- (c) Vadim Pavlov 2020 - 2026 -->
 <template>
   <span>
     - <a target="_blank" :href="'https://duckduckgo.com/?q=%22' + domain + '%22'">DuckDuckGo</a><br>

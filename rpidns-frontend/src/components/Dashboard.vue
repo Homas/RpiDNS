@@ -1,3 +1,4 @@
+<!-- (c) Vadim Pavlov 2020 - 2026 -->
 <template>
   <div class="h-100 overflow-auto p-2">
     <BCard class="h-100 d-flex flex-column">

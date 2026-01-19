@@ -1,4 +1,5 @@
 <?php
+// (c) Vadim Pavlov 2020 - 2026
 
 	$root_dir="/opt/rpidns";
   require_once "$root_dir/www/rpidns_vars.php";

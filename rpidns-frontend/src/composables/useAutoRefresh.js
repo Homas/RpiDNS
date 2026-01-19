@@ -1,3 +1,4 @@
+// (c) Vadim Pavlov 2020 - 2026
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 
 const AUTOREFRESH_INTERVAL = 60000 // 60 seconds

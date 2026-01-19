@@ -1,4 +1,5 @@
 /*
+ * (c) Vadim Pavlov 2020 - 2026
  * Window Size composable for RpiDNS
  * Provides reactive window dimensions and calculated values for responsive behavior
  */

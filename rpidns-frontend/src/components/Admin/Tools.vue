@@ -1,3 +1,4 @@
+<!-- (c) Vadim Pavlov 2020 - 2026 -->
 <template>
   <div>
     <div class="row row-cols-1 row-cols-md-3 g-3">

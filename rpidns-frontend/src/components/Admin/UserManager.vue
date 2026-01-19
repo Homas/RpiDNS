@@ -1,3 +1,4 @@
+<!-- (c) Vadim Pavlov 2020 - 2026 -->
 <template>
   <div>
     <div class="d-flex justify-content-between align-items-center mb-3">

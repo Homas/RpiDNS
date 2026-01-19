@@ -1,5 +1,5 @@
 <?php
-#(c) Vadim Pavlov 2020
+#(c) Vadim Pavlov 2020 - 2026
 #ioc2rpz DB init
 require_once "/opt/rpidns/www/rpidns_vars.php";
 

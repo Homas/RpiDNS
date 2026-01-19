@@ -1,4 +1,5 @@
 <?php
+// (c) Vadim Pavlov 2020 - 2026
   $rpiver='1.0.0.0';
 	$RpiPath="/opt/rpidns";
 	define("DBFile", "rpidns.sqlite");

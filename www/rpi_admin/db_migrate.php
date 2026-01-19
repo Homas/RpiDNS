@@ -3,7 +3,7 @@
  * Database Migration Service for RpiDNS
  * Handles schema versioning and incremental database upgrades
  * 
- * (c) Vadim Pavlov 2020-2024
+ * (c) Vadim Pavlov 2020 - 2026
  */
 
 require_once "/opt/rpidns/www/rpidns_vars.php";
