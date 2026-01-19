@@ -1,5 +1,5 @@
 <?php
-#(c) Vadim Pavlov 2020
+#(c) Vadim Pavlov 2020-2026
 #ioc2rpz DB import
 require_once "/opt/rpidns/www/rpidns_vars.php";
 
@@ -20,6 +20,7 @@ function upgrade_db($import_db_file){
 };
 
 function importSQLiteDB($master_db_file,$import_db_file, $objects){
+  global $bind_host;
   upgrade_db($import_db_file);
 
   $db = new SQLite3($master_db_file);
@@ -56,21 +57,28 @@ function importSQLiteDB($master_db_file,$import_db_file, $objects){
         $sql="INSERT INTO hits_1d SELECT * FROM db_import.hits_1d WHERE true ON CONFLICT DO NOTHING;";DB_execute($db,$sql);
       break;
       case "bl":
-        $sql="INSERT INTO localzone SELECT * FROM db_import.localzone WHERE ltype='bl' ON CONFLICT DO NOTHING;";
+      case "block":
+        $sql="INSERT INTO localzone(ioc, type, ltype, comment, active, subdomains, added_dt, provisioned) SELECT ioc, type, 'block', comment, active, subdomains, added_dt, provisioned FROM db_import.localzone WHERE (ltype='bl' or ltype='block') ON CONFLICT DO NOTHING;";
         DB_execute($db,$sql);
-        $sql="select * from localzone where ltype='bl' and active='1';";
+        $sql="select * from localzone where ltype='block' and active='1';";
+        DB_execute($db,$sql);
         foreach (DB_selectArray($db,$sql) as $RPZ) {
-          if ($RPZ['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
-              else exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+          if ($RPZ['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
+              else exec('printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
         };
       break;
       case "wl":
-        $sql="INSERT INTO localzone SELECT * FROM db_import.localzone WHERE ltype='wl' ON CONFLICT DO NOTHING;";
+      case "allow":
+        $sql="INSERT INTO localzone(ioc, type, ltype, comment, active, subdomains, added_dt, provisioned) SELECT ioc, type, 'allow', comment, active, subdomains, added_dt, provisioned FROM db_import.localzone WHERE (ltype='wl' or ltype='allow') ON CONFLICT DO NOTHING;";
         DB_execute($db,$sql);
-        $sql="select * from localzone where ltype='wl' and active='1';";
+        $sql="select * from localzone where ltype='allow' and active='1';";
+        DB_execute($db,$sql);
         foreach (DB_selectArray($db,$sql) as $RPZ) {
-          if ($RPZ['subdomains']=='true') exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
-              else exec('echo "server 127.0.0.1\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+          $out = [];
+          if ($RPZ['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
+              else exec('printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+#          fwrite(STDERR, 'printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v'. PHP_EOL);
+#          fwrite(STDERR, implode(PHP_EOL, $out). PHP_EOL);
         };
       break;
 

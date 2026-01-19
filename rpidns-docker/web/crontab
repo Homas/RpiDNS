@@ -15,7 +15,7 @@
 0 5 * * * find /opt/rpidns/logs -name "*.log.gz" -mtime +30 -delete 2>/dev/null
 
 # process the Bind's logs
-* * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php
+* * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php # >> /proc/1/fd/1 2>&1
 
 # Clean up DB
 42 2 * * *	sleep 25;/usr/bin/php /opt/rpidns/scripts/clean_db.php

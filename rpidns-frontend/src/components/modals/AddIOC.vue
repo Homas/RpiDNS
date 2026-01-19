@@ -7,7 +7,7 @@
     body-class="pt-0 pb-0" 
     ok-title="Add" 
     @ok="addIOC"
-    @show="onShow"
+    @shown="onShow"
   >
     <BContainer fluid>
         <BRow class="pb-1">
