@@ -120,7 +120,21 @@ fi
 
 echo "Starting named in foreground..."
 
+# Check if container has a public IPv6 address (non-link-local)
+# Link-local addresses start with fe80::
+# If no public IPv6, run named in IPv4-only mode
+NAMED_OPTS=""
+PUBLIC_IPV6=$(ip -6 addr show scope global 2>/dev/null | grep 'inet6' | awk '{print $2}' | cut -d'/' -f1 | head -1)
+
+if [ -z "$PUBLIC_IPV6" ]; then
+    echo "No public IPv6 address detected, starting named in IPv4-only mode"
+    NAMED_OPTS="-4"
+else
+    echo "Public IPv6 address detected: $PUBLIC_IPV6"
+fi
+
 # Start named in foreground with logging to stdout
 # -g runs in foreground and logs to stderr
 # -u named ensures we run as named user
-exec /usr/sbin/named -f -u named -c /etc/bind/named.conf
+# -4 runs in IPv4-only mode if no public IPv6 is available
+exec /usr/sbin/named -f -u named $NAMED_OPTS -c /etc/bind/named.conf
