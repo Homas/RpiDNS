@@ -14,6 +14,14 @@ The system integrates with ISC BIND DNS server and provides real-time visibility
 - **Network Asset Tracking** - Automatic discovery and tracking of devices by MAC or IP address
 - **Security Analytics** - Detailed statistics and visualizations for threat analysis
 
+## Prerequisites
+
+| Software | Version | Purpose |
+|----------|---------|---------|
+| Docker | Latest | Container deployment |
+| Node.js | 18+ | Frontend development and build |
+| PHP | 8.3 | Backend API and maintenance scripts |
+
 ## Deployment Options
 
 RpiDNS supports two deployment models:
@@ -92,7 +100,7 @@ dig @localhost example.com
 | `RPIDNS_DNS_IPNET` | `192.168.0.0/16` | IP network for DNS ACL |
 | `RPIDNS_LOGGING` | `local` | Logging mode: `local` or `forward` |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Remote syslog host (when `forward` mode) |
-| `RPIDNS_ADMIN_PASSWORD` | *(auto-generated)* | Admin password for web UI |
+| `PHP_FPM_VERSION` | `83` | PHP-FPM version (default: PHP 8.3) |
 
 ### Exposed Ports
 
@@ -113,7 +121,7 @@ For detailed container deployment documentation, see [rpidns-docker/README.md](r
 
 #### Logging In
 
-To access RpiDNS, navigate to the URL where RpiDNS is hosted on your network. Enter your credentials:
+RpiDNS uses session-based authentication with bcrypt password hashing, rate limiting on login attempts, and multi-user support. To access RpiDNS, navigate to the URL where RpiDNS is hosted on your network. Enter your credentials:
 - **Username** - Your assigned username (case-sensitive)
 - **Password** - Your account password (case-sensitive)
 
@@ -128,7 +136,7 @@ RpiDNS features a tab-based navigation system with a vertical sidebar on desktop
 | Dashboard | Real-time overview of DNS activity with statistical widgets and traffic charts |
 | Query Log | Searchable log of all DNS queries with filtering and aggregation |
 | RPZ Hits | Dedicated view of blocked DNS queries by RPZ rules |
-| Admin | Configuration and management tools (Assets, Feeds, Block/Allow Lists, Settings, Tools, Users) |
+| Admin | Configuration and management tools (Assets, RPZ Feeds, Block List, Allow List, Settings, Tools, Users) |
 | Help | Comprehensive documentation and guidance |
 
 The navigation menu can be collapsed to show only icons for more screen space.
@@ -382,9 +390,11 @@ Access Research tools by hovering over domains in Dashboard widgets or reports.
 | Script | Description |
 |--------|-------------|
 | `rpidns_install.sh` | Installation script for Raspbian |
+| `rpidns_install_openwrt.sh` | Installation script for OpenWrt |
 | `init_db.php` | Database initialization |
 | `clean_db.php` | Crontab script for DB cleanup |
 | `parse_bind_logs.php` | Parse bind logs, save to DB, aggregate data |
+| `import_db.php` | Database import with schema upgrade and RPZ provisioning |
 
 ## ISC Bind Configuration
 
@@ -392,11 +402,29 @@ RpiDNS requires ISC Bind configured with:
 - DNS query and RPZ hit logging enabled
 - Local RPZs: `allow.ioc2rpz.rpidns`, `allow-ip.ioc2rpz.rpidns`, `block.ioc2rpz.rpidns`, `block-ip.ioc2rpz.rpidns`
 
+## Detailed Documentation
+
+For in-depth documentation on specific topics, see the `docs/` directory:
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/architecture.md) | System architecture, data flow, and container deployment model |
+| [Backend API](docs/backend-api.md) | PHP API endpoints, authentication, and BindConfigManager |
+| [Frontend](docs/frontend.md) | Vue 3 components, composables, and build system |
+| [Database](docs/database.md) | SQLite schema, aggregation tiers, and migrations |
+| [Scripts](docs/scripts.md) | Shell and PHP maintenance scripts |
+| [Docker Deployment](docs/docker-deployment.md) | Container configuration and deployment guide |
+| [BIND Configuration](docs/bind-configuration.md) | ISC BIND DNS and RPZ setup |
+| [Configuration Files](docs/configuration-files.md) | PHP config files and environment variables |
+
 ## Built With
 
-- [Vue.js](https://vuejs.org/)
-- [Bootstrap Vue](https://bootstrap-vue.js.org/)
+- [Vue 3](https://vuejs.org/)
+- [Bootstrap Vue Next](https://bootstrap-vue-next.github.io/bootstrap-vue-next/)
+- [Vite](https://vitejs.dev/)
 - [Axios](https://github.com/axios/axios)
+- [ApexCharts](https://apexcharts.com/)
+- [FontAwesome](https://fontawesome.com/)
 
 ## Support the Project
 
