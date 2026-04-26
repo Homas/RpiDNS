@@ -68,11 +68,12 @@
                 <BTbody>
                   <BTr v-for="(item, index) in topXReq" :key="'req-' + index" class="mouseoverpointer">
                     <BTd class="text-truncate" style="max-width: 200px;">
-                      <BPopover :target="'tip-good_requests-' + index" triggers="hover" title="Actions">
-                        <a href="javascript:void(0)" @click.stop="onAllowedRequestClick(item)">Show queries</a><br>
-                        <a href="javascript:void(0)" @click.stop="blockDomain(item.fname)">Block</a>
-                        <hr class="m-1">
-                        <strong>Research:</strong><br>
+                      <BPopover :target="'tip-good_requests-' + index" triggers="hover" :title="item.fname" class="dashboard-popover">
+                        <div class="popover-section-label"><i class="fas fa-mouse-pointer fa-sm"></i>&nbsp;Actions</div>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="onAllowedRequestClick(item)">Show queries</a>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="blockDomain(item.fname)"><i class="fas fa-ban"></i>&nbsp;Block</a>
+                        <div class="popover-divider"></div>
+                        <div class="popover-section-label"><i class="fas fa-search fa-sm"></i>&nbsp;Research</div>
                         <ResearchLinks :domain="item.fname" />
                       </BPopover>
                       <span :id="'tip-good_requests-' + index">{{ item.fname }}</span>
@@ -97,9 +98,10 @@
                 <BTbody>
                   <BTr v-for="(item, index) in topXClient" :key="'client-' + index" class="mouseoverpointer">
                     <BTd class="text-truncate" style="max-width: 200px;">
-                      <BPopover :target="'tip-good_clients-' + index" triggers="hover" title="Actions">
-                        Show <a href="javascript:void(0)" @click.stop="onAllowedClientClick(item)">queries</a>&nbsp;|&nbsp;
-                        <a href="javascript:void(0)" @click.stop="showHitsForClient(item)">hits</a>
+                      <BPopover :target="'tip-good_clients-' + index" triggers="hover" :title="item.fname" class="dashboard-popover">
+                        <div class="popover-section-label"><i class="fas fa-mouse-pointer fa-sm"></i>&nbsp;Actions</div>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="onAllowedClientClick(item)">Show queries</a>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="showHitsForClient(item)">Show hits</a>
                       </BPopover>
                       <span :id="'tip-good_clients-' + index">{{ item.fname }}</span>
                     </BTd>
@@ -169,12 +171,13 @@
                 <BTbody>
                   <BTr v-for="(item, index) in topXBreq" :key="'breq-' + index" class="mouseoverpointer">
                     <BTd class="text-truncate" style="max-width: 200px;">
-                      <BPopover :target="'tip-bad_requests-' + index" triggers="hover" title="Actions">
-                        Show <a href="javascript:void(0)" @click.stop="showQueries('fqdn=' + item.fname)">queries</a>&nbsp;|&nbsp;
-                        <a href="javascript:void(0)" @click.stop="onBlockedRequestClick(item)">hits</a><br>
-                        <a href="javascript:void(0)" @click.stop="allowDomain(item.fname)">Allow</a>
-                        <hr class="m-1">
-                        <strong>Research:</strong><br>
+                      <BPopover :target="'tip-bad_requests-' + index" triggers="hover" :title="item.fname" class="dashboard-popover">
+                        <div class="popover-section-label"><i class="fas fa-mouse-pointer fa-sm"></i>&nbsp;Actions</div>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="showQueries('fqdn=' + item.fname)">Show queries</a>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="onBlockedRequestClick(item)">Show hits</a>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="allowDomain(item.fname)"><i class="fas fa-check-circle"></i>&nbsp;Allow</a>
+                        <div class="popover-divider"></div>
+                        <div class="popover-section-label"><i class="fas fa-search fa-sm"></i>&nbsp;Research</div>
                         <ResearchLinks :domain="item.fname" />
                       </BPopover>
                       <span :id="'tip-bad_requests-' + index">{{ item.fname }}</span>
@@ -199,9 +202,10 @@
                 <BTbody>
                   <BTr v-for="(item, index) in topXBclient" :key="'bclient-' + index" class="mouseoverpointer">
                     <BTd class="text-truncate" style="max-width: 200px;">
-                      <BPopover :target="'tip-bad_clients-' + index" triggers="hover" title="Actions">
-                        Show <a href="javascript:void(0)" @click.stop="showQueriesForClient(item)">queries</a>&nbsp;|&nbsp;
-                        <a href="javascript:void(0)" @click.stop="onBlockedClientClick(item)">hits</a>
+                      <BPopover :target="'tip-bad_clients-' + index" triggers="hover" :title="item.fname" class="dashboard-popover">
+                        <div class="popover-section-label"><i class="fas fa-mouse-pointer fa-sm"></i>&nbsp;Actions</div>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="showQueriesForClient(item)">Show queries</a>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="onBlockedClientClick(item)">Show hits</a>
                       </BPopover>
                       <span :id="'tip-bad_clients-' + index">{{ item.fname }}</span>
                     </BTd>
@@ -532,5 +536,97 @@ export default {
   height: 150px;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+/* Popover item styling within the component */
+.popover-section-label {
+  font-size: 0.75rem;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 0;
+  margin-bottom: 2px;
+}
+
+.popover-divider {
+  height: 1px;
+  background-color: #444;
+  margin: 6px 0;
+}
+
+.popover-item {
+  display: block;
+  padding: 2px 0 2px 8px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  text-decoration: none;
+}
+
+.popover-item:hover {
+  text-decoration: none;
+}
+</style>
+
+<!-- Global styles for BPopover (renders outside scoped component) -->
+<style>
+.popover {
+  background-color: #2b2730 !important;
+  border: 1px solid #444 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+  max-width: 280px !important;
+  font-size: 0.875rem !important;
+}
+
+.popover .popover-header {
+  background-color: #2b2730 !important;
+  border-bottom: 1px solid #444 !important;
+  color: #fff !important;
+  font-weight: 600 !important;
+  font-size: 0.85rem !important;
+  padding: 6px 12px !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.popover .popover-body {
+  color: #e0e0e0 !important;
+  padding: 6px 12px !important;
+}
+
+.popover .popover-body a {
+  color: #e0e0e0 !important;
+  text-decoration: none !important;
+}
+
+.popover .popover-body a:hover {
+  color: #fff !important;
+  background-color: #3a3540;
+}
+
+.popover .popover-arrow::before,
+.popover .popover-arrow::after {
+  border-color: transparent !important;
+}
+
+.bs-popover-auto[data-popper-placement^="top"] > .popover-arrow::after,
+.bs-popover-top > .popover-arrow::after {
+  border-top-color: #2b2730 !important;
+}
+
+.bs-popover-auto[data-popper-placement^="bottom"] > .popover-arrow::after,
+.bs-popover-bottom > .popover-arrow::after {
+  border-bottom-color: #2b2730 !important;
+}
+
+.bs-popover-auto[data-popper-placement^="start"] > .popover-arrow::after,
+.bs-popover-start > .popover-arrow::after {
+  border-left-color: #2b2730 !important;
+}
+
+.bs-popover-auto[data-popper-placement^="end"] > .popover-arrow::after,
+.bs-popover-end > .popover-arrow::after {
+  border-right-color: #2b2730 !important;
 }
 </style>

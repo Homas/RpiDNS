@@ -162,7 +162,7 @@
                     </span>
                   </BTd>
                   <BTd class="mw200 d-none d-lg-table-cell">{{ item.server }}</BTd>
-                  <BTd class="mw250" @contextmenu.prevent="openContextMenu($event, item.fqdn)">{{ item.fqdn }}</BTd>
+                  <BTd class="mw250" @contextmenu.prevent="openContextMenu($event, item)">{{ item.fqdn }}</BTd>
                   <BTd>{{ item.type }}</BTd>
                   <BTd class="d-none d-xl-table-cell">{{ item.class }}</BTd>
                   <BTd class="d-none d-xl-table-cell">{{ item.options }}</BTd>
@@ -234,23 +234,28 @@ export default {
     const ctxMenu = ref({
       visible: false,
       domain: '',
+      action: '',
       x: 0,
       y: 0
     })
 
     // Smart actions
-    const { smartBlock } = useSmartActions()
+    const { smartBlock, smartAllow } = useSmartActions()
 
-    // Context menu actions array
-    const ctxMenuActions = [
-      { label: 'Block', icon: 'fas fa-ban' }
-    ]
+    // Context menu actions — computed based on the row's action field
+    const ctxMenuActions = computed(() => {
+      if (ctxMenu.value.action === 'blocked') {
+        return [{ label: 'Allow', icon: 'fas fa-check-circle' }]
+      }
+      return [{ label: 'Block', icon: 'fas fa-ban' }]
+    })
 
     // Open context menu on FQDN cell right-click
-    const openContextMenu = (event, domain) => {
+    const openContextMenu = (event, item) => {
       ctxMenu.value = {
         visible: true,
-        domain: domain,
+        domain: item.fqdn,
+        action: item.action || '',
         x: event.clientX,
         y: event.clientY
       }
@@ -268,6 +273,9 @@ export default {
         } else if (result.action === 'error') {
           emit('show-info', result.error || 'Error performing block action', 3)
         }
+      } else if (actionName === 'Allow') {
+        // For blocked entries in query log, use smartAllow with empty feed (will add to allow list)
+        emit('add-ioc', { ioc: domain, type: 'wl' })
       }
     }
 
