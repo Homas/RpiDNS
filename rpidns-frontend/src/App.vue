@@ -111,6 +111,7 @@
             :custom-start="customPeriodStart"
             :custom-end="customPeriodEnd"
             @add-ioc="handleAddIOC"
+            @show-info="showInfo"
             @custom-period-change="handleCustomPeriodChange"
           />
         </BTab>
@@ -119,7 +120,7 @@
         <BTab @click="refreshRpzHits" lazy>
           <template #title>
             <i class="fa fa-shield-alt"></i>
-            <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;RPZ hits</span>
+            <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;RPZ log</span>
           </template>
           <RpzHits 
             ref="rpzHits"
@@ -130,6 +131,7 @@
             :custom-start="customPeriodStart"
             :custom-end="customPeriodEnd"
             @add-ioc="handleAddIOC"
+            @show-info="showInfo"
             @custom-period-change="handleCustomPeriodChange"
           />
         </BTab>

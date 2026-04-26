@@ -6,7 +6,7 @@
       <template #header>
         <BRow>
           <BCol cols="0" class="d-none d-lg-block" lg="2">
-            <span class="bold"><i class="fa fa-shield-alt"></i>&nbsp;&nbsp;RPZ hits</span>
+            <span class="bold"><i class="fa fa-shield-alt"></i>&nbsp;&nbsp;RPZ log</span>
           </BCol>
           <BCol cols="12" lg="10" class="text-end">
             <BFormCheckbox
@@ -152,7 +152,7 @@
                       {{ item.cname }}
                     </span>
                   </BTd>
-                  <BTd class="mw200">{{ item.fqdn }}</BTd>
+                  <BTd class="mw200" @contextmenu.prevent="openContextMenu($event, item)">{{ item.fqdn }}</BTd>
                   <BTd class="d-none d-lg-table-cell">{{ item.action }}</BTd>
                   <BTd class="mw300 d-none d-lg-table-cell">{{ item.rule }}</BTd>
                   <BTd class="d-none d-lg-table-cell">{{ item.rule_type }}</BTd>
@@ -167,6 +167,17 @@
         </BCol>
       </BRow>
     </BCard>
+
+    <!-- Context Menu -->
+    <ContextMenu
+      :visible="ctxMenu.visible"
+      :domain="ctxMenu.domain"
+      :x="ctxMenu.x"
+      :y="ctxMenu.y"
+      :actions="ctxMenuActions"
+      @update:visible="ctxMenu.visible = $event"
+      @action="onCtxMenuAction"
+    />
   </div>
 </template>
 
@@ -174,12 +185,14 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import ResearchLinks from './ResearchLinks.vue'
+import ContextMenu from './ContextMenu.vue'
 import CustomPeriodPicker from './CustomPeriodPicker.vue'
 import { useAutoRefresh } from '../composables/useAutoRefresh'
+import { useSmartActions } from '../composables/useSmartActions'
 
 export default {
   name: 'RpzHits',
-  components: { ResearchLinks, CustomPeriodPicker },
+  components: { ResearchLinks, ContextMenu, CustomPeriodPicker },
   props: {
     filter: { type: String, default: '' },
     period: { type: String, default: '30m' },
@@ -188,7 +201,7 @@ export default {
     customStart: { type: Number, default: null },
     customEnd: { type: Number, default: null }
   },
-  emits: ['add-ioc', 'custom-period-change'],
+  emits: ['add-ioc', 'custom-period-change', 'show-info'],
   setup(props, { emit }) {
     const localFilter = ref(props.filter)
     const localPeriod = ref(props.period)
@@ -202,6 +215,49 @@ export default {
     const hits_updatetime = ref(0)
     const sortField = ref('dtz')
     const sortDesc = ref(true)
+
+    // Context menu state
+    const ctxMenu = ref({
+      visible: false,
+      domain: '',
+      feed: '',
+      x: 0,
+      y: 0
+    })
+
+    // Smart actions
+    const { smartAllow } = useSmartActions()
+
+    // Context menu actions array
+    const ctxMenuActions = [
+      { label: 'Allow', icon: 'fas fa-check-circle' }
+    ]
+
+    // Open context menu on FQDN cell right-click
+    const openContextMenu = (event, item) => {
+      ctxMenu.value = {
+        visible: true,
+        domain: item.fqdn,
+        feed: item.feed || '',
+        x: event.clientX,
+        y: event.clientY
+      }
+    }
+
+    // Handle context menu action clicks
+    const onCtxMenuAction = async ({ actionName, domain }) => {
+      if (actionName === 'Allow') {
+        const result = await smartAllow(domain, ctxMenu.value.feed)
+        if (result.action === 'removed') {
+          emit('show-info', `Removed "${domain}" from block list`, 3)
+          refreshTable()
+        } else if (result.action === 'add-ioc') {
+          emit('add-ioc', { ioc: domain, type: 'wl' })
+        } else if (result.action === 'error') {
+          emit('show-info', result.error || 'Error performing allow action', 3)
+        }
+      }
+    }
 
     // Custom period state
     const customPeriodStart = ref(props.customStart)
@@ -356,6 +412,7 @@ export default {
       hits_select_fields, tableItems, isLoading, period_options,
       autoRefreshEnabled, showCustomPicker, customPeriodStart, customPeriodEnd,
       customPeriodStartDate, customPeriodEndDate,
+      ctxMenu, ctxMenuActions, openContextMenu, onCtxMenuAction,
       refreshTable, onPeriodChange, selectPeriod, switchStats, selectLtype, filterBy, extractRuleDomain,
       allowDomain, allowRule, formatDate, sortBy: sortByField, onCustomPeriodApply, onCustomPeriodCancel
     }

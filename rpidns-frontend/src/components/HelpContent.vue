@@ -32,9 +32,9 @@
           </a>
         </li>
         <li>
-          <a href="#rpz-hits" @click.prevent="navigateTo('rpz-hits')">
+          <a href="#rpz-log" @click.prevent="navigateTo('rpz-log')">
             <i class="fas fa-shield-alt"></i>
-            <span>4. RPZ Hits</span>
+            <span>4. RPZ Log</span>
           </a>
         </li>
         <li>
@@ -155,7 +155,7 @@
               <li><i class="fas fa-shoe-prints"></i> <strong>Query Log</strong> - A detailed, searchable log of all DNS queries processed 
                 by your DNS server. This section allows you to investigate specific queries, filter by various criteria, and analyze 
                 DNS traffic patterns. You can view individual query records or aggregated statistics.</li>
-              <li><i class="fas fa-shield-alt"></i> <strong>RPZ Hits</strong> - A dedicated view showing all DNS queries that were blocked 
+              <li><i class="fas fa-shield-alt"></i> <strong>RPZ Log</strong> - A dedicated view showing all DNS queries that were blocked 
                 by Response Policy Zone rules. This includes blocks from RPZ feeds as well as your custom Block List. Use this section 
                 to monitor blocked threats and identify domains that may need to be added to your Allow List.</li>
               <li><i class="fas fa-screwdriver"></i> <strong>Admin</strong> - The administration panel containing all configuration and 
@@ -319,7 +319,7 @@
               <li><strong>Show queries</strong> - Navigates to the Query Log tab with a filter automatically applied to show 
                 only queries related to the selected item. For example, clicking this on a domain shows all queries for that 
                 domain; clicking on a client shows all queries from that device. The current time period selection is preserved.</li>
-              <li><strong>Show hits</strong> - Navigates to the RPZ Hits tab filtered to show only blocked queries related to 
+              <li><strong>Show hits</strong> - Navigates to the RPZ Log tab filtered to show only blocked queries related to 
                 the selected item. This is useful for investigating why a particular domain is being blocked or which blocked 
                 domains a specific client is trying to access.</li>
               <li><strong>Block</strong> - Adds the selected domain to your custom Block List. A confirmation dialog appears 
@@ -349,7 +349,7 @@
               <li><strong>Blue area</strong> - Represents the total number of allowed (successful) DNS queries per minute. 
                 This shows the baseline DNS activity on your network. Normal patterns typically show higher activity during 
                 business hours or peak usage times, with lower activity during off-hours.</li>
-              <li><strong>Red area</strong> - Represents the number of blocked queries (RPZ hits) per minute. This shows 
+              <li><strong>Red area</strong> - Represents the number of blocked queries per minute as recorded in the RPZ Log. This shows 
                 how many DNS requests were blocked by RPZ rules. A sudden spike in blocked queries might indicate malware 
                 activity, a new threat, or a device attempting to access blocked resources repeatedly.</li>
             </ul>
@@ -530,16 +530,57 @@
               specific queries, use filters to narrow down results before paginating through large datasets. This is 
               much faster than manually browsing through thousands of pages.
             </p>
+
+            <h3 id="querylog-context-menu">3.6 Context Menu</h3>
+            <p>
+              The Query Log provides a right-click context menu on domain names in the Request column, giving you 
+              quick access to research tools and a smart block action without leaving the page.
+            </p>
+            <p>
+              <strong>How to use:</strong> Right-click on any domain name in the Request column of the Query Log table. 
+              A context menu will appear at your cursor position displaying the domain name, research links, and a 
+              Block action button.
+            </p>
+            <h4>Research Tools</h4>
+            <p>
+              The context menu includes a Research section with links to external threat intelligence services. Each 
+              link opens in a new browser tab with the selected domain pre-filled:
+            </p>
+            <ul>
+              <li><strong>DuckDuckGo</strong> - Privacy-focused web search for general information about the domain</li>
+              <li><strong>Google</strong> - Web search for broader context and reputation information</li>
+              <li><strong>VirusTotal</strong> - Comprehensive malware scanning and domain reputation analysis from dozens of security engines</li>
+              <li><strong>DomainTools Whois</strong> - Domain registration details including registrant, creation date, and nameservers</li>
+              <li><strong>Robtex</strong> - DNS and network intelligence showing IP addresses, nameservers, and related domains</li>
+              <li><strong>ThreatMiner</strong> - Threat intelligence platform providing context about domain associations with known threats</li>
+            </ul>
+            <h4>Smart Block Action</h4>
+            <p>
+              The "Block" button in the context menu uses smart detection to determine the correct action automatically:
+            </p>
+            <ul>
+              <li>If the domain is currently in your <strong>Allow List</strong>, clicking Block will automatically 
+                remove it from the Allow List. A success notification confirms the removal, and the table refreshes 
+                to reflect the updated state.</li>
+              <li>If the domain is <strong>not in the Allow List</strong>, clicking Block opens the Add IOC dialog 
+                pre-filled with the domain and set to add it to the Block List. You can then configure subdomain 
+                blocking and add a comment before confirming.</li>
+            </ul>
+            <p>
+              <i class="fas fa-lightbulb text-warning"></i> <strong>Tip:</strong> The smart block action saves you 
+              from having to manually check whether a domain is already in the Allow List. The system handles the 
+              detection and performs the appropriate operation automatically.
+            </p>
           </section>
 
-          <!-- 4. RPZ Hits -->
-          <section id="rpz-hits" class="help-section mb-5">
-            <h2><i class="fas fa-shield-alt"></i> 4. RPZ Hits</h2>
+          <!-- 4. RPZ Log -->
+          <section id="rpz-log" class="help-section mb-5">
+            <h2><i class="fas fa-shield-alt"></i> 4. RPZ Log</h2>
             <hr>
 
-            <h3 id="rpzhits-overview">4.1 Overview</h3>
+            <h3 id="rpzlog-overview">4.1 Overview</h3>
             <p>
-              The RPZ Hits section provides a dedicated view of all DNS queries that were blocked by Response Policy Zone 
+              The RPZ Log section provides a dedicated view of all DNS queries that were blocked by Response Policy Zone 
               (RPZ) rules. RPZ is a DNS-based security mechanism that allows the DNS server to return modified responses 
               for specific domains, effectively blocking access to malicious, unwanted, or policy-violating content at 
               the DNS level before any connection is established.
@@ -547,26 +588,26 @@
             <p>
               When a device on your network attempts to resolve a domain that matches an RPZ rule, the DNS server intercepts 
               the query and returns a blocking response (typically NXDOMAIN, indicating the domain doesn't exist) instead 
-              of the actual IP address. This prevents the device from connecting to the blocked domain. The RPZ Hits log 
+              of the actual IP address. This prevents the device from connecting to the blocked domain. The RPZ Log 
               records every such blocked query, providing visibility into what threats are being stopped and which devices 
               are attempting to access blocked resources.
             </p>
             <p>
               Blocks can originate from two sources: RPZ feeds (curated lists of malicious or unwanted domains provided by 
-              ioc2rpz.net) and your custom Block List (domains you've manually added). The RPZ Hits view shows blocks from 
+              ioc2rpz.net) and your custom Block List (domains you've manually added). The RPZ Log view shows blocks from 
               both sources, allowing you to monitor the effectiveness of your DNS security and identify patterns that may 
               require attention.
             </p>
             <p>
-              <i class="fas fa-shield-alt text-success"></i> <strong>Security Value:</strong> Regularly reviewing RPZ Hits 
+              <i class="fas fa-shield-alt text-success"></i> <strong>Security Value:</strong> Regularly reviewing the RPZ Log 
               helps you understand the threat landscape affecting your network, identify potentially compromised devices, 
               and fine-tune your blocking policies. A device with unusually high block counts may be infected with malware 
               or running software that aggressively contacts blocked domains.
             </p>
 
-            <h3 id="rpzhits-columns">4.2 Table Columns</h3>
+            <h3 id="rpzlog-columns">4.2 Table Columns</h3>
             <p>
-              The RPZ Hits table provides detailed information about each blocked DNS query. Understanding these columns 
+              The RPZ Log table provides detailed information about each blocked DNS query. Understanding these columns 
               helps you investigate blocks and make informed decisions about your blocking policies.
             </p>
             <table class="table table-sm table-bordered">
@@ -615,9 +656,9 @@
               </tbody>
             </table>
 
-            <h3 id="rpzhits-controls">4.3 Filtering and Navigation</h3>
+            <h3 id="rpzlog-controls">4.3 Filtering and Navigation</h3>
             <p>
-              The RPZ Hits section includes the same powerful controls as the Query Log, allowing you to efficiently 
+              The RPZ Log section includes the same powerful controls as the Query Log, allowing you to efficiently 
               analyze and investigate blocked queries.
             </p>
             <ul>
@@ -632,12 +673,12 @@
                 find specific blocks quickly.</li>
               <li><strong>Pagination</strong> - Navigate through large result sets using the pagination controls. Results 
                 are paginated to maintain performance when dealing with large numbers of blocked queries.</li>
-              <li><strong>Auto-refresh</strong> - Enable automatic refresh to keep the RPZ Hits view current. This is 
+              <li><strong>Auto-refresh</strong> - Enable automatic refresh to keep the RPZ Log view current. This is 
                 useful for real-time monitoring of blocking activity, especially during security incidents.</li>
             </ul>
             <p>
               <i class="fas fa-lightbulb text-warning"></i> <strong>Investigation Workflow:</strong> When investigating 
-              a potential security issue, start by checking RPZ Hits for the suspected device. Look for patterns in 
+              a potential security issue, start by checking the RPZ Log for the suspected device. Look for patterns in 
               blocked domains - multiple blocks to similar domains might indicate malware trying to contact command and 
               control servers. If you find a legitimate domain being blocked, you can add it to your Allow List directly 
               from the action menu.
@@ -647,6 +688,49 @@
               domains may be blocked by RPZ feeds. If you notice a domain being blocked that you believe should be 
               allowed, you can add it to your Allow List. Allow List entries take precedence over all RPZ feed rules, 
               ensuring the domain will be accessible. Always verify the domain is safe before adding it to the Allow List.
+            </p>
+
+            <h3 id="rpzlog-context-menu">4.4 Context Menu</h3>
+            <p>
+              The RPZ Log provides a right-click context menu on domain names in the Request column, giving you 
+              quick access to research tools and a smart allow action for unblocking domains.
+            </p>
+            <p>
+              <strong>How to use:</strong> Right-click on any domain name in the Request column of the RPZ Log table. 
+              A context menu will appear at your cursor position displaying the domain name, research links, and an 
+              Allow action button.
+            </p>
+            <h4>Research Tools</h4>
+            <p>
+              The context menu includes the same Research section as the Query Log, with links to external threat 
+              intelligence services. Each link opens in a new browser tab with the selected domain pre-filled:
+            </p>
+            <ul>
+              <li><strong>DuckDuckGo</strong> - Privacy-focused web search for general information about the domain</li>
+              <li><strong>Google</strong> - Web search for broader context and reputation information</li>
+              <li><strong>VirusTotal</strong> - Comprehensive malware scanning and domain reputation analysis</li>
+              <li><strong>DomainTools Whois</strong> - Domain registration details including registrant and creation date</li>
+              <li><strong>Robtex</strong> - DNS and network intelligence showing IP addresses and related domains</li>
+              <li><strong>ThreatMiner</strong> - Threat intelligence platform for domain threat associations</li>
+            </ul>
+            <h4>Smart Allow Action</h4>
+            <p>
+              The "Allow" button in the context menu uses smart detection based on the feed that blocked the domain 
+              to determine the correct unblock action automatically:
+            </p>
+            <ul>
+              <li>If the domain was blocked by a <strong>local block feed</strong> (block.ioc2rpz.rpidns), clicking 
+                Allow will automatically remove the domain from the local block feed. A success notification confirms 
+                the removal, and the table refreshes to reflect the updated state.</li>
+              <li>If the domain was blocked by a <strong>third-party or ioc2rpz.net feed</strong>, clicking Allow 
+                opens the Add IOC dialog pre-filled with the domain and set to add it to the Allow List. Entries 
+                in third-party feeds cannot be individually removed, so adding the domain to the Allow List ensures 
+                it bypasses the block.</li>
+            </ul>
+            <p>
+              <i class="fas fa-lightbulb text-warning"></i> <strong>Tip:</strong> The smart allow action eliminates 
+              the need to manually determine which feed blocked a domain and what action to take. The system reads 
+              the feed information from the table row and performs the appropriate operation automatically.
             </p>
           </section>
 
@@ -676,7 +760,7 @@
             <p>
               Assets can be automatically discovered when new devices make DNS queries (if auto-creation is enabled 
               in Settings), or you can manually add them. Each asset can be assigned a friendly name, making it much 
-              easier to identify devices in the Query Log, RPZ Hits, and Dashboard widgets instead of seeing raw 
+              easier to identify devices in the Query Log, RPZ Log, and Dashboard widgets instead of seeing raw 
               IP or MAC addresses.
             </p>
             <h4>Table Columns</h4>
@@ -761,7 +845,7 @@
                 </tr>
                 <tr>
                   <td><strong>Feed</strong></td>
-                  <td>The zone name/identifier of the RPZ feed. This name appears in RPZ Hits when a domain from 
+                  <td>The zone name/identifier of the RPZ feed. This name appears in the RPZ Log when a domain from 
                     this feed triggers a policy action, helping you identify which feed was responsible.</td>
                 </tr>
                 <tr>
@@ -941,7 +1025,7 @@
             <p>
               Entries in your Block List are processed alongside RPZ feed rules. When a device queries a domain that 
               matches a Block List entry, the DNS server returns a blocking response (NXDOMAIN), preventing the 
-              connection. Block List entries appear as "local" type in RPZ Hits.
+              connection. Block List entries appear as "local" type in the RPZ Log.
             </p>
             <h4>Table Columns</h4>
             <ul>
@@ -1005,7 +1089,7 @@
             <p>
               <i class="fas fa-exclamation-triangle text-warning"></i> <strong>Security Consideration:</strong> Before 
               adding a domain to the Allow List, verify that it's genuinely safe. Malware sometimes uses domains that 
-              appear legitimate. Use the Research links available in the Dashboard and RPZ Hits to investigate domains 
+              appear legitimate. Use the Research links available in the Dashboard and RPZ Log to investigate domains 
               before allowing them.
             </p>
 
@@ -1022,7 +1106,7 @@
             </p>
             <ul>
               <li><strong>Table</strong> - The name of the database table storing specific types of data (queries, 
-                RPZ hits, etc.).</li>
+                RPZ log entries, etc.).</li>
               <li><strong>Size</strong> - The current storage space used by this table. Monitor this to ensure you 
                 have adequate disk space.</li>
               <li><strong>Rows</strong> - The number of records currently stored in the table. High row counts may 
@@ -1086,7 +1170,7 @@
             <p>Database management tools for backup and restore operations:</p>
             <ul>
               <li><i class="fas fa-download"></i> <strong>Download</strong> - Creates and downloads a backup of the 
-                SQLite database containing all RpiDNS data including queries, RPZ hits, assets, block/allow lists, 
+                SQLite database containing all RpiDNS data including queries, RPZ log entries, assets, block/allow lists, 
                 settings, and user accounts. Regular backups are strongly recommended to prevent data loss.</li>
               <li><i class="fas fa-upload"></i> <strong>Import</strong> - Restore data from a previously downloaded 
                 backup file. Use this to recover from data loss or migrate to a new installation. Warning: importing 
@@ -1223,7 +1307,7 @@
               <li><strong>From the Dashboard</strong> - When viewing blocked domains in the TopX Blocked Requests 
                 widget, hover over a domain and click the "Allow" button. This immediately adds the domain to your 
                 Allow List, overriding any blocks.</li>
-              <li><strong>From RPZ Hits</strong> - Find the blocked domain in the RPZ Hits log. Hover over the domain 
+              <li><strong>From the RPZ Log</strong> - Find the blocked domain in the RPZ Log. Hover over the domain 
                 or use the context menu to select the allow option. This is the most common workflow when 
                 investigating why a legitimate service isn't working and discovering it's being blocked.</li>
               <li><strong>From the Admin Panel</strong> - Navigate to Admin → Allow List and click the 
@@ -1246,24 +1330,33 @@
             <h3 id="research-links">6.3 Research Links</h3>
             <p>
               RpiDNS provides quick access to external security research tools that help you investigate domains 
-              before making blocking decisions. These tools aggregate threat intelligence from multiple sources 
-              and can reveal whether a domain is associated with malware, phishing, or other malicious activity.
+              before making blocking or allowing decisions. These tools aggregate threat intelligence from multiple 
+              sources and can reveal whether a domain is associated with malware, phishing, or other malicious activity.
             </p>
             <p>
-              When hovering over domains in Dashboard widgets or other areas, you'll see a "Research" option that 
-              opens a submenu with links to various security tools:
+              Research links are available in multiple places throughout the application: in the Dashboard widget 
+              hover popovers, and in the right-click context menu on the Query Log and RPZ Log pages. All locations 
+              use the same set of research tools, defined in a single shared source for consistency.
             </p>
+            <p>The following research tools are available:</p>
             <ul>
+              <li><strong>DuckDuckGo</strong> - Privacy-focused web search engine. Performs a quoted search for the 
+                domain name, useful for finding general information, forum discussions, and reports about the domain.</li>
+              <li><strong>Google</strong> - Web search for broader context. Performs a quoted search for the domain, 
+                providing access to the widest range of indexed information about the domain.</li>
               <li><strong>VirusTotal</strong> - A comprehensive malware scanning service that aggregates results from 
                 dozens of antivirus engines and security tools. VirusTotal shows detection rates, historical data, 
                 associated files, and community comments about the domain. This is often the first stop for domain 
                 investigation.</li>
-              <li><strong>URLhaus</strong> - A project by abuse.ch that tracks malicious URLs used for malware 
-                distribution. URLhaus is particularly useful for identifying domains involved in malware campaigns 
-                and provides detailed information about associated threats.</li>
-              <li><strong>Additional security databases</strong> - Depending on configuration, additional research 
-                links may be available to other threat intelligence platforms, WHOIS lookup services, or domain 
-                reputation databases.</li>
+              <li><strong>DomainTools Whois</strong> - Domain registration lookup service providing registrant details, 
+                creation and expiration dates, nameserver information, and registration history. Useful for identifying 
+                recently registered domains that may be suspicious.</li>
+              <li><strong>Robtex</strong> - DNS and network intelligence platform that shows IP addresses, nameservers, 
+                mail servers, and related domains. Helps identify the infrastructure behind a domain and discover 
+                related domains that may also be malicious.</li>
+              <li><strong>ThreatMiner</strong> - Threat intelligence platform that provides context about domain 
+                associations with known threats, malware samples, and threat actors. Useful for understanding the 
+                broader threat context of a domain.</li>
             </ul>
             <p>
               <i class="fas fa-search text-info"></i> <strong>Investigation Workflow:</strong> When you encounter 
@@ -1307,16 +1400,16 @@
               <li><strong>Click a client in Allowed/Blocked Clients</strong> - Opens the Query Log filtered to show 
                 all queries from that specific device. This is useful for investigating a device's DNS activity 
                 and identifying what services or sites it's accessing.</li>
-              <li><strong>Click a domain in Blocked Requests</strong> - Opens the RPZ Hits view filtered to that 
+              <li><strong>Click a domain in Blocked Requests</strong> - Opens the RPZ Log view filtered to that 
                 domain, showing all block events for that domain across all devices. This helps you understand 
                 the scope of blocking for a particular domain.</li>
-              <li><strong>Click a feed in TopX Feeds</strong> - Opens the RPZ Hits view filtered to show only blocks 
+              <li><strong>Click a feed in TopX Feeds</strong> - Opens the RPZ Log view filtered to show only blocks 
                 from that specific RPZ feed. This helps you understand what types of threats a particular feed 
                 is catching on your network.</li>
             </ul>
             <p>
               <i class="fas fa-clock text-info"></i> <strong>Time Period Preservation:</strong> When you navigate 
-              from the Dashboard to Query Log or RPZ Hits, your selected time period is preserved. If you were 
+              from the Dashboard to Query Log or RPZ Log, your selected time period is preserved. If you were 
               viewing the last 24 hours on the Dashboard, the filtered view will also show the last 24 hours. 
               This ensures consistency in your analysis and prevents confusion from mismatched time ranges.
             </p>

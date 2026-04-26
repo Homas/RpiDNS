@@ -24,10 +24,12 @@ App.vue (root)
 │   └── ResearchLinks                  — External threat intel links
 ├── QueryLog                           — DNS query log viewer
 │   ├── CustomPeriodPicker
-│   └── ResearchLinks
-├── RpzHits                            — Blocked query log viewer
+│   ├── ResearchLinks
+│   └── ContextMenu                    — Right-click research & block actions
+├── RpzHits (RPZ Log)                  — Blocked query log viewer
 │   ├── CustomPeriodPicker
-│   └── ResearchLinks
+│   ├── ResearchLinks
+│   └── ContextMenu                    — Right-click research & allow actions
 ├── AdminTabs                          — Admin panel container
 │   ├── Assets                         — Network device management
 │   ├── RpzFeeds                       — RPZ feed configuration
@@ -67,7 +69,7 @@ The main landing page after login. Displays eight statistical widget cards in tw
 
 | Events | Payload | Description |
 |--------|---------|-------------|
-| `navigate` | `{ tab, filter, period, type, customStart?, customEnd? }` | Navigate to Query Log or RPZ Hits with filter |
+| `navigate` | `{ tab, filter, period, type, customStart?, customEnd? }` | Navigate to Query Log or RPZ Log with filter |
 | `add-ioc` | `{ ioc, type }` | Open Add IOC modal to block/allow a domain |
 | `custom-period-change` | `{ start_dt, end_dt }` | Propagate custom period to parent |
 
@@ -101,9 +103,9 @@ Paginated, filterable table of DNS query records. Supports Logs (individual reco
 
 **API endpoint:** `queries_raw` with parameters for period, pagination (`cp`, `pp`), filter, log type (`ltype`), selected fields, and sort.
 
-### RpzHits (`src/components/RpzHits.vue`)
+### RpzHits / RPZ Log (`src/components/RpzHits.vue`)
 
-Paginated, filterable table of RPZ-blocked DNS queries. Structurally similar to QueryLog with Logs/Stats toggle.
+Paginated, filterable table of RPZ-blocked DNS queries, displayed as "RPZ Log" in the UI. Structurally similar to QueryLog with Logs/Stats toggle.
 
 | Props | Type | Description |
 |-------|------|-------------|
@@ -133,7 +135,7 @@ Session-based authentication form. Submits credentials to `/rpi_admin/auth.php?a
 
 ### HelpContent (`src/components/HelpContent.vue`)
 
-Built-in help documentation with a collapsible sidebar navigation. Covers Getting Started, Dashboard, Query Log, RPZ Hits, Admin Panel, and Common Actions sections. Content is static HTML rendered within a Vue component.
+Built-in help documentation with a collapsible sidebar navigation. Covers Getting Started, Dashboard, Query Log, RPZ Log, Admin Panel, and Common Actions sections. Content is static HTML rendered within a Vue component.
 
 ### DonateContent (`src/components/DonateContent.vue`)
 
@@ -141,7 +143,7 @@ Static page with donation options for the ioc2rpz project: GitHub Sponsors, PayP
 
 ### CustomPeriodPicker (`src/components/CustomPeriodPicker.vue`)
 
-Modal dialog for selecting a custom date/time range. Used by Dashboard, QueryLog, and RpzHits.
+Modal dialog for selecting a custom date/time range. Used by Dashboard, QueryLog, and RpzHits (RPZ Log).
 
 | Props | Type | Description |
 |-------|------|-------------|
@@ -159,7 +161,7 @@ Validates that start is before end and both fields are filled. Defaults to the l
 
 ### ResearchLinks (`src/components/ResearchLinks.vue`)
 
-Renders external threat intelligence lookup links for a given domain. Used in Dashboard widget popovers.
+Renders external threat intelligence lookup links for a given domain. Used in Dashboard widget popovers. Consumes link definitions from the shared `useResearchLinks.js` composable.
 
 | Props | Type | Description |
 |-------|------|-------------|
@@ -172,6 +174,31 @@ Renders external threat intelligence lookup links for a given domain. Used in Da
 - DomainTools Whois
 - Robtex DNS lookup
 - ThreatMiner domain analysis
+
+### ContextMenu (`src/components/ContextMenu.vue`)
+
+A reusable, positioned right-click context menu that renders research links (from `useResearchLinks.js`) and action buttons. Used by QueryLog and RpzHits to provide domain research tools and smart block/allow actions.
+
+| Props | Type | Description |
+|-------|------|-------------|
+| `visible` | `Boolean` | Controls visibility (v-model) |
+| `domain` | `String` | Domain name to display and act on |
+| `x` | `Number` | Cursor X coordinate |
+| `y` | `Number` | Cursor Y coordinate |
+| `actions` | `Array<{ label, icon, handler }>` | Action buttons to render |
+
+| Events | Payload | Description |
+|--------|---------|-------------|
+| `update:visible` | `Boolean` | Two-way binding for visibility |
+| `action` | `{ actionName, domain }` | Emitted when an action button is clicked |
+
+**Features:**
+- Displays the domain name as a header
+- "Research" section with external threat intelligence links (DuckDuckGo, Google, VirusTotal, DomainTools Whois, Robtex, ThreatMiner) opening in new tabs
+- Action buttons section (e.g., "Block" on QueryLog, "Allow" on RPZ Log) separated by a visual divider
+- Viewport clamping: adjusts position in `nextTick` if the menu would overflow the right or bottom viewport edges
+- Dismissal: closes on click-outside (`mousedown` listener) or Escape key (`keydown` listener)
+- Listeners are added/removed on open/close to avoid leaks
 
 
 ## Admin Sub-Components
@@ -350,6 +377,34 @@ Manages periodic data refresh with localStorage persistence.
 | `autoRefreshEnabled` | `Ref<Boolean>` | Reactive toggle for auto-refresh |
 
 Refresh interval is 60 seconds. Toggling `autoRefreshEnabled` on triggers an immediate refresh. The interval runs continuously but only calls `refreshFn` when both enabled and active.
+
+### useResearchLinks (`composables/useResearchLinks.js`)
+
+Shared research link definitions for external threat intelligence services. Consumed by both `ResearchLinks.vue` (Dashboard popovers) and `ContextMenu.vue` (right-click menus on QueryLog and RPZ Log).
+
+**Exports:**
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `RESEARCH_LINKS` | `Array<{ name, urlTemplate, icon }>` | Constant array of research link definitions with `{domain}` placeholder in URL templates |
+| `getResearchUrls(domain)` | `Function → Array<{ name, url, icon }>` | Generates resolved research URLs for a given domain by replacing the `{domain}` placeholder |
+
+**Included services:** DuckDuckGo (quoted search), Google (quoted search), VirusTotal, DomainTools Whois, Robtex, ThreatMiner.
+
+### useSmartActions (`composables/useSmartActions.js`)
+
+Encapsulates the smart block/allow decision logic for context menu actions. Uses `useApi` internally for backend API calls. Determines the correct operation (remove from a local feed or open the AddIOC modal) based on the domain's current feed membership.
+
+**Return values (from `useSmartActions()`):**
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `smartBlock` | `(domain: string) → Promise<{ action, list?, type?, error? }>` | If domain is in the allow list, removes it and returns `{ action: 'removed', list: 'whitelist' }`; otherwise returns `{ action: 'add-ioc', type: 'bl' }` |
+| `smartAllow` | `(domain: string, feedName: string) → Promise<{ action, list?, type?, error? }>` | If feed is a local block feed and domain is in the block list, removes it and returns `{ action: 'removed', list: 'blacklist' }`; otherwise returns `{ action: 'add-ioc', type: 'wl' }` |
+| `isLocalBlockFeed` | `(feedName: string) → boolean` | Returns `true` when `feedName === 'block.ioc2rpz.rpidns'` |
+| `isLocalFeed` | `(feedName: string) → boolean` | Returns `true` for any of the four predefined local RPZ zones |
+
+**Local feed detection:** The four predefined local RPZ zones are `allow.ioc2rpz.rpidns`, `block.ioc2rpz.rpidns`, `allow-ip.ioc2rpz.rpidns`, `block-ip.ioc2rpz.rpidns`.
 
 ### useWindowSize (`composables/useWindowSize.js`)
 

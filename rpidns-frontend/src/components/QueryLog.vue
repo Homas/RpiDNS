@@ -162,7 +162,7 @@
                     </span>
                   </BTd>
                   <BTd class="mw200 d-none d-lg-table-cell">{{ item.server }}</BTd>
-                  <BTd class="mw250">{{ item.fqdn }}</BTd>
+                  <BTd class="mw250" @contextmenu.prevent="openContextMenu($event, item.fqdn)">{{ item.fqdn }}</BTd>
                   <BTd>{{ item.type }}</BTd>
                   <BTd class="d-none d-xl-table-cell">{{ item.class }}</BTd>
                   <BTd class="d-none d-xl-table-cell">{{ item.options }}</BTd>
@@ -181,6 +181,17 @@
         </BCol>
       </BRow>
     </BCard>
+
+    <!-- Context Menu -->
+    <ContextMenu
+      :visible="ctxMenu.visible"
+      :domain="ctxMenu.domain"
+      :x="ctxMenu.x"
+      :y="ctxMenu.y"
+      :actions="ctxMenuActions"
+      @update:visible="ctxMenu.visible = $event"
+      @action="onCtxMenuAction"
+    />
   </div>
 </template>
 
@@ -188,12 +199,14 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import axios from 'axios'
 import ResearchLinks from './ResearchLinks.vue'
+import ContextMenu from './ContextMenu.vue'
 import CustomPeriodPicker from './CustomPeriodPicker.vue'
 import { useAutoRefresh } from '../composables/useAutoRefresh'
+import { useSmartActions } from '../composables/useSmartActions'
 
 export default {
   name: 'QueryLog',
-  components: { ResearchLinks, CustomPeriodPicker },
+  components: { ResearchLinks, ContextMenu, CustomPeriodPicker },
   props: {
     filter: { type: String, default: '' },
     period: { type: String, default: '30m' },
@@ -202,7 +215,7 @@ export default {
     customStart: { type: Number, default: null },
     customEnd: { type: Number, default: null }
   },
-  emits: ['add-ioc', 'custom-period-change'],
+  emits: ['add-ioc', 'custom-period-change', 'show-info'],
   setup(props, { emit }) {
     const localFilter = ref(props.filter)
     const localPeriod = ref(props.period)
@@ -216,6 +229,47 @@ export default {
     const logs_updatetime = ref(0)
     const sortField = ref('dtz')
     const sortDesc = ref(true)
+
+    // Context menu state
+    const ctxMenu = ref({
+      visible: false,
+      domain: '',
+      x: 0,
+      y: 0
+    })
+
+    // Smart actions
+    const { smartBlock } = useSmartActions()
+
+    // Context menu actions array
+    const ctxMenuActions = [
+      { label: 'Block', icon: 'fas fa-ban' }
+    ]
+
+    // Open context menu on FQDN cell right-click
+    const openContextMenu = (event, domain) => {
+      ctxMenu.value = {
+        visible: true,
+        domain: domain,
+        x: event.clientX,
+        y: event.clientY
+      }
+    }
+
+    // Handle context menu action clicks
+    const onCtxMenuAction = async ({ actionName, domain }) => {
+      if (actionName === 'Block') {
+        const result = await smartBlock(domain)
+        if (result.action === 'removed') {
+          emit('show-info', `Removed "${domain}" from allow list`, 3)
+          refreshTable()
+        } else if (result.action === 'add-ioc') {
+          emit('add-ioc', { ioc: domain, type: 'bl' })
+        } else if (result.action === 'error') {
+          emit('show-info', result.error || 'Error performing block action', 3)
+        }
+      }
+    }
 
     // Custom period state
     const customPeriodStart = ref(props.customStart)
@@ -362,6 +416,7 @@ export default {
       qlogs_select_fields, tableItems, isLoading, qperiod_options,
       autoRefreshEnabled, showCustomPicker, customPeriodStart, customPeriodEnd,
       customPeriodStartDate, customPeriodEndDate,
+      ctxMenu, ctxMenuActions, openContextMenu, onCtxMenuAction,
       refreshTable, onPeriodChange, selectPeriod, switchStats, selectLtype, filterBy, blockDomain, allowDomain,
       formatDate, sortBy: sortByField, onCustomPeriodApply, onCustomPeriodCancel
     }
