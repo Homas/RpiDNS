@@ -147,14 +147,14 @@
               <BTbody>
                 <BTr v-for="item in tableItems" :key="item.rowid">
                   <BTd v-if="hits_ltype === 'logs'">{{ formatDate(item.dtz) }}</BTd>
-                  <BTd class="mw200 d-none d-sm-table-cell">
+                  <BTd class="mw200 d-none d-sm-table-cell" @contextmenu.prevent="openColMenu($event, 'cname', 'client', item.cname)">
                     <span v-b-tooltip.hover :title="`Mac: ${item.mac || ''}\nIP: ${item.client_ip || ''}\nVendor: ${item.vendor || ''}`">
                       {{ item.cname }}
                     </span>
                   </BTd>
                   <BTd class="mw200" @contextmenu.prevent="openContextMenu($event, item)">{{ item.fqdn }}</BTd>
-                  <BTd class="d-none d-lg-table-cell">{{ item.action }}</BTd>
-                  <BTd class="mw300 d-none d-lg-table-cell">{{ item.rule }}</BTd>
+                  <BTd class="d-none d-lg-table-cell" @contextmenu.prevent="openColMenu($event, 'action', 'action', item.action)">{{ item.action }}</BTd>
+                  <BTd class="mw300 d-none d-lg-table-cell" @contextmenu.prevent="openFeedFilterMenu($event, item)">{{ item.rule }}</BTd>
                   <BTd class="d-none d-lg-table-cell">{{ item.rule_type }}</BTd>
                   <BTd>{{ item.cnt }}</BTd>
                 </BTr>
@@ -168,7 +168,7 @@
       </BRow>
     </BCard>
 
-    <!-- Context Menu -->
+    <!-- Context Menu (FQDN column — research + allow + filter) -->
     <ContextMenu
       :visible="ctxMenu.visible"
       :domain="ctxMenu.domain"
@@ -177,6 +177,18 @@
       :actions="ctxMenuActions"
       @update:visible="ctxMenu.visible = $event"
       @action="onCtxMenuAction"
+    />
+
+    <!-- Column Filter Menu (other columns — filter only) -->
+    <ContextMenu
+      :visible="colMenu.visible"
+      :domain="colMenu.domain"
+      :x="colMenu.x"
+      :y="colMenu.y"
+      :actions="colMenuActions"
+      :show-research="false"
+      @update:visible="colMenu.visible = $event"
+      @action="onColMenuAction"
     />
   </div>
 </template>
@@ -216,7 +228,7 @@ export default {
     const sortField = ref('dtz')
     const sortDesc = ref(true)
 
-    // Context menu state
+    // Context menu state (for FQDN/Request column)
     const ctxMenu = ref({
       visible: false,
       domain: '',
@@ -225,16 +237,48 @@ export default {
       y: 0
     })
 
+    // Column filter context menu state (for other columns)
+    const colMenu = ref({
+      visible: false,
+      domain: '',
+      x: 0,
+      y: 0,
+      field: '',
+      label: '',
+      value: ''
+    })
+
     // Smart actions
     const { smartAllow } = useSmartActions()
 
-    // Context menu actions array
-    const ctxMenuActions = [
-      { label: 'Allow', icon: 'fas fa-check-circle' }
-    ]
+    // Extract feed name from rule by removing the domain prefix
+    const extractFeedFromRule = (item) => {
+      if (item.rule && item.fqdn) {
+        const fqdnPrefix = item.fqdn + '.'
+        if (item.rule.startsWith(fqdnPrefix)) {
+          return item.rule.substring(fqdnPrefix.length)
+        }
+        if (item.feed) return item.feed
+      }
+      return item.feed || ''
+    }
+
+    // Context menu actions for FQDN column — allow + filter by request
+    const ctxMenuActions = computed(() => {
+      return [
+        { label: 'Allow', icon: 'fas fa-check-circle' },
+        { label: 'Filter by request', icon: 'fas fa-filter' }
+      ]
+    })
+
+    // Column filter menu actions
+    const colMenuActions = computed(() => {
+      return [{ label: `Filter by ${colMenu.value.label}`, icon: 'fas fa-filter' }]
+    })
 
     // Open context menu on FQDN cell right-click
     const openContextMenu = (event, item) => {
+      colMenu.value.visible = false
       ctxMenu.value = {
         visible: true,
         domain: item.fqdn,
@@ -244,7 +288,36 @@ export default {
       }
     }
 
-    // Handle context menu action clicks
+    // Open column filter menu on right-click of other columns
+    const openColMenu = (event, field, label, value) => {
+      ctxMenu.value.visible = false
+      colMenu.value = {
+        visible: true,
+        domain: String(value || ''),
+        x: event.clientX,
+        y: event.clientY,
+        field: field,
+        label: label,
+        value: String(value || '')
+      }
+    }
+
+    // Open feed filter menu from rule column
+    const openFeedFilterMenu = (event, item) => {
+      ctxMenu.value.visible = false
+      const feedName = extractFeedFromRule(item)
+      colMenu.value = {
+        visible: true,
+        domain: feedName || item.rule || '',
+        x: event.clientX,
+        y: event.clientY,
+        field: 'feed',
+        label: 'feed',
+        value: feedName
+      }
+    }
+
+    // Handle FQDN context menu action clicks
     const onCtxMenuAction = async ({ actionName, domain }) => {
       if (actionName === 'Allow') {
         const result = await smartAllow(domain, ctxMenu.value.feed)
@@ -256,6 +329,15 @@ export default {
         } else if (result.action === 'error') {
           emit('show-info', result.error || 'Error performing allow action', 3)
         }
+      } else if (actionName === 'Filter by request') {
+        localFilter.value = 'fqdn=' + domain
+      }
+    }
+
+    // Handle column filter menu action clicks
+    const onColMenuAction = ({ actionName }) => {
+      if (actionName.startsWith('Filter by ')) {
+        localFilter.value = colMenu.value.field + '=' + colMenu.value.value
       }
     }
 
@@ -412,7 +494,8 @@ export default {
       hits_select_fields, tableItems, isLoading, period_options,
       autoRefreshEnabled, showCustomPicker, customPeriodStart, customPeriodEnd,
       customPeriodStartDate, customPeriodEndDate,
-      ctxMenu, ctxMenuActions, openContextMenu, onCtxMenuAction,
+      ctxMenu, ctxMenuActions, openContextMenu, onCtxMenuAction, extractFeedFromRule,
+      colMenu, colMenuActions, openColMenu, openFeedFilterMenu, onColMenuAction,
       refreshTable, onPeriodChange, selectPeriod, switchStats, selectLtype, filterBy, extractRuleDomain,
       allowDomain, allowRule, formatDate, sortBy: sortByField, onCustomPeriodApply, onCustomPeriodCancel
     }

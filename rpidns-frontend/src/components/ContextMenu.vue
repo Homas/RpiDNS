@@ -13,13 +13,14 @@
       {{ domain }}
     </div>
 
-    <div class="context-menu-divider"></div>
+    <div v-if="showResearch" class="context-menu-divider"></div>
 
     <!-- Research Section -->
-    <div class="context-menu-section-label">
+    <div v-if="showResearch" class="context-menu-section-label">
       <i class="fas fa-search fa-sm"></i>&nbsp;Research
     </div>
     <a
+      v-if="showResearch"
       v-for="link in researchUrls"
       :key="link.name"
       :href="link.url"
@@ -33,7 +34,10 @@
 
     <div class="context-menu-divider"></div>
 
-    <!-- Action Buttons -->
+    <!-- Actions Section -->
+    <div class="context-menu-section-label">
+      <i class="fas fa-mouse-pointer fa-sm"></i>&nbsp;Actions
+    </div>
     <button
       v-for="action in actions"
       :key="action.label"
@@ -75,6 +79,10 @@ export default {
       type: Array,
       default: () => [],
       validator: (value) => value.every(a => typeof a.label === 'string')
+    },
+    showResearch: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['update:visible', 'action'],
