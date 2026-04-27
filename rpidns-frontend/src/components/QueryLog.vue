@@ -156,7 +156,7 @@
               <BTbody>
                 <BTr v-for="item in tableItems" :key="item.rowid">
                   <BTd v-if="query_ltype === 'logs'">{{ formatDate(item.dtz) }}</BTd>
-                  <BTd class="mw200 d-none d-sm-table-cell" @contextmenu.prevent="openColMenu($event, 'cname', 'client', item.cname)">
+                  <BTd class="mw200 d-none d-sm-table-cell" @contextmenu.prevent="openColMenu($event, 'client_ip', 'client', item.cname)">
                     <span v-b-tooltip.hover :title="`Mac: ${item.mac || ''}\nIP: ${item.client_ip || ''}\nVendor: ${item.vendor || ''}`">
                       {{ item.cname }}
                     </span>
