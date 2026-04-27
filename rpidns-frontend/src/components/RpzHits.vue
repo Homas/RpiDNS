@@ -367,7 +367,7 @@ export default {
       let url = '/rpi_admin/rpidata.php?req=hits_raw' +
         '&period=' + localPeriod.value +
         '&cp=' + hits_cp.value +
-        '&filter=' + localFilter.value +
+        '&filter=' + encodeURIComponent(localFilter.value) +
         '&pp=' + hits_pp.value +
         '&ltype=' + hits_ltype.value +
         '&fields=' + hits_select_fields.value.join(',') +

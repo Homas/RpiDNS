@@ -360,7 +360,7 @@ export default {
       let url = '/rpi_admin/rpidata.php?req=queries_raw' +
         '&period=' + localPeriod.value +
         '&cp=' + qlogs_cp.value +
-        '&filter=' + localFilter.value +
+        '&filter=' + encodeURIComponent(localFilter.value) +
         '&pp=' + qlogs_pp.value +
         '&ltype=' + query_ltype.value +
         '&fields=' + qlogs_select_fields.value.join(',') +
