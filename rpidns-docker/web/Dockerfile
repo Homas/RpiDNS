@@ -108,6 +108,9 @@ COPY www/rpi_admin/db_migrate.php /opt/rpidns/www/rpi_admin/db_migrate.php
 COPY www/rpi_admin/BindConfigManager.php /opt/rpidns/www/rpi_admin/BindConfigManager.php
 COPY www/blocked /opt/rpidns/www/blocked
 COPY scripts /opt/rpidns/scripts
+# Pristine copy of the scripts, kept outside the bind-mounted path so the
+# entrypoint can refresh the (possibly host-mounted) scripts dir on startup.
+COPY scripts /opt/rpidns/scripts.dist
 
 # Set ownership
 RUN chown -R www-data:www-data /opt/rpidns \
@@ -145,5 +148,9 @@ ENV RPIDNS_HOSTNAME="rpidns.local"
 ENV RPIDNS_LOGGING="local"
 ENV RPIDNS_LOGGING_HOST=""
 ENV PHP_FPM_VERSION="84"
+# When "true" (default), the entrypoint refreshes the bind-mounted
+# /opt/rpidns/scripts from the image's bundled copy on every start.
+# Set to "false" to preserve manually customized host scripts.
+ENV RPIDNS_SYNC_SCRIPTS="true"
 
 ENTRYPOINT ["/entrypoint.sh"]

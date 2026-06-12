@@ -115,6 +115,7 @@ Docker Compose reads a `.env` file (placed alongside `docker-compose.yml`) to su
 | `RPIDNS_LOGGING` | `local` | Bind, Web | Logging mode. `local` — the Web container receives syslog from the Bind container over TCP port 10514 (default). `forward` — logs are forwarded to an external syslog host specified by `RPIDNS_LOGGING_HOST`. |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Bind, Web | Syslog destination hostname/IP when `RPIDNS_LOGGING=forward`. The Bind container forwards `local4` facility logs to this host on port 10514. Ignored when `RPIDNS_LOGGING=local`. |
 | `PHP_FPM_VERSION` | `84` | Web | PHP-FPM binary version suffix. The Web container runs `php-fpm${PHP_FPM_VERSION}` (e.g., `php-fpm84` for PHP 8.4). |
+| `RPIDNS_SYNC_SCRIPTS` | `true` | Web | When `true`, the entrypoint refreshes the bind-mounted `/opt/rpidns/scripts` from the image's bundled copy on startup. Set to `false` to preserve customized host scripts. |
 
 ### How Variables Affect Container Behavior
 
@@ -130,6 +131,7 @@ Docker Compose reads a `.env` file (placed alongside `docker-compose.yml`) to su
   - `local` (default): rsyslog listens on TCP port 10514 to receive logs from the Bind container and writes them to per-source-IP log files.
   - `forward`: rsyslog forwards `local4` logs to `RPIDNS_LOGGING_HOST:10514` instead of receiving them.
 - `PHP_FPM_VERSION` — determines which PHP-FPM binary is started (e.g., `php-fpm84`).
+- `RPIDNS_SYNC_SCRIPTS` — when `true` (default), the Web entrypoint copies the image's bundled maintenance scripts from `/opt/rpidns/scripts.dist` into the (typically bind-mounted) `/opt/rpidns/scripts` on startup, so container image updates also refresh the scripts. Set to `false` to keep manually customized host scripts.
 
 ### Example `.env` File
 
@@ -138,7 +140,7 @@ RPIDNS_HOSTNAME=dns.example.com
 RPIDNS_DNS_TYPE=primary
 RPIDNS_DNS_IPNET=10.0.0.0/8
 RPIDNS_LOGGING=local
-PHP_FPM_VERSION=83
+PHP_FPM_VERSION=84
 ```
 
 See [Docker Deployment Documentation](./docker-deployment.md) for the full `docker-compose.yml` reference.

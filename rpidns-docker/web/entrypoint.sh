@@ -142,6 +142,20 @@ mkdir -p /run/openresty
 mkdir -p /opt/rpidns/logs/nginx
 mkdir -p /opt/rpidns/www/db
 
+### Sync bundled maintenance scripts
+# The scripts directory is normally bind-mounted from the host so it can be
+# inspected/edited. Refresh it from the image's pristine copy on every start so
+# that pulling a newer container image also updates the scripts, independently
+# of the main installation script. Disable with RPIDNS_SYNC_SCRIPTS=false.
+if [ "${RPIDNS_SYNC_SCRIPTS:-true}" = "true" ] && [ -d /opt/rpidns/scripts.dist ]; then
+    echo "Syncing maintenance scripts from image (/opt/rpidns/scripts.dist -> /opt/rpidns/scripts)..."
+    mkdir -p /opt/rpidns/scripts
+    cp -af /opt/rpidns/scripts.dist/. /opt/rpidns/scripts/
+else
+    echo "Skipping maintenance script sync (RPIDNS_SYNC_SCRIPTS=${RPIDNS_SYNC_SCRIPTS:-true})."
+fi
+### End Sync scripts
+
 ### Init DB
 DB_VERSION=0
 if [ -f /opt/rpidns/www/db/rpidns.sqlite ]; then

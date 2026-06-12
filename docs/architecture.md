@@ -272,7 +272,7 @@ Both containers share a common set of environment variables configured via the `
 | `RPIDNS_DNS_IPNET` | `192.168.0.0/16` | Bind | Allowed client network for DNS queries (ACL) |
 | `RPIDNS_LOGGING` | `local` | Bind, Web | Logging mode: `local` (receive logs) or `forward` (send to remote) |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Bind, Web | Remote syslog host for forward mode |
-| `PHP_FPM_VERSION` | `83` | Web | PHP-FPM version identifier |
+| `PHP_FPM_VERSION` | `84` | Web | PHP-FPM version identifier |
 
 ## Related Documentation
 

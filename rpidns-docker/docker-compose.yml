@@ -71,7 +71,7 @@ services:
       - RPIDNS_HOSTNAME=${RPIDNS_HOSTNAME:-rpidns.local}
       - RPIDNS_LOGGING=${RPIDNS_LOGGING:-local}
       - RPIDNS_LOGGING_HOST=${RPIDNS_LOGGING_HOST:-}
-      - PHP_FPM_VERSION=${PHP_FPM_VERSION:-83}
+      - PHP_FPM_VERSION=${PHP_FPM_VERSION:-84}
     depends_on:
       bind:
         condition: service_healthy

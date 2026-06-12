@@ -224,7 +224,8 @@ For details on the PHP scripts, see [Scripts](./scripts.md).
 | `RPIDNS_HOSTNAME` | `rpidns.local` | Hostname used for SSL certificate CN |
 | `RPIDNS_LOGGING` | `local` | Logging mode: `local` (receive logs) or `forward` (send logs) |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Remote syslog host for forward mode |
-| `PHP_FPM_VERSION` | `83` | PHP-FPM version identifier |
+| `PHP_FPM_VERSION` | `84` | PHP-FPM version identifier |
+| `RPIDNS_SYNC_SCRIPTS` | `true` | Refresh bind-mounted `/opt/rpidns/scripts` from the image on startup |
 
 ## Docker Compose Configuration
 
@@ -308,7 +309,8 @@ All environment variables support defaults via the `${VAR:-default}` syntax and 
 | `RPIDNS_DNS_IPNET` | `192.168.0.0/16` | Bind | Allowed IP network |
 | `RPIDNS_LOGGING` | `local` | Both | Logging mode (`local` or `forward`) |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Both | Remote syslog host |
-| `PHP_FPM_VERSION` | `83` | Web | PHP-FPM version |
+| `PHP_FPM_VERSION` | `84` | Web | PHP-FPM version |
+| `RPIDNS_SYNC_SCRIPTS` | `true` | Web | Refresh bind-mounted scripts dir from the image on startup |
 
 ### Deployment Quick Start
 
