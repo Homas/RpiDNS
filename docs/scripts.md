@@ -11,6 +11,7 @@ RpiDNS includes shell and PHP scripts in the `scripts/` directory for installati
 | `init_db.php` | PHP | Database initialization and default admin user creation |
 | `parse_bind_logs.php` | PHP | BIND log parsing, data aggregation, asset tracking |
 | `clean_db.php` | PHP | Retention-based data cleanup |
+| `expire_iocs.php` | PHP | Auto-disables expired local indicators and removes them from BIND RPZ zones |
 | `import_db.php` | PHP | Database import, schema upgrade, RPZ provisioning |
 
 ---
@@ -33,7 +34,7 @@ Installs RpiDNS on a Raspbian (Debian-based) system. Handles system dependency i
 
 1. **System dependencies** — Installs `php-fpm`, `sqlite3`, `php-sqlite3`, `curl`, `ca-certificates`, `gnupg`, and `file` via `apt-get`.
 
-2. **Node.js installation** — Adds the NodeSource repository (Node.js 20 LTS) and installs `nodejs`. Verifies the installation by checking common binary paths (`/usr/bin/node`, `/usr/local/bin/node`, `/opt/nodejs/bin/node`).
+2. **Node.js installation** — Adds the NodeSource repository (Node.js 24 LTS) and installs `nodejs`. Verifies the installation by checking common binary paths (`/usr/bin/node`, `/usr/local/bin/node`, `/opt/nodejs/bin/node`).
 
 3. **Database initialization** — Creates the database directory at `/opt/rpidns/www/db/`, sets ownership to `$SUDO_USER:www-data` with appropriate permissions, and runs `init_db.php` to create the schema and default admin user.
 
@@ -80,7 +81,7 @@ Installs RpiDNS on OpenWrt routers. This is a legacy variant of the installation
 |--------|-------------------------------|---------------------------------------|
 | Package manager | `apt-get` | `opkg` |
 | PHP binary | `/usr/bin/php` | `/usr/bin/php-cli` |
-| PHP version | PHP 8.3 | PHP 7 (`php7`, `php7-cgi`, `php7-mod-sqlite3`) |
+| PHP version | PHP 8.4 | PHP 7 (`php7`, `php7-cgi`, `php7-mod-sqlite3`) |
 | Web server | Nginx/OpenResty (via Docker) | `uhttpd` (OpenWrt built-in) |
 | Frontend build | Vite build via npm | CDN downloads (Vue 2, Bootstrap Vue, Axios, ApexCharts, FontAwesome) |
 | Install path | `/opt/rpidns` | `/opt/rpidns` (with symlinks to `/www`) |

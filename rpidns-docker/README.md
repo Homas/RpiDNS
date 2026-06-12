@@ -28,14 +28,14 @@ The deployment consists of two containers:
 ```
 
 ### Bind Container
-- **Base Image**: Alpine Linux 3.21
+- **Base Image**: Alpine Linux 3.24
 - **Purpose**: DNS resolution with RPZ (Response Policy Zone) blocking
 - **Packages**: bind, bind-tools, rsyslog, bash
 
 ### Web Container
-- **Base Image**: Alpine Linux 3.21
+- **Base Image**: Alpine Linux 3.24
 - **Purpose**: Web UI for RpiDNS management, log collection
-- **Packages**: openresty, php83-fpm, php83-sqlite3, rsyslog, dcron, git, openssl
+- **Packages**: openresty, php84-fpm, php84-sqlite3, rsyslog, dcron, git, openssl
 
 ## Quick Start
 
@@ -101,7 +101,7 @@ open http://localhost
 | `RPIDNS_HOSTNAME` | `rpidns.local` | Hostname for the RpiDNS instance |
 | `RPIDNS_LOGGING` | `local` | Logging mode: `local` or `forward` |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Remote syslog host (when `RPIDNS_LOGGING=forward`) |
-| `PHP_FPM_VERSION` | `83` | PHP-FPM version (default: PHP 8.3) |
+| `PHP_FPM_VERSION` | `84` | PHP-FPM version (default: PHP 8.4) |
 | `RPIDNS_ADMIN_PASSWORD` | *(auto-generated)* | Admin password for web UI |
 
 

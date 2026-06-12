@@ -114,7 +114,7 @@ Docker Compose reads a `.env` file (placed alongside `docker-compose.yml`) to su
 | `RPIDNS_DNS_IPNET` | `192.168.0.0/16` | Bind | IP network range allowed to query the DNS server. Used in the BIND `named.conf` ACL to restrict recursive queries to trusted clients. |
 | `RPIDNS_LOGGING` | `local` | Bind, Web | Logging mode. `local` — the Web container receives syslog from the Bind container over TCP port 10514 (default). `forward` — logs are forwarded to an external syslog host specified by `RPIDNS_LOGGING_HOST`. |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Bind, Web | Syslog destination hostname/IP when `RPIDNS_LOGGING=forward`. The Bind container forwards `local4` facility logs to this host on port 10514. Ignored when `RPIDNS_LOGGING=local`. |
-| `PHP_FPM_VERSION` | `83` | Web | PHP-FPM binary version suffix. The Web container runs `php-fpm${PHP_FPM_VERSION}` (e.g., `php-fpm83` for PHP 8.3). |
+| `PHP_FPM_VERSION` | `84` | Web | PHP-FPM binary version suffix. The Web container runs `php-fpm${PHP_FPM_VERSION}` (e.g., `php-fpm84` for PHP 8.4). |
 
 ### How Variables Affect Container Behavior
 
@@ -129,7 +129,7 @@ Docker Compose reads a `.env` file (placed alongside `docker-compose.yml`) to su
 - `RPIDNS_LOGGING` — controls rsyslog configuration at startup:
   - `local` (default): rsyslog listens on TCP port 10514 to receive logs from the Bind container and writes them to per-source-IP log files.
   - `forward`: rsyslog forwards `local4` logs to `RPIDNS_LOGGING_HOST:10514` instead of receiving them.
-- `PHP_FPM_VERSION` — determines which PHP-FPM binary is started (e.g., `php-fpm83`).
+- `PHP_FPM_VERSION` — determines which PHP-FPM binary is started (e.g., `php-fpm84`).
 
 ### Example `.env` File
 

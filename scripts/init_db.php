@@ -66,7 +66,7 @@ function initSQLiteDB($DBF){
 			 "create index if not exists assets_name on assets(name);\n".
 			 "create index if not exists assets_address on assets(address);\n".
 
-		   "create table if not exists localzone (ioc text, type text, ltype text, comment text, active boolean, subdomains boolean, added_dt integer, provisioned text, unique(ioc));\n".
+		   "create table if not exists localzone (ioc text, type text, ltype text, comment text, active boolean, subdomains boolean, added_dt integer, provisioned text, expires_dt integer, unique(ioc));\n".
 			 "create index if not exists assets_itype on localzone(ltype);\n".
 
        // Authentication tables (v2)

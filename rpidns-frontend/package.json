@@ -22,19 +22,19 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@fortawesome/fontawesome-free": "^7.1.0",
+    "@fortawesome/fontawesome-free": "^7.2.0",
     "@popperjs/core": "^2.11.8",
-    "@vitejs/plugin-vue": "^6.0.3",
-    "apexcharts": "^5.3.6",
-    "axios": "^1.15.0",
-    "bootstrap": "^5.3.6",
-    "bootstrap-vue-next": "^0.42.0",
-    "vite": "^7.3.2",
-    "vue": "^3.5.17",
-    "vue3-apexcharts": "^1.8.0"
+    "@vitejs/plugin-vue": "^6.0.7",
+    "apexcharts": "^5.15.0",
+    "axios": "^1.17.0",
+    "bootstrap": "^5.3.8",
+    "bootstrap-vue-next": "^0.45.5",
+    "vite": "^8.0.16",
+    "vue": "^3.5.38",
+    "vue3-apexcharts": "^1.11.1"
   },
   "devDependencies": {
-    "fast-check": "^4.5.2",
-    "vitest": "^3.2.4"
+    "fast-check": "^4.8.0",
+    "vitest": "^4.1.8"
   }
 }

@@ -1,6 +1,6 @@
 # RpiDNS Bind Container
 # ISC Bind9 DNS server with RPZ support
-FROM alpine:3.21
+FROM alpine:3.24
 
 LABEL maintainer="Vadim Pavlov"
 LABEL description="ISC Bind9 DNS server with RPZ support for RpiDNS"

@@ -17,7 +17,7 @@ The containers communicate over a dedicated Docker bridge network (`rpidns-net`)
 
 **File:** `rpidns-docker/bind/Dockerfile`
 
-The Bind container is built on Alpine 3.21 and installs:
+The Bind container is built on Alpine 3.24 and installs:
 
 | Package | Purpose |
 |---------|---------|
@@ -96,12 +96,12 @@ A minimal SOA zone template used to initialize local zones (allow, block, allow-
 
 The Web container uses a multi-stage build:
 
-**Stage 1 — Frontend Builder** (Node 20 Alpine):
+**Stage 1 — Frontend Builder** (Node 24 Alpine):
 - Installs npm dependencies from `rpidns-frontend/package*.json`
 - Builds production frontend assets with Vite (`npm run build`)
 - Output: compiled static files in `/build/dist`
 
-**Stage 2 — Final Image** (Alpine 3.21):
+**Stage 2 — Final Image** (Alpine 3.24):
 
 Installed packages:
 
@@ -109,9 +109,9 @@ Installed packages:
 |---------|---------|
 | `openresty` | Nginx with Lua support for dynamic SSL |
 | `lua-resty-openssl`, `lua-resty-lock` | Lua libraries for SSL certificate generation |
-| `php83`, `php83-fpm` | PHP 8.3 with FastCGI Process Manager |
-| `php83-sqlite3`, `php83-pdo_sqlite` | SQLite database access |
-| `php83-openssl`, `php83-session`, `php83-json`, `php83-curl` | PHP extensions |
+| `php84`, `php84-fpm` | PHP 8.4 with FastCGI Process Manager |
+| `php84-sqlite3`, `php84-pdo_sqlite` | SQLite database access |
+| `php84-openssl`, `php84-session`, `php84-json`, `php84-curl` | PHP extensions |
 | `rsyslog` | Syslog reception from Bind container |
 | `dcron` | Cron daemon for scheduled tasks |
 | `sqlite` | SQLite CLI for VACUUM operations |
@@ -157,7 +157,7 @@ The entrypoint performs the following initialization sequence:
 6. **Service startup** (in order):
    - `rsyslogd` — syslog daemon
    - `crond` — cron daemon (background)
-   - `php-fpm83` — PHP FastCGI (daemon mode)
+   - `php-fpm84` — PHP FastCGI (daemon mode)
    - `nginx` — OpenResty in foreground (`daemon off`)
 
 ### Nginx Configuration
@@ -348,14 +348,14 @@ The `containers/` directory contains an older multi-container architecture that 
 | `docker-compose.yml` | *(all)* | Orchestration for all five containers |
 | `rpidns_provisioning.sh` | `RpiDNS_provisioning` | BIND config generation and zone provisioning |
 
-The legacy `docker-compose.yml` also used the official `internetsystemsconsortium/bind9:9.18` image for the Bind container and host-path volumes under `/opt/rpidns/`.
+The legacy `docker-compose.yml` also used the official `internetsystemsconsortium/bind9:9.20` image for the Bind container and host-path volumes under `/opt/rpidns/`.
 
 **Key differences from the current `rpidns-docker/` deployment:**
 
 | Aspect | Legacy (`containers/`) | Current (`rpidns-docker/`) |
 |--------|----------------------|---------------------------|
 | Container count | 5 (provisioning, bind, openresty, rsyslog, cron) | 2 (bind, web) |
-| BIND image | `internetsystemsconsortium/bind9:9.18` | Custom Alpine-based `rpidns-bind` |
+| BIND image | `internetsystemsconsortium/bind9:9.20` | Custom Alpine-based `rpidns-bind` |
 | Web server | Separate OpenResty container | Integrated in Web container |
 | Syslog | Separate rsyslog container | Integrated in Web container |
 | Cron | Separate cron container | Integrated in Web container |

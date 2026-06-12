@@ -42,6 +42,7 @@
               <BTh class="width050 d-none d-md-table-cell"></BTh>
               <BTh>Domain/IP</BTh>
               <BTh class="d-none d-md-table-cell">Added</BTh>
+              <BTh class="d-none d-lg-table-cell">Expires</BTh>
               <BTh class="d-none d-md-table-cell">Active</BTh>
               <BTh class="d-none d-md-table-cell">*.</BTh>
               <BTh class="d-none d-lg-table-cell">Comment</BTh>
@@ -54,6 +55,7 @@
               </BTd>
               <BTd class="mw150">{{ item.ioc }}</BTd>
               <BTd class="width250 d-none d-md-table-cell">{{ formatDate(item.dtz) }}</BTd>
+              <BTd class="width250 d-none d-lg-table-cell">{{ formatExpires(item.expires_dt) }}</BTd>
               <BTd class="width050 d-none d-md-table-cell" @click="toggleIOC(item.rowid, 'active')">
                 <i v-if="item.active == '1'" class="fas fa-toggle-on fa-lg"></i>
                 <i v-else class="fas fa-toggle-off fa-lg"></i>
@@ -113,9 +115,14 @@ export default {
 
     const refreshTable = () => { fetchData() }
     const formatDate = (value) => { const date = new Date(value); return date.toLocaleString() }
+    const formatExpires = (value) => {
+      const epoch = Number(value)
+      if (!epoch || epoch <= 0) return 'Permanent'
+      return new Date(epoch * 1000).toLocaleString()
+    }
 
     const openAddModal = () => {
-      emit('add-ioc', { mode: 'add', ioc: '', type: 'wl', comment: '', active: true, subdomains: true, rowid: 0 })
+      emit('add-ioc', { mode: 'add', ioc: '', type: 'wl', comment: '', active: true, subdomains: true, expires_dt: 0, rowid: 0 })
     }
 
     const openEditModal = () => {
@@ -123,7 +130,8 @@ export default {
         emit('add-ioc', {
           mode: 'edit', ioc: wl_selected.value.ioc, type: 'wl',
           comment: wl_selected.value.comment, active: wl_selected.value.active === 1,
-          subdomains: wl_selected.value.subdomains === 1, rowid: wl_selected.value.rowid
+          subdomains: wl_selected.value.subdomains === 1,
+          expires_dt: wl_selected.value.expires_dt, rowid: wl_selected.value.rowid
         })
       }
     }
@@ -171,7 +179,7 @@ export default {
 
     return {
       wl_Filter, wl_selected, filteredItems, isLoading,
-      refreshTable, formatDate, openAddModal, openEditModal, confirmDelete, toggleIOC
+      refreshTable, formatDate, formatExpires, openAddModal, openEditModal, confirmDelete, toggleIOC
     }
   }
 }

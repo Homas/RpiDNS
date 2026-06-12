@@ -785,7 +785,7 @@ RpiDNS powered by https://ioc2rpz.net
     case "GET blacklist":
     case "GET whitelist":
 			$list=$REQUEST["req"]=='blacklist'?'block':'allow';
-			$sql="select rowid, strftime('%Y-%m-%dT%H:%M:%SZ',added_dt, 'unixepoch', 'utc') as dtz, ioc, comment, subdomains, active from localzone where ltype='$list';";
+			$sql="select rowid, strftime('%Y-%m-%dT%H:%M:%SZ',added_dt, 'unixepoch', 'utc') as dtz, ioc, comment, subdomains, active, expires_dt from localzone where ltype='$list';";
 			$sql_count="select count(rowid) as cnt from localzone where ltype='$list';";
 			$response='{"status":"ok", "records":"'.(DB_fetchRecord($db,$sql_count)['cnt']).'","data":'.json_encode(DB_selectArray($db,$sql)).'}';
       break;
@@ -794,7 +794,8 @@ RpiDNS powered by https://ioc2rpz.net
     case "POST whitelist":
 			$list=$REQUEST["req"]=='blacklist'?'block':'allow';
 			$ioc=filter_var($REQUEST['ioc'], FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME);
-      $sql="insert into localzone(ioc, active, subdomains, comment, added_dt, ltype) values('".DB_escape($db,$ioc)."',".($REQUEST['active']=='true'?'true':'false').",".($REQUEST['subdomains']=='true'?'true':'false').",'".DB_escape($db,$REQUEST['comment'])."',".time().",'$list')";
+			$expires=isset($REQUEST['expires_dt'])?intval($REQUEST['expires_dt']):0;
+      $sql="insert into localzone(ioc, active, subdomains, comment, added_dt, expires_dt, ltype) values('".DB_escape($db,$ioc)."',".($REQUEST['active']=='true'?'true':'false').",".($REQUEST['subdomains']=='true'?'true':'false').",'".DB_escape($db,$REQUEST['comment'])."',".time().",".$expires.",'$list')";
       if (DB_execute($db,$sql)) {
 				$out=[];
 				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
@@ -805,9 +806,10 @@ RpiDNS powered by https://ioc2rpz.net
     case "PUT blacklist":
     case "PUT whitelist":
 			$list=$REQUEST["req"]=='blacklist'?'block':'allow';
-			$rec=DB_fetchRecord($db,"select ioc,active,subdomains from localzone where rowid=".intval($REQUEST['id']));
+			$rec=DB_fetchRecord($db,"select ioc,active,subdomains,expires_dt from localzone where rowid=".intval($REQUEST['id']));
 			$ioc=filter_var($REQUEST['ioc'], FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME);
-      $sql="update localzone set ioc='".DB_escape($db,$ioc)."', active=".($REQUEST['active']=='true'?'true':'false').", subdomains=".($REQUEST['subdomains']=='true'?'true':'false').", comment='".DB_escape($db,$REQUEST['comment'])."' where rowid=".intval($REQUEST['id']);
+			$expires=isset($REQUEST['expires_dt'])?intval($REQUEST['expires_dt']):intval($rec['expires_dt']);
+      $sql="update localzone set ioc='".DB_escape($db,$ioc)."', active=".($REQUEST['active']=='true'?'true':'false').", subdomains=".($REQUEST['subdomains']=='true'?'true':'false').", comment='".DB_escape($db,$REQUEST['comment'])."', expires_dt=".$expires." where rowid=".intval($REQUEST['id']);
       if (DB_execute($db,$sql)) {
 				$response='{"status":"success"}';
 				$out=[];

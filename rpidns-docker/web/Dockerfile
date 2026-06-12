@@ -5,7 +5,7 @@
 #############################
 # Stage 1: Build Frontend
 #############################
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 
 LABEL maintainer="Vadim Pavlov"
 LABEL description="Frontend build stage for RpiDNS"
@@ -27,28 +27,28 @@ RUN npm run build
 #############################
 # Stage 2: Final Image
 #############################
-FROM alpine:3.21
+FROM alpine:3.24
 
 LABEL maintainer="Vadim Pavlov"
 LABEL description="OpenResty web server with PHP-FPM and RSyslog for RpiDNS"
 
 # Enable community repository for openresty
-RUN echo "http://dl-cdn.alpinelinux.org/alpine/v3.21/community" >> /etc/apk/repositories
+RUN echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/community" >> /etc/apk/repositories
 
 # Install required packages
 RUN apk add --no-cache \
     openresty \
     lua-resty-openssl \
     lua-resty-lock \
-    php83 \
-    php83-fpm \
-    php83-sqlite3 \
-    php83-openssl \
-    php83-session \
-    php83-pdo \
-    php83-pdo_sqlite \
-    php83-json \
-    php83-curl \
+    php84 \
+    php84-fpm \
+    php84-sqlite3 \
+    php84-openssl \
+    php84-session \
+    php84-pdo \
+    php84-pdo_sqlite \
+    php84-json \
+    php84-curl \
     rsyslog \
     dcron \
     git \
@@ -68,14 +68,14 @@ RUN addgroup -g 82 -S www-data 2>/dev/null || true \
     && adduser -u 82 -D -S -G www-data www-data 2>/dev/null || true
 
 # Configure php-fpm to run as www-data
-RUN sed -i 's/^user = .*/user = www-data/' /etc/php83/php-fpm.d/www.conf \
-    && sed -i 's/^group = .*/group = www-data/' /etc/php83/php-fpm.d/www.conf
+RUN sed -i 's/^user = .*/user = www-data/' /etc/php84/php-fpm.d/www.conf \
+    && sed -i 's/^group = .*/group = www-data/' /etc/php84/php-fpm.d/www.conf
 
 # Configure PHP upload limits for large DB imports
-RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 512M/' /etc/php83/php.ini \
-    && sed -i 's/post_max_size = .*/post_max_size = 512M/' /etc/php83/php.ini \
-    && sed -i 's/max_execution_time = .*/max_execution_time = 600/' /etc/php83/php.ini \
-    && sed -i 's/memory_limit = .*/memory_limit = 512M/' /etc/php83/php.ini
+RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 512M/' /etc/php84/php.ini \
+    && sed -i 's/post_max_size = .*/post_max_size = 512M/' /etc/php84/php.ini \
+    && sed -i 's/max_execution_time = .*/max_execution_time = 600/' /etc/php84/php.ini \
+    && sed -i 's/memory_limit = .*/memory_limit = 512M/' /etc/php84/php.ini
 
 # Create directory structure
 RUN mkdir -p /opt/rpidns/www \
@@ -141,6 +141,6 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
 ENV RPIDNS_HOSTNAME="rpidns.local"
 ENV RPIDNS_LOGGING="local"
 ENV RPIDNS_LOGGING_HOST=""
-ENV PHP_FPM_VERSION="83"
+ENV PHP_FPM_VERSION="84"
 
 ENTRYPOINT ["/entrypoint.sh"]

@@ -9,10 +9,15 @@ function upgrade_db($import_db_file){
   $sql="";
   switch ($db_version) {
       case 0:
-        $sql.="PRAGMA user_version=".DBVersion.";";
         $sql.="alter table localzone add provisioned text;";
+        // fall through
+      case 1:
+      case 2:
+        $sql.="alter table localzone add expires_dt integer;";
+        // fall through
   };
   if ($db_version != DBVersion){
+    $sql.="PRAGMA user_version=".DBVersion.";";
     echo "Upgrading DB from version $db_version to ".DBVersion."\n";
     DB_execute($db,$sql);
   };
@@ -58,7 +63,7 @@ function importSQLiteDB($master_db_file,$import_db_file, $objects){
       break;
       case "bl":
       case "block":
-        $sql="INSERT INTO localzone(ioc, type, ltype, comment, active, subdomains, added_dt, provisioned) SELECT ioc, type, 'block', comment, active, subdomains, added_dt, provisioned FROM db_import.localzone WHERE (ltype='bl' or ltype='block') ON CONFLICT DO NOTHING;";
+        $sql="INSERT INTO localzone(ioc, type, ltype, comment, active, subdomains, added_dt, provisioned, expires_dt) SELECT ioc, type, 'block', comment, active, subdomains, added_dt, provisioned, expires_dt FROM db_import.localzone WHERE (ltype='bl' or ltype='block') ON CONFLICT DO NOTHING;";
         DB_execute($db,$sql);
         $sql="select * from localzone where ltype='block' and active='1';";
         DB_execute($db,$sql);
@@ -69,7 +74,7 @@ function importSQLiteDB($master_db_file,$import_db_file, $objects){
       break;
       case "wl":
       case "allow":
-        $sql="INSERT INTO localzone(ioc, type, ltype, comment, active, subdomains, added_dt, provisioned) SELECT ioc, type, 'allow', comment, active, subdomains, added_dt, provisioned FROM db_import.localzone WHERE (ltype='wl' or ltype='allow') ON CONFLICT DO NOTHING;";
+        $sql="INSERT INTO localzone(ioc, type, ltype, comment, active, subdomains, added_dt, provisioned, expires_dt) SELECT ioc, type, 'allow', comment, active, subdomains, added_dt, provisioned, expires_dt FROM db_import.localzone WHERE (ltype='wl' or ltype='allow') ON CONFLICT DO NOTHING;";
         DB_execute($db,$sql);
         $sql="select * from localzone where ltype='allow' and active='1';";
         DB_execute($db,$sql);

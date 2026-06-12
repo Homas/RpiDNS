@@ -116,6 +116,7 @@ Local block/allow list entries provisioned as RPZ records into BIND via `nsupdat
 | `subdomains` | BOOLEAN | Whether to include all subdomains |
 | `added_dt` | INTEGER | Unix timestamp when the entry was added |
 | `provisioned` | TEXT | Provisioning status/timestamp |
+| `expires_dt` | INTEGER | Unix timestamp when the entry is auto-disabled (`0`/NULL = permanent). Added in schema v3 |
 
 ### Authentication Tables (Schema v2)
 

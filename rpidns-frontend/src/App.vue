@@ -208,6 +208,7 @@
       :comment="addIOCcomment"
       :active="addIOCactive"
       :subdomains="addIOCsubd"
+      :expires-dt="addIOCexpires"
       :rowid="addBLRowID"
       @show-info="showInfo"
       @refresh-table="refreshIOCTable"
@@ -351,6 +352,7 @@ export default {
     const addIOCcomment = ref('')
     const addIOCactive = ref(true)
     const addIOCsubd = ref(true)
+    const addIOCexpires = ref(0)
     const addBLRowID = ref(0)
 
     // Asset Modal state
@@ -438,6 +440,7 @@ export default {
       addBLRowID.value = data.rowid !== undefined ? data.rowid : 0
       addIOCactive.value = data.active !== undefined ? data.active : true
       addIOCsubd.value = data.subdomains !== undefined ? data.subdomains : true
+      addIOCexpires.value = data.expires_dt !== undefined ? Number(data.expires_dt) : 0
       nextTick(() => {
         if (addIOCModal.value) {
           addIOCModal.value.show()
@@ -727,6 +730,7 @@ export default {
       addIOCcomment,
       addIOCactive,
       addIOCsubd,
+      addIOCexpires,
       addBLRowID,
       addAssetAddr,
       addAssetName,

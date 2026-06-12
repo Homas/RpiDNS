@@ -19,8 +19,8 @@ The system integrates with ISC BIND DNS server and provides real-time visibility
 | Software | Version | Purpose |
 |----------|---------|---------|
 | Docker | Latest | Container deployment |
-| Node.js | 18+ | Frontend development and build |
-| PHP | 8.3 | Backend API and maintenance scripts |
+| Node.js | 20+ | Frontend development and build |
+| PHP | 8.4 | Backend API and maintenance scripts |
 
 ## Deployment Options
 
@@ -60,8 +60,8 @@ The container deployment provides a lightweight, portable way to run RpiDNS usin
 
 | Container | Base Image | Purpose | Key Packages |
 |-----------|------------|---------|--------------|
-| Bind | Alpine 3.21 | DNS resolution with RPZ blocking | bind, bind-tools, rsyslog |
-| Web | Alpine 3.21 | Web UI, log collection | openresty, php83-fpm, php83-sqlite3, rsyslog, dcron |
+| Bind | Alpine 3.24 | DNS resolution with RPZ blocking | bind, bind-tools, rsyslog |
+| Web | Alpine 3.24 | Web UI, log collection | openresty, php84-fpm, php84-sqlite3, rsyslog, dcron |
 
 ### Quick Start
 https://ioc2rpz.net community generate install scripts for container and non-container based deployments.
@@ -100,7 +100,7 @@ dig @localhost example.com
 | `RPIDNS_DNS_IPNET` | `192.168.0.0/16` | IP network for DNS ACL |
 | `RPIDNS_LOGGING` | `local` | Logging mode: `local` or `forward` |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Remote syslog host (when `forward` mode) |
-| `PHP_FPM_VERSION` | `83` | PHP-FPM version (default: PHP 8.3) |
+| `PHP_FPM_VERSION` | `84` | PHP-FPM version (default: PHP 8.4) |
 
 ### Exposed Ports
 
@@ -393,6 +393,7 @@ Access Research tools by hovering over domains in Dashboard widgets or reports.
 | `rpidns_install_openwrt.sh` | Installation script for OpenWrt |
 | `init_db.php` | Database initialization |
 | `clean_db.php` | Crontab script for DB cleanup |
+| `expire_iocs.php` | Crontab script that auto-disables expired local indicators |
 | `parse_bind_logs.php` | Parse bind logs, save to DB, aggregate data |
 | `import_db.php` | Database import with schema upgrade and RPZ provisioning |
 

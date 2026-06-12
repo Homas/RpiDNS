@@ -17,6 +17,9 @@
 # process the Bind's logs
 * * * * * 	/usr/bin/php /opt/rpidns/scripts/parse_bind_logs.php # >> /proc/1/fd/1 2>&1
 
+# Auto-disable expired local indicators (block/allow)
+* * * * * 	/usr/bin/php /opt/rpidns/scripts/expire_iocs.php # >> /proc/1/fd/1 2>&1
+
 # Clean up DB
 42 2 * * *	sleep 25;/usr/bin/php /opt/rpidns/scripts/clean_db.php
 

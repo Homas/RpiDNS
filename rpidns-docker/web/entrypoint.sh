@@ -264,7 +264,7 @@ crond -b -l 8
 
 # Start PHP-FPM
 echo "Starting PHP-FPM..."
-php-fpm83 -D
+php-fpm84 -D
 
 # Wait for PHP-FPM socket to be ready
 sleep 1

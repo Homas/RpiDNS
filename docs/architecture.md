@@ -37,7 +37,7 @@ RpiDNS uses two Docker containers orchestrated via `docker-compose.yml`:
   3. Generate self-signed SSL certificates, CA certificate, intermediate certificate, and fallback certificate if not present
   4. Initialize SQLite database via `init_db.php` if not already initialized (checks `PRAGMA user_version`)
   5. Configure rsyslog based on `RPIDNS_LOGGING` mode (local or forward)
-  6. Start rsyslog, cron, PHP-FPM (`php-fpm83`)
+  6. Start rsyslog, cron, PHP-FPM (`php-fpm84`)
   7. Start OpenResty (Nginx) in foreground
 
 ### Health Checks

@@ -5,7 +5,7 @@
 	define("DBFile", "rpidns.sqlite");
 	const DB="sqlite";
   const TMPDir="/tmp/rpidns";
-  const DBVersion=2;
+  const DBVersion=3;
   $bind_host="bind";
 	$filter_fields_q=['client_ip','fqdn','mac','type', 'class', 'server', 'options', 'action'];
 	$filter_fields_h=['client_ip','fqdn','mac','rule_type', 'rule', 'feed', 'action'];
