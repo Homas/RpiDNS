@@ -81,7 +81,7 @@ if [ ! -f "${SSL_SIGN_DIR}/ioc2rpzCA.crt" ]; then
 fi
 
 # Make CA cert downloadable (not secure but Ok for now)
-ln -s ${SSL_SIGN_DIR}/ioc2rpzCA.crt /opt/rpidns/www/ioc2rpzCA.crt
+ln -sf ${SSL_SIGN_DIR}/ioc2rpzCA.crt /opt/rpidns/www/ioc2rpzCA.crt
 
 # Generate Intermediate certificate if not present
 if [ ! -f "${SSL_SIGN_DIR}/ioc2rpzInt.crt" ]; then
@@ -150,7 +150,7 @@ fi
 
 if [ "$DB_VERSION" -gt 0 ]; then
     echo "/opt/rpidns/www/db/rpidns.sqlite exists and initialized (version: $DB_VERSION), checking for schema migrations."
-    /usr/bin/php /opt/rpidns/www/rpi_admin/db_migrate.php
+    /usr/bin/php /opt/rpidns/www/rpi_admin/db_migrate.php || echo "[entrypoint] WARNING: schema migration reported an error; continuing startup."
 else
     echo "Init DB"
     chmod 775 /opt/rpidns/www/db

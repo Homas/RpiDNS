@@ -71,6 +71,9 @@ RUN addgroup -g 82 -S www-data 2>/dev/null || true \
 RUN sed -i 's/^user = .*/user = www-data/' /etc/php84/php-fpm.d/www.conf \
     && sed -i 's/^group = .*/group = www-data/' /etc/php84/php-fpm.d/www.conf
 
+# Provide an unversioned `php` so scripts, cron, and migrations can call /usr/bin/php
+RUN ln -sf /usr/bin/php84 /usr/bin/php
+
 # Configure PHP upload limits for large DB imports
 RUN sed -i 's/upload_max_filesize = .*/upload_max_filesize = 512M/' /etc/php84/php.ini \
     && sed -i 's/post_max_size = .*/post_max_size = 512M/' /etc/php84/php.ini \
