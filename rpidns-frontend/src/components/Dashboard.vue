@@ -278,6 +278,7 @@ import { BPopover } from 'bootstrap-vue-next'
 import ResearchLinks from './ResearchLinks.vue'
 import CustomPeriodPicker from './CustomPeriodPicker.vue'
 import { useAutoRefresh } from '../composables/useAutoRefresh'
+import { useSmartActions } from '@/composables/useSmartActions'
 
 export default {
   name: 'Dashboard',
@@ -286,7 +287,7 @@ export default {
     BPopover,
     CustomPeriodPicker
   },
-  emits: ['navigate', 'add-ioc', 'custom-period-change'],
+  emits: ['navigate', 'add-ioc', 'custom-period-change', 'show-info'],
   props: {
     isActive: { type: Boolean, default: false },
     customStart: { type: Number, default: null },
@@ -478,8 +479,33 @@ export default {
     const onServerClick = (item) => { showQueries('server=' + item.fname) }
 
     // Block/Allow actions
-    const blockDomain = (domain) => { emit('add-ioc', { ioc: domain, type: 'bl' }) }
-    const allowDomain = (domain) => { emit('add-ioc', { ioc: domain, type: 'wl' }) }
+    const { smartBlock, smartAllow } = useSmartActions()
+
+    // Block: if the domain is in the allow list, remove it; otherwise open the
+    // Add Indicator modal pre-set to the block list (mirrors the Query Log behavior).
+    const blockDomain = async (domain) => {
+      const result = await smartBlock(domain)
+      if (result.action === 'removed') {
+        emit('show-info', `Removed "${domain}" from allow list`, 3)
+      } else if (result.action === 'add-ioc') {
+        emit('add-ioc', { ioc: domain, type: 'bl' })
+      } else if (result.action === 'error') {
+        emit('show-info', result.error || 'Error performing block action', 3)
+      }
+    }
+
+    // Allow: if the domain is in the block list, remove it; otherwise open the
+    // Add Indicator modal pre-set to the allow list.
+    const allowDomain = async (domain) => {
+      const result = await smartAllow(domain, 'block.ioc2rpz.rpidns')
+      if (result.action === 'removed') {
+        emit('show-info', `Removed "${domain}" from block list`, 3)
+      } else if (result.action === 'add-ioc') {
+        emit('add-ioc', { ioc: domain, type: 'wl' })
+      } else if (result.action === 'error') {
+        emit('show-info', result.error || 'Error performing allow action', 3)
+      }
+    }
 
     // Watch for custom period props from parent
     watch(() => props.customStart, (newVal) => { 

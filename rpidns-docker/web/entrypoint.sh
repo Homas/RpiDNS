@@ -149,7 +149,8 @@ if [ -f /opt/rpidns/www/db/rpidns.sqlite ]; then
 fi
 
 if [ "$DB_VERSION" -gt 0 ]; then
-    echo "/opt/rpidns/www/db/rpidns.sqlite exists and initialized (version: $DB_VERSION), skipping DB init."
+    echo "/opt/rpidns/www/db/rpidns.sqlite exists and initialized (version: $DB_VERSION), checking for schema migrations."
+    /usr/bin/php /opt/rpidns/www/rpi_admin/db_migrate.php
 else
     echo "Init DB"
     chmod 775 /opt/rpidns/www/db

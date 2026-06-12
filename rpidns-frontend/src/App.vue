@@ -92,6 +92,7 @@
             :custom-end="customPeriodEnd"
             @navigate="handleNavigate"
             @add-ioc="handleAddIOC"
+            @show-info="showInfo"
             @custom-period-change="handleCustomPeriodChange"
           />
         </BTab>

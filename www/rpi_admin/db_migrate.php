@@ -299,6 +299,39 @@ class DbMigration {
     }
     
     /**
+     * Migration from v2 to v3: Add expires_dt column to localzone for
+     * time-limited (TTL) allow/block indicators.
+     * @return array Result with status and message
+     */
+    protected function migrateV2ToV3() {
+        // Add the column only if it does not already exist
+        $hasColumn = false;
+        $result = $this->db->query("PRAGMA table_info(localzone)");
+        if ($result) {
+            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+                if ($row['name'] === 'expires_dt') {
+                    $hasColumn = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!$hasColumn) {
+            if (!$this->db->exec("ALTER TABLE localzone ADD COLUMN expires_dt INTEGER")) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Failed to add expires_dt column: ' . $this->db->lastErrorMsg()
+                ];
+            }
+        }
+        
+        return [
+            'status' => 'success',
+            'message' => 'Added expires_dt column to localzone'
+        ];
+    }
+    
+    /**
      * Create a default admin user with a random password
      * @return array Result with username and password
      */
