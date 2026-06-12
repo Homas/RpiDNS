@@ -14,11 +14,13 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html')
       },
       output: {
-        manualChunks: {
-          'vendor-vue': ['vue'],
-          'vendor-bootstrap': ['bootstrap-vue-next', 'bootstrap/dist/css/bootstrap.css'],
-          'vendor-charts': ['apexcharts', 'vue3-apexcharts'],
-          'vendor-utils': ['axios']
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('/vue/') || id.includes('/@vue/')) return 'vendor-vue'
+            if (id.includes('bootstrap-vue-next') || id.includes('/bootstrap/')) return 'vendor-bootstrap'
+            if (id.includes('apexcharts')) return 'vendor-charts'
+            if (id.includes('axios')) return 'vendor-utils'
+          }
         }
       }
     }
