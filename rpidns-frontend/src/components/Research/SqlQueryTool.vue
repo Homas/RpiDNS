@@ -87,13 +87,14 @@
         <i class="fas fa-triangle-exclamation"></i>&nbsp;{{ errorMessage }}
       </BAlert>
 
-      <!-- Result meta: row count + truncation notice -->
+      <!-- Result meta: total row count + truncation notice -->
       <div v-if="hasRun && !errorMessage" class="d-flex align-items-center mb-2">
         <span v-if="!isLoading" class="small text-muted">
-          {{ rowCount }} row{{ rowCount === 1 ? '' : 's' }}
+          {{ totalRows }} row{{ totalRows === 1 ? '' : 's' }}
+          <span v-if="truncated"> (capped)</span>
         </span>
         <BBadge v-if="truncated" variant="warning" class="ms-2">
-          <i class="fas fa-scissors"></i>&nbsp;Results truncated
+          <i class="fas fa-scissors"></i>&nbsp;Results truncated at {{ totalRows }}
         </BBadge>
       </div>
 
@@ -102,8 +103,43 @@
         <BSpinner class="align-middle" small></BSpinner>&nbsp;&nbsp;<strong>Running query…</strong>
       </div>
 
-      <!-- Results table (Req 5.1) -->
-      <div v-if="!isLoading && hasResults" class="table-responsive">
+      <!-- Pagination controls: each page is fetched from the server via
+           LIMIT/OFFSET, so the browser only ever holds one page. Changing the
+           page or page size re-fetches that page for the last-run query. -->
+      <div
+        v-if="!isLoading && hasResults && totalRows > 0"
+        class="d-flex align-items-center justify-content-between flex-wrap mb-2"
+      >
+        <div class="d-flex align-items-center">
+          <label class="small text-muted me-2 mb-0">Per page</label>
+          <BFormSelect
+            :model-value="resultsPp"
+            @update:model-value="onPerPageChange"
+            :options="perPageOptions"
+            size="sm"
+            style="width: auto"
+          ></BFormSelect>
+        </div>
+        <BPagination
+          :model-value="resultsCp"
+          @update:model-value="onPageChange"
+          :total-rows="totalRows"
+          :per-page="resultsPp"
+          size="sm"
+          pills
+          align="center"
+          first-number
+          last-number
+          limit="7"
+          class="mb-0"
+        ></BPagination>
+      </div>
+
+      <!-- Results table (Req 5.1). `responsive` wraps the table in a
+           horizontally-scrollable container so wide result sets scroll instead
+           of overflowing the page; `sticky-header` keeps headers visible while
+           scrolling vertically. Only `pagedRows` is rendered. -->
+      <div v-if="!isLoading && hasResults">
         <BTableSimple striped hover small responsive sticky-header="420px">
           <BThead>
             <BTr>
@@ -111,7 +147,7 @@
             </BTr>
           </BThead>
           <BTbody>
-            <BTr v-for="(row, ri) in rows" :key="ri">
+            <BTr v-for="(row, ri) in rows" :key="pageRowKey(ri)">
               <BTd v-for="(cell, ci) in row" :key="ci">{{ formatCell(cell) }}</BTd>
             </BTr>
           </BTbody>
@@ -120,7 +156,7 @@
 
       <!-- Zero-rows indication (Req 5.2) -->
       <div
-        v-if="!isLoading && hasRun && !errorMessage && rowCount === 0"
+        v-if="!isLoading && hasRun && !errorMessage && totalRows === 0"
         class="text-center text-muted p-3"
       >
         <i class="fas fa-circle-info"></i>&nbsp;The query returned no rows.
@@ -150,16 +186,26 @@ export default {
     const tablesError = ref('')
     const tablesLoaded = ref(false)
 
-    // Result state
+    // Result state (holds ONLY the current page)
     const columns = ref([])
     const rows = ref([])
-    const rowCount = ref(0)
     const truncated = ref(false)
     const isLoading = ref(false)
     const hasRun = ref(false)
     const errorMessage = ref('')
 
     const hasResults = computed(() => columns.value.length > 0)
+
+    // Server-side pagination state. The executed statement is cached in
+    // `runSql` so page navigation re-fetches the same query (not the possibly
+    // edited editor contents). Only one page is ever held in memory.
+    const CAP = 10000
+    const runSql = ref('')
+    const totalRows = ref(0)     // total rows across all pages (capped at CAP)
+    const resultsCp = ref(1)
+    const resultsPp = ref(100)
+    const perPageOptions = [50, 100, 250, 500, 1000]
+    const pageRowKey = (i) => (resultsCp.value - 1) * resultsPp.value + i
 
     // Fetch the available table names once, on first expand (Req 4.9)
     const fetchTables = async () => {
@@ -197,34 +243,38 @@ export default {
     const clearResults = () => {
       columns.value = []
       rows.value = []
-      rowCount.value = 0
+      totalRows.value = 0
       truncated.value = false
     }
 
-    // Submit the SQL statement to the read-only backend (Req 5.x)
-    const runQuery = async () => {
-      const statement = sql.value.trim()
-      if (!statement || isLoading.value) return
-
+    // Fetch a single page of the last-run query from the backend. When
+    // `withCount` is true (a new query submission) the server also computes the
+    // bounded total-row count; page navigation omits it and reuses the cached
+    // total.
+    const fetchPage = async (withCount) => {
+      if (!runSql.value || isLoading.value) return
       isLoading.value = true
       errorMessage.value = ''
-      // Do not show prior results while the current query is in flight or on error.
-      clearResults()
-
       try {
-        const res = await api.post({ req: 'research_sql' }, { sql: statement })
+        const body = { sql: runSql.value, cp: resultsCp.value, pp: resultsPp.value }
+        if (withCount) body.count = 1
+        const res = await api.post({ req: 'research_sql' }, body)
         if (res && res.status === 'ok' && res.data) {
           const data = res.data
           columns.value = Array.isArray(data.columns) ? data.columns : []
           rows.value = Array.isArray(data.rows) ? data.rows : []
-          rowCount.value =
-            typeof data.rowCount === 'number' ? data.rowCount : rows.value.length
-          truncated.value = data.truncated === true
+          if (typeof data.totalRows === 'number') {
+            totalRows.value = data.totalRows
+            truncated.value = data.truncated === true
+          }
         } else {
-          // Error region shows the returned reason; prior results stay cleared (Req 5.7)
+          // Error: clear results so a prior page is never shown as the current
+          // result (Req 5.7).
+          clearResults()
           errorMessage.value = (res && res.reason) || 'Query failed.'
         }
       } catch (e) {
+        clearResults()
         errorMessage.value =
           (e && e.message) || 'Query failed due to a network or server error.'
       } finally {
@@ -233,12 +283,45 @@ export default {
       }
     }
 
-    // Copy the loaded result dataset as CSV (Req 3.2)
+    // Submit the SQL statement to the read-only backend (Req 5.x). Runs page 1
+    // and requests the bounded total row count.
+    const runQuery = async () => {
+      const statement = sql.value.trim()
+      if (!statement || isLoading.value) return
+      runSql.value = statement
+      resultsCp.value = 1
+      clearResults()
+      await fetchPage(true)
+    }
+
+    // Pagination handlers: re-fetch the requested page for the cached query.
+    const onPageChange = (page) => {
+      resultsCp.value = page
+      fetchPage(false)
+    }
+    const onPerPageChange = (pp) => {
+      resultsPp.value = pp
+      resultsCp.value = 1
+      fetchPage(false)
+    }
+
+    // Copy the FULL result dataset (up to the 10,000-row cap) as CSV (Req 3.2).
+    // A dedicated request fetches all rows at once; they are serialized and
+    // discarded without being rendered, so the browser is not affected.
     const copyCsv = async () => {
-      if (!hasResults.value) return
+      if (!hasResults.value || !runSql.value) return
       try {
-        await copyDatasetAsCsv(columns.value, rows.value)
-        emit('show-info', 'Results copied to clipboard as CSV', 3)
+        const res = await api.post(
+          { req: 'research_sql' },
+          { sql: runSql.value, cp: 1, pp: CAP }
+        )
+        if (res && res.status === 'ok' && res.data && Array.isArray(res.data.rows)) {
+          const cols = Array.isArray(res.data.columns) ? res.data.columns : columns.value
+          await copyDatasetAsCsv(cols, res.data.rows)
+          emit('show-info', 'Results copied to clipboard as CSV', 3)
+        } else {
+          emit('show-info', 'Failed to copy results to clipboard', 3)
+        }
       } catch (e) {
         emit('show-info', 'Failed to copy results to clipboard', 3)
       }
@@ -254,15 +337,21 @@ export default {
       tablesError,
       columns,
       rows,
-      rowCount,
+      totalRows,
       truncated,
       isLoading,
       hasRun,
       errorMessage,
       hasResults,
+      resultsCp,
+      resultsPp,
+      perPageOptions,
+      pageRowKey,
       toggleTables,
       insertTableName,
       runQuery,
+      onPageChange,
+      onPerPageChange,
       copyCsv,
       formatCell
     }

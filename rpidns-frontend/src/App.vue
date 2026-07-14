@@ -57,7 +57,7 @@
         lazy 
         :nav-wrapper-class="navWrapperClass" 
         class="flex-grow-1 corners position-relative" 
-        content-class="curl_angels flex-grow-1 overflow-auto h-100 position-relative" 
+        content-class="curl_angels flex-grow-1 overflow-auto h-100 position-relative min-w-0" 
         :index="cfgTab"
         @update:index="onTabChange"
         :nav-class="navClass"
@@ -829,4 +829,8 @@ export default {
 
 <style>
 .mnw165 { min-width: 165px; }
+/* Allow the flex content pane (vertical tabs => flex row) to shrink below its
+   content's intrinsic width so wide tables scroll within their own
+   overflow-auto container instead of stretching the page horizontally. */
+.min-w-0 { min-width: 0; }
 </style>

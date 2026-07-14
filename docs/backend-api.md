@@ -384,6 +384,9 @@ Executes a single administrator-supplied read-only `SELECT` (or `WITH ... SELECT
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `sql` | string | The SQL statement to execute (merged from the JSON body) |
+| `cp` | int | Current page number (1-based, default 1) |
+| `pp` | int | Rows per page (1–10,000, default 100) |
+| `count` | bool | When `1`/true, also compute the bounded total row count. Sent on a new query submission; omitted for page navigation |
 
 **Validation behavior:** The statement is validated by `SqlQueryValidator::validate()` **before any execution** (Req 4.1). The validator enforces:
 
@@ -392,9 +395,11 @@ Executes a single administrator-supplied read-only `SELECT` (or `WITH ... SELECT
 - **No write operations (Req 4.3):** statements containing data-definition, data-manipulation, or side-effecting keywords are rejected.
 - **Length bound (Req 4.11):** statements longer than 10,000 characters are rejected.
 
-Valid queries execute against a **separate connection opened in read-only mode** (`SQLITE3_OPEN_READONLY`) as defense-in-depth (Req 4.5, 9.2). Execution is bounded to **30 seconds** (best-effort, via `set_time_limit`, `busyTimeout`, and a wall-clock guard in the row-fetch loop; Req 4.8, 4.10). Results are capped at **10,000 rows**, and a `truncated` flag is set when more rows exist (Req 4.6).
+Valid queries execute against a **separate connection opened in read-only mode** (`SQLITE3_OPEN_READONLY`) as defense-in-depth (Req 4.5, 9.2). Execution is bounded to **30 seconds** (best-effort, via `set_time_limit`, `busyTimeout`, and a wall-clock guard in the row-fetch loop; Req 4.8, 4.10).
 
-**Success response** (`SqlResult` model — columns are returned in query order, available even for a zero-row result set):
+**Server-side pagination:** results are paginated rather than returned all at once. The validated statement is wrapped in a subquery (`SELECT * FROM (<sql>) LIMIT <pp> OFFSET <(cp-1)*pp>`) using server-controlled integers, so a single page is fetched per request. When `count=1`, a bounded count query (`SELECT COUNT(*) FROM (SELECT 1 FROM (<sql>) LIMIT 10001)`) computes the total, capped at **10,000 rows** with a `truncated` flag when the underlying result exceeds the cap (Req 4.6). Rows beyond the cap are not navigable. The client requests `count=1` once per new query and reuses the returned `totalRows` for page navigation; the "Copy CSV" control issues a single request with a large `pp` to export the full capped dataset.
+
+**Success response** (paginated — columns are returned in query order, available even for a zero-row page; `totalRows`/`truncated` are present only when `count=1` was requested):
 
 ```json
 {
@@ -403,6 +408,9 @@ Valid queries execute against a **separate connection opened in read-only mode**
     "columns": ["fqdn", "cnt"],
     "rows": [["example.com", 17]],
     "rowCount": 1,
+    "page": 1,
+    "perPage": 100,
+    "totalRows": 1,
     "truncated": false
   }
 }

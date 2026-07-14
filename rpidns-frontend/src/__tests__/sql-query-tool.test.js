@@ -74,7 +74,7 @@ describe('SqlQueryTool.vue - SQL results presentation', () => {
     const columns = ['fqdn', 'cnt', 'last_seen']
     mockPost.mockResolvedValue({
       status: 'ok',
-      data: { columns, rows: [['a.com', 3, '2024-01-01']], rowCount: 1, truncated: false }
+      data: { columns, rows: [['a.com', 3, '2024-01-01']], rowCount: 1, page: 1, perPage: 100, totalRows: 1, truncated: false }
     })
 
     const wrapper = mountWithBootstrap(SqlQueryTool)
@@ -88,7 +88,7 @@ describe('SqlQueryTool.vue - SQL results presentation', () => {
   it('shows a zero-rows indication when a successful run returns 0 rows (Req 5.2)', async () => {
     mockPost.mockResolvedValue({
       status: 'ok',
-      data: { columns: ['fqdn'], rows: [], rowCount: 0, truncated: false }
+      data: { columns: ['fqdn'], rows: [], rowCount: 0, page: 1, perPage: 100, totalRows: 0, truncated: false }
     })
 
     const wrapper = mountWithBootstrap(SqlQueryTool)
@@ -111,7 +111,7 @@ describe('SqlQueryTool.vue - SQL results presentation', () => {
     // Resolve the query and let the DOM update.
     d.resolve({
       status: 'ok',
-      data: { columns: ['x'], rows: [[1]], rowCount: 1, truncated: false }
+      data: { columns: ['x'], rows: [[1]], rowCount: 1, page: 1, perPage: 100, totalRows: 1, truncated: false }
     })
     await flushPromises()
 
@@ -126,6 +126,9 @@ describe('SqlQueryTool.vue - SQL results presentation', () => {
         columns: ['x'],
         rows: [[1], [2], [3]],
         rowCount: 3,
+        page: 1,
+        perPage: 100,
+        totalRows: 3,
         truncated: false
       }
     })
@@ -143,7 +146,10 @@ describe('SqlQueryTool.vue - SQL results presentation', () => {
       data: {
         columns: ['x'],
         rows: [[1]],
-        rowCount: 10000,
+        rowCount: 100,
+        page: 1,
+        perPage: 100,
+        totalRows: 10000,
         truncated: true
       }
     })
@@ -159,7 +165,7 @@ describe('SqlQueryTool.vue - SQL results presentation', () => {
     // First run succeeds and renders a row.
     mockPost.mockResolvedValueOnce({
       status: 'ok',
-      data: { columns: ['fqdn'], rows: [['keepme.example']], rowCount: 1, truncated: false }
+      data: { columns: ['fqdn'], rows: [['keepme.example']], rowCount: 1, page: 1, perPage: 100, totalRows: 1, truncated: false }
     })
 
     const wrapper = mountWithBootstrap(SqlQueryTool)
@@ -212,14 +218,14 @@ describe('SqlQueryTool.vue - CSV copy control', () => {
 
     mockPost.mockResolvedValue({
       status: 'ok',
-      data: { columns: ['fqdn'], rows: [['a.com']], rowCount: 1, truncated: false }
+      data: { columns: ['fqdn'], rows: [['a.com']], rowCount: 1, page: 1, perPage: 100, totalRows: 1, truncated: false }
     })
 
     const wrapper = mountWithBootstrap(SqlQueryTool)
     await runWith(wrapper)
     await flushPromises()
 
-    // Control is now enabled; activate it.
+    // Control is now enabled; activate it (a dedicated request fetches all rows).
     await csvButton(wrapper).trigger('click')
     await flushPromises()
 

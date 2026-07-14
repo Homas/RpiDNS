@@ -565,51 +565,89 @@
 			//      DO NOT present the partial rows as a complete result (Req 4.10).
 			// The read-only connection guarantees the DB is unchanged regardless
 			// of how execution ends (Req 9.2).
+			// --- Server-side pagination inputs ---------------------------------
+			// The full result set is never transferred; a single page is fetched
+			// by wrapping the (validated) user query in a subquery and applying a
+			// server-controlled LIMIT/OFFSET. `count=1` requests a bounded total
+			// row count, computed once when a new query is submitted; page
+			// navigation omits it and the client reuses its cached total.
+			$rs_pp = (array_key_exists("pp",$REQUEST) and intval($REQUEST["pp"])>0 and intval($REQUEST["pp"])<=10000) ? intval($REQUEST["pp"]) : 100;
+			$rs_cp = (array_key_exists("cp",$REQUEST) and intval($REQUEST["cp"])>0) ? intval($REQUEST["cp"]) : 1;
+			$rs_wantCount = (array_key_exists("count",$REQUEST) and ($REQUEST["count"]==='1' or $REQUEST["count"]===1 or $REQUEST["count"]===true));
+
+			// Strip a single optional trailing ';' so the statement can be safely
+			// wrapped as a subquery (the validator guarantees a single statement).
+			$rs_base = rtrim(trim((string)$rs_sql));
+			if (substr($rs_base, -1) === ';') { $rs_base = rtrim(substr($rs_base, 0, -1)); }
+
+			// Page window, clamped to the 10,000-row cap (Requirement 4.6). Rows
+			// beyond the cap are not navigable; `truncated` signals when the total
+			// exceeded it.
+			$rs_cap = 10000;
+			$rs_offset = ($rs_cp - 1) * $rs_pp;
+			if ($rs_offset < 0) { $rs_offset = 0; }
+			$rs_pageLimit = ($rs_offset >= $rs_cap) ? 0 : min($rs_pp, $rs_cap - $rs_offset);
+
+			// Execution-time bound (Req 4.8/4.10): PHP's SQLite3 binding exposes no
+			// per-query timeout, so a best-effort 30s bound is applied via
+			// set_time_limit plus a wall-clock guard around fetching. The
+			// read-only connection guarantees the DB is unchanged (Req 9.2).
 			$rs_start = microtime(true);
 			$rs_limit_s = 30;
 			@set_time_limit($rs_limit_s);
 
-			$rs_max_rows = 10000;
 			$rs_columns = [];
 			$rs_rows = [];
-			$rs_truncated = false;
+			$rs_total = null;      // capped total row count (only when requested)
+			$rs_truncated = false; // total exceeded the cap (only when requested)
 			$rs_error = null;
 			$rs_timeout = false;
 			$rs_roDb = null;
+
+			// Newlines around the base statement protect a trailing line comment
+			// (`-- ...`) from commenting out the wrapping ')'. LIMIT/OFFSET are
+			// server-controlled integers, so they cannot alter the statement.
+			$rs_dataSql  = "select * from (\n".$rs_base."\n) limit ".$rs_pageLimit." offset ".$rs_offset;
+			$rs_countSql = "select count(*) as c from (select 1 from (\n".$rs_base."\n) limit ".($rs_cap + 1).")";
 
 			try {
 				$rs_roDb = new SQLite3("/opt/rpidns/www/db/".DBFile, SQLITE3_OPEN_READONLY);
 				$rs_roDb->busyTimeout(5000);
 				$rs_roDb->enableExceptions(true);
 
-				$rs_result = $rs_roDb->query($rs_sql);
-				if ($rs_result === false) {
-					$rs_error = 'the submitted query failed to execute';
-				} else {
-					// Column names in query-returned order, available even for a
-					// zero-row result set (Requirement 5.1).
-					$rs_numCols = $rs_result->numColumns();
-					for ($c = 0; $c < $rs_numCols; $c++) {
-						$rs_columns[] = $rs_result->columnName($c);
+				// Bounded total (only on a new query submission). Counts at most
+				// cap+1 rows so an oversized result is detected without scanning
+				// unbounded data.
+				if ($rs_wantCount) {
+					$rs_countRes = $rs_roDb->query($rs_countSql);
+					if ($rs_countRes === false) {
+						$rs_error = 'the submitted query failed to execute';
+					} else {
+						$rs_countRow = $rs_countRes->fetchArray(SQLITE3_NUM);
+						$rs_countRes->finalize();
+						$rs_rawCount = ($rs_countRow !== false) ? (int)$rs_countRow[0] : 0;
+						$rs_truncated = ($rs_rawCount > $rs_cap);
+						$rs_total = $rs_truncated ? $rs_cap : $rs_rawCount;
 					}
+				}
 
-					// Fetch rows as arrays of values in column order. Cap at
-					// $rs_max_rows and detect a (max+1)-th row to set the
-					// truncated flag (Requirement 4.6).
-					while (($row = $rs_result->fetchArray(SQLITE3_NUM)) !== false) {
-						// Wall-clock guard while fetching (Requirement 4.10).
-						if ((microtime(true) - $rs_start) > $rs_limit_s) {
-							$rs_timeout = true;
-							break;
+				// Fetch the requested page. LIMIT 0 (page beyond the cap) still
+				// yields the column names for a consistent header (Requirement 5.1).
+				if ($rs_error === null) {
+					$rs_result = $rs_roDb->query($rs_dataSql);
+					if ($rs_result === false) {
+						$rs_error = 'the submitted query failed to execute';
+					} else {
+						$rs_numCols = $rs_result->numColumns();
+						for ($c = 0; $c < $rs_numCols; $c++) {
+							$rs_columns[] = $rs_result->columnName($c);
 						}
-						if (count($rs_rows) >= $rs_max_rows) {
-							// A row beyond the cap exists -> results are truncated.
-							$rs_truncated = true;
-							break;
+						while (($row = $rs_result->fetchArray(SQLITE3_NUM)) !== false) {
+							if ((microtime(true) - $rs_start) > $rs_limit_s) { $rs_timeout = true; break; }
+							$rs_rows[] = $row;
 						}
-						$rs_rows[] = $row;
+						$rs_result->finalize();
 					}
-					$rs_result->finalize();
 				}
 			} catch (Exception $e) {
 				// Syntactically invalid or runtime failure (Requirement 4.7):
@@ -632,12 +670,21 @@
 			} else {
 				// Success: SqlResult {columns, rows, rowCount, truncated}
 				// (Requirement 4.6, design SqlResult model).
+				// Success: one page of the paginated SqlResult. `totalRows` /
+				// `truncated` are present only when a bounded count was requested
+				// (a new query); page navigation omits them and the client reuses
+				// its cached total.
 				$rs_payload = [
-					'columns'   => $rs_columns,
-					'rows'      => $rs_rows,
-					'rowCount'  => count($rs_rows),
-					'truncated' => $rs_truncated,
+					'columns'  => $rs_columns,
+					'rows'     => $rs_rows,
+					'rowCount' => count($rs_rows),
+					'page'     => $rs_cp,
+					'perPage'  => $rs_pp,
 				];
+				if ($rs_total !== null) {
+					$rs_payload['totalRows'] = $rs_total;
+					$rs_payload['truncated'] = $rs_truncated;
+				}
 				$response='{"status":"ok","data":'.json_encode($rs_payload).'}';
 			}
       break;
