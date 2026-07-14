@@ -416,6 +416,456 @@
 //			$sql="select rowid,strftime('%Y-%m-%dT%H:%M:%SZ',dt, 'unixepoch', 'utc') as dtz ,client_ip, mac, fqdn, action, rule_type, rule, feed, ".($table=="_raw"?"'1' as":"")." cnt from hits$table where dt>=strftime('%s', 'now')-$period order by dt desc";
 			$response='{"status":"ok", "records":"'.(DB_fetchRecord($db,$sql_hits_count)['cnt']).'","data":'.json_encode(DB_selectArray($db,$sql_hits)).'}';
       break;
+
+    case "GET research_unique":
+			// Research: unique non-blocked (allowed) FQDNs over the selected range.
+			// Auth guard runs first, before any query is built or executed
+			// (Requirements 1.7, 9.1, 9.4).
+			require_once "/opt/rpidns/www/rpi_admin/ResearchAuth.php";
+			requireResearchSession();
+
+			// Sortable columns (allowlist) + direction (Requirement 2.9).
+			$ru_sortReq = array_key_exists("sortBy",$REQUEST) ? $REQUEST["sortBy"] : 'cnt';
+			$ru_allowed = array('fqdn'=>'fqdn', 'cnt'=>'cnt', 'last_seen'=>'last_seen');
+			$ru_sortCol = array_key_exists($ru_sortReq,$ru_allowed) ? $ru_allowed[$ru_sortReq] : 'cnt';
+			$ru_dir = (array_key_exists("sortDesc",$REQUEST) and $REQUEST["sortDesc"]=='true') ? 'desc' : 'asc';
+
+			// Pagination (Requirement 2.7).
+			$ru_pp = (array_key_exists("pp",$REQUEST) and intval($REQUEST["pp"])>0 and intval($REQUEST["pp"])<=500) ? intval($REQUEST["pp"]) : 100;
+			$ru_cp = (array_key_exists("cp",$REQUEST) and intval($REQUEST["cp"])>0) ? intval($REQUEST["cp"]) : 1;
+			$ru_offset = $ru_pp * ($ru_cp - 1);
+
+			// Case-insensitive substring filter on fqdn (Requirement 2.6). SQLite
+			// LIKE is case-insensitive for ASCII. Escaped via DB_escape.
+			$ru_filterval = array_key_exists("filter",$REQUEST) ? $REQUEST["filter"] : '';
+			$ru_filter = $ru_filterval !== '' ? " and fqdn like '%".DB_escape($db,$ru_filterval)."%'" : '';
+
+			// Reuse the period pre-switch conventions ($period / $start_dt / $end_dt).
+			$ru_period = isset($period) ? intval($period) : 1800;
+
+			// Tiered aggregation over the allowed queries in the selected range
+			// (Requirements 2.2, 2.3, 2.4). Inclusive bounds for custom range.
+			if (array_key_exists("period",$REQUEST) and $REQUEST["period"] === 'custom') {
+				if ($ru_period <= 86400) {
+					$ru_agg = "select fqdn, count(rowid) as cnt, max(dt) as last_dt from queries_raw where dt>=$start_dt and dt<=$end_dt and action='allowed' $ru_filter group by fqdn";
+				} else {
+					$ru_agg = "select fqdn, sum(cnt2) as cnt, max(last2) as last_dt from (
+						select fqdn, count(rowid) as cnt2, max(dt) as last2 from queries_raw where dt>ifnull((select max(dt) from queries_1d),0) and dt>=$start_dt and dt<=$end_dt and action='allowed' $ru_filter group by fqdn
+						union all
+						select fqdn, sum(cnt) as cnt2, max(dt) as last2 from queries_1d where dt>=$start_dt and dt<=$end_dt and action='allowed' $ru_filter group by fqdn
+					) group by fqdn";
+				}
+			} else {
+				if ($ru_period <= 86400) {
+					$ru_agg = "select fqdn, count(rowid) as cnt, max(dt) as last_dt from queries_raw where dt>=strftime('%s', 'now')-$ru_period and action='allowed' $ru_filter group by fqdn";
+				} else {
+					$ru_agg = "select fqdn, sum(cnt2) as cnt, max(last2) as last_dt from (
+						select fqdn, count(rowid) as cnt2, max(dt) as last2 from queries_raw where dt>=strftime('%s', 'now')-strftime('%s', 'now')%86400 and action='allowed' $ru_filter group by fqdn
+						union all
+						select fqdn, sum(cnt) as cnt2, max(dt) as last2 from queries_1d where dt>=strftime('%s', 'now')-strftime('%s', 'now')%86400-$ru_period and action='allowed' $ru_filter group by fqdn
+					) group by fqdn";
+				}
+			}
+
+			// Group by fqdn guarantees distinctness (Requirement 2.1); MAX(dt) ->
+			// ISO8601 UTC last_seen mirrors the strftime convention (Requirement 2.5).
+			$ru_data_sql = "select fqdn, cnt, strftime('%Y-%m-%dT%H:%M:%SZ', last_dt, 'unixepoch', 'utc') as last_seen from ($ru_agg) order by $ru_sortCol $ru_dir limit $ru_pp offset $ru_offset;";
+			$ru_count_sql = "select count(*) as cnt from ($ru_agg);";
+
+			// SELECT-only: never modifies DB state (Requirement 9.2). On failure
+			// return an error and never present partial data as complete (Req 2.10).
+			$ru_result = $db->query($ru_data_sql);
+			if ($ru_result === false) {
+				$response='{"status":"error","reason":"failed to retrieve unique allowed queries"}';
+			} else {
+				$ru_rows = [];
+				while ($row = $ru_result->fetchArray(SQLITE3_ASSOC)) { $ru_rows[] = $row; }
+				$ru_countRec = DB_fetchRecord($db,$ru_count_sql);
+				$ru_records = (is_array($ru_countRec) and array_key_exists('cnt',$ru_countRec)) ? $ru_countRec['cnt'] : count($ru_rows);
+				$response='{"status":"ok", "records":"'.$ru_records.'","data":'.json_encode($ru_rows).'}';
+			}
+      break;
+
+    case "GET research_tables":
+			// Research: list available table names so the SQL tool can build queries
+			// against the schema (Requirement 4.9). Auth guard runs first, before any
+			// query is executed (Requirements 1.7, 9.1).
+			require_once "/opt/rpidns/www/rpi_admin/ResearchAuth.php";
+			requireResearchSession();
+
+			// Open a SEPARATE read-only connection: this endpoint must never modify
+			// DB state (Requirement 9.1 / read-only per design).
+			$rt_names = [];
+			$rt_ok = true;
+			try {
+				$roDb = new SQLite3("/opt/rpidns/www/db/".DBFile, SQLITE3_OPEN_READONLY);
+				$roDb->busyTimeout(15000);
+				// Exclude internal sqlite_* objects; ordered for stable output.
+				$rt_sql = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;";
+				$rt_result = $roDb->query($rt_sql);
+				if ($rt_result === false) {
+					$rt_ok = false;
+				} else {
+					while ($row = $rt_result->fetchArray(SQLITE3_ASSOC)) { $rt_names[] = $row['name']; }
+				}
+				$roDb->close();
+			} catch (Exception $e) {
+				$rt_ok = false;
+			}
+
+			if ($rt_ok) {
+				$response='{"status":"ok","data":'.json_encode($rt_names).'}';
+			} else {
+				$response='{"status":"error","reason":"failed to retrieve table names"}';
+			}
+      break;
+
+    case "POST research_sql":
+			// Research: execute an administrator-supplied read-only SQL statement.
+			// Auth guard runs first, before any validation or execution
+			// (Requirements 1.7, 9.1, 9.4).
+			require_once "/opt/rpidns/www/rpi_admin/ResearchAuth.php";
+			require_once "/opt/rpidns/www/rpi_admin/SqlQueryValidator.php";
+			require_once "/opt/rpidns/www/rpi_admin/RejectionAudit.php";
+			$rs_user = requireResearchSession();
+
+			// The submitted SQL is merged into $REQUEST from the JSON body by
+			// getRequest(). Missing input is treated as an empty (invalid) query.
+			$rs_sql = array_key_exists("sql",$REQUEST) ? $REQUEST["sql"] : '';
+
+			// Validate BEFORE any execution occurs (Requirement 4.1). The
+			// validator enforces: single statement (Req 4.4), read-only SELECT/
+			// WITH entry point (Req 4.1/4.2), no write keywords (Req 4.3), and the
+			// <= 10,000 character bound (Req 4.11). It never executes SQL.
+			$rs_check = SqlQueryValidator::validate($rs_sql);
+			if ($rs_check['valid'] !== true) {
+				// On rejection: audit the attempt (Req 9.5/9.6) and return the
+				// descriptive reason WITHOUT executing anything (Req 4.3/4.4/4.11).
+				// The DB is untouched because no query is ever run.
+				$rs_sid = (is_array($rs_user) and array_key_exists('session_id',$rs_user)) ? $rs_user['session_id'] : '';
+				RejectionAudit::record($rs_sid, $rs_check['category'], 'research_sql');
+				$response='{"status":"error","reason":'.json_encode($rs_check['reason']).'}';
+				break;
+			}
+
+			// Valid single read-only SELECT/WITH: execute it against a SEPARATE
+			// connection opened in READ-ONLY mode (Requirement 4.5). Read-only
+			// mode is defense-in-depth: even if the validator had a gap, the
+			// connection itself cannot modify the database (Req 9.2/9.5).
+			//
+			// Execution-time bound (Requirement 4.8/4.10): PHP's SQLite3 binding
+			// does not expose a per-query timeout or a progress/interrupt
+			// callback, so a hard interrupt of a long-running query is not
+			// available. We apply a best-effort 30s bound with two mechanisms:
+			//   1. set_time_limit(30) - a PHP-level wall-clock guard.
+			//   2. busyTimeout - bounds waits on locks (not relevant for a
+			//      read-only single-reader connection, but set for safety).
+			//   3. A manual elapsed-time check in the row-fetch loop: if fetching
+			//      the result set exceeds 30s we abort, return a timeout error and
+			//      DO NOT present the partial rows as a complete result (Req 4.10).
+			// The read-only connection guarantees the DB is unchanged regardless
+			// of how execution ends (Req 9.2).
+			$rs_start = microtime(true);
+			$rs_limit_s = 30;
+			@set_time_limit($rs_limit_s);
+
+			$rs_max_rows = 10000;
+			$rs_columns = [];
+			$rs_rows = [];
+			$rs_truncated = false;
+			$rs_error = null;
+			$rs_timeout = false;
+			$rs_roDb = null;
+
+			try {
+				$rs_roDb = new SQLite3("/opt/rpidns/www/db/".DBFile, SQLITE3_OPEN_READONLY);
+				$rs_roDb->busyTimeout(5000);
+				$rs_roDb->enableExceptions(true);
+
+				$rs_result = $rs_roDb->query($rs_sql);
+				if ($rs_result === false) {
+					$rs_error = 'the submitted query failed to execute';
+				} else {
+					// Column names in query-returned order, available even for a
+					// zero-row result set (Requirement 5.1).
+					$rs_numCols = $rs_result->numColumns();
+					for ($c = 0; $c < $rs_numCols; $c++) {
+						$rs_columns[] = $rs_result->columnName($c);
+					}
+
+					// Fetch rows as arrays of values in column order. Cap at
+					// $rs_max_rows and detect a (max+1)-th row to set the
+					// truncated flag (Requirement 4.6).
+					while (($row = $rs_result->fetchArray(SQLITE3_NUM)) !== false) {
+						// Wall-clock guard while fetching (Requirement 4.10).
+						if ((microtime(true) - $rs_start) > $rs_limit_s) {
+							$rs_timeout = true;
+							break;
+						}
+						if (count($rs_rows) >= $rs_max_rows) {
+							// A row beyond the cap exists -> results are truncated.
+							$rs_truncated = true;
+							break;
+						}
+						$rs_rows[] = $row;
+					}
+					$rs_result->finalize();
+				}
+			} catch (Exception $e) {
+				// Syntactically invalid or runtime failure (Requirement 4.7):
+				// return a descriptive error and no partial data.
+				$rs_error = $e->getMessage();
+			}
+
+			if ($rs_roDb !== null) {
+				$rs_roDb->close();
+			}
+
+			if ($rs_timeout) {
+				// Terminated by the execution bound: timeout error, no partial
+				// results presented as complete (Requirement 4.10).
+				$response='{"status":"error","reason":"query exceeded the '.$rs_limit_s.'-second execution limit"}';
+			} else if ($rs_error !== null) {
+				// Runtime/syntax error: descriptive error, DB unchanged, no
+				// partial-as-complete (Requirement 4.7).
+				$response='{"status":"error","reason":'.json_encode($rs_error).'}';
+			} else {
+				// Success: SqlResult {columns, rows, rowCount, truncated}
+				// (Requirement 4.6, design SqlResult model).
+				$rs_payload = [
+					'columns'   => $rs_columns,
+					'rows'      => $rs_rows,
+					'rowCount'  => count($rs_rows),
+					'truncated' => $rs_truncated,
+				];
+				$response='{"status":"ok","data":'.json_encode($rs_payload).'}';
+			}
+      break;
+
+    case "POST research_tool":
+			// Research: execute a network research tool (RDAP/WHOIS, dig, ping,
+			// traceroute) against a validated target and return its ToolResult.
+			// Auth guard runs first, before any validation or command execution
+			// (Requirements 1.7, 9.1, 9.4).
+			require_once "/opt/rpidns/www/rpi_admin/ResearchAuth.php";
+			require_once "/opt/rpidns/www/rpi_admin/InputValidator.php";
+			require_once "/opt/rpidns/www/rpi_admin/CommandBuilder.php";
+			require_once "/opt/rpidns/www/rpi_admin/ToolRunner.php";
+			require_once "/opt/rpidns/www/rpi_admin/RejectionAudit.php";
+			$rtl_user = requireResearchSession();
+			$rtl_sid = (is_array($rtl_user) and array_key_exists('session_id',$rtl_user)) ? $rtl_user['session_id'] : '';
+
+			// Inputs are merged into $REQUEST from the JSON body by getRequest().
+			$rtl_tool   = array_key_exists("tool",$REQUEST)   ? (string)$REQUEST["tool"]   : '';
+			$rtl_target = array_key_exists("target",$REQUEST) ? (string)$REQUEST["target"] : '';
+			$rtl_dns    = (array_key_exists("dns_server",$REQUEST) and $REQUEST["dns_server"] !== null and $REQUEST["dns_server"] !== '')
+				? (string)$REQUEST["dns_server"] : null;
+
+			// Feature flag for the website-preview tool (Req 8.7). Disabled by
+			// default because it requires a headless chromium binary in the web
+			// container. Define it as true in configuration (e.g. rpisettings.php)
+			// once chromium is installed to enable server-side screenshots.
+			if (!defined('RESEARCH_WEBSITE_PREVIEW')) {
+				define('RESEARCH_WEBSITE_PREVIEW', false);
+			}
+
+			// Additional bulk request inputs. `items` is the bulk target list and
+			// may arrive either as a native array (JSON body) or as a JSON string
+			// (form-encoded); normalize both to an array. `subtool` names the
+			// per-item single-command tool to run for a bulk request.
+			$rtl_items = array_key_exists("items",$REQUEST) ? $REQUEST["items"] : array();
+			if (is_string($rtl_items)) {
+				$rtl_decoded = json_decode($rtl_items, true);
+				$rtl_items = is_array($rtl_decoded) ? $rtl_decoded : array();
+			}
+			if (!is_array($rtl_items)) { $rtl_items = array(); }
+			$rtl_subtool = (array_key_exists("subtool",$REQUEST) and $REQUEST["subtool"] !== null and $REQUEST["subtool"] !== '')
+				? (string)$REQUEST["subtool"] : 'rdap';
+
+			// Tool allowlist. Core single-command tools plus the additional
+			// threat-hunting tools (reverse_dns, nsmx, geoip, asn, tls_cert,
+			// reputation, website_preview, bulk). Only allowlisted tools may run.
+			$rtl_allowlist = array(
+				'rdap','dig','ping','traceroute',
+				'reverse_dns','nsmx','geoip','asn',
+				'tls_cert','reputation','website_preview','bulk'
+			);
+
+			// Tool input-shape classes used for per-tool validation below.
+			// IP-only tools reject anything that is not a valid IPv4/IPv6 address;
+			// domain-only tools reject anything that is not a valid hostname.
+			$rtl_ip_tools     = array('reverse_dns','geoip','asn');
+			$rtl_domain_tools = array('nsmx','tls_cert','reputation','website_preview');
+			// A bulk sub-tool must itself be one of the single-command tools that
+			// take a domain-or-IP target (nsmx is multi-command, website_preview is
+			// image-producing, bulk cannot nest).
+			$rtl_bulk_subtool_allowlist = array(
+				'rdap','dig','ping','traceroute',
+				'reverse_dns','geoip','asn','tls_cert','reputation'
+			);
+
+			if (!in_array($rtl_tool, $rtl_allowlist, true)) {
+				// Unknown/unsupported tool: audit and reject before any execution
+				// (Requirements 6.5, 9.5). No command is ever built or run.
+				RejectionAudit::record($rtl_sid, 'invalid_input', 'research_tool');
+				$response='{"status":"error","reason":"unknown or unsupported tool"}';
+				break;
+			}
+
+			// Validate the input BEFORE execution (Requirements 6.5, 8.10, 8.12,
+			// 9.4, 9.5). Each tool class enforces its required input format and
+			// rejects with the matching audit category; nothing is built or run on
+			// a validation failure.
+			if (in_array($rtl_tool, $rtl_ip_tools, true)) {
+				// reverse_dns, geoip, asn require a valid IP address (Req 8.1, 8.3, 8.4).
+				if (!InputValidator::isValidIp($rtl_target)) {
+					RejectionAudit::record($rtl_sid, 'invalid_ip', 'research_tool');
+					$response='{"status":"error","reason":"invalid target: must be an IP address"}';
+					break;
+				}
+			} elseif (in_array($rtl_tool, $rtl_domain_tools, true)) {
+				// nsmx, tls_cert, reputation, website_preview require a valid domain
+				// (Req 8.2, 8.5, 8.6, 8.7).
+				if (!InputValidator::isValidDomain($rtl_target)) {
+					RejectionAudit::record($rtl_sid, 'invalid_domain', 'research_tool');
+					$response='{"status":"error","reason":"invalid target: must be a domain name"}';
+					break;
+				}
+			} elseif ($rtl_tool === 'bulk') {
+				// Bulk: reject lists that exceed 100 items or contain a malformed
+				// item (Req 8.8, 8.9). isValidBulkList covers both size and items.
+				if (!InputValidator::isValidBulkList($rtl_items)) {
+					RejectionAudit::record($rtl_sid, 'bulk_too_large', 'research_tool');
+					$response='{"status":"error","reason":"invalid bulk list: at most 100 valid domain or IP items are permitted"}';
+					break;
+				}
+				// The per-item sub-tool must be a recognized single-command tool.
+				if (!in_array($rtl_subtool, $rtl_bulk_subtool_allowlist, true)) {
+					RejectionAudit::record($rtl_sid, 'invalid_input', 'research_tool');
+					$response='{"status":"error","reason":"invalid bulk sub-tool"}';
+					break;
+				}
+			} else {
+				// Core domain-or-IP tools: rdap, dig, ping, traceroute (Req 6.5).
+				if (!InputValidator::isDomainOrIp($rtl_target)) {
+					RejectionAudit::record($rtl_sid, 'invalid_input', 'research_tool');
+					$response='{"status":"error","reason":"invalid target: must be a domain name or IP address"}';
+					break;
+				}
+			}
+
+			// For dig with a user-supplied DNS server, validate it as an IP or
+			// hostname before execution (Requirement 6.4). Other tools ignore
+			// dns_server.
+			if ($rtl_tool === 'dig' and $rtl_dns !== null and !InputValidator::isValidDnsServer($rtl_dns)) {
+				RejectionAudit::record($rtl_sid, 'invalid_dns_server', 'research_tool');
+				$response='{"status":"error","reason":"invalid dns_server: must be a valid IP address or hostname"}';
+				break;
+			}
+
+			// All inputs validated: build the argument vector(s) and execute. The
+			// CommandBuilder passes user input as discrete argv slots (no shell),
+			// and ToolRunner enforces the 30s wall-clock bound, bounds ping/
+			// traceroute probes, truncates output, and surfaces tool_start_failed,
+			// non-zero exit, and timeout in the ToolResult. Neither modifies DB or
+			// system state (Requirements 6.2, 6.6, 6.7, 6.8, 6.9, 8.11, 8.12, 9.3).
+			$rtl_params = array('target' => $rtl_target);
+			if ($rtl_tool === 'dig' and $rtl_dns !== null) {
+				$rtl_params['dns_server'] = $rtl_dns;
+			}
+
+			try {
+				$rtl_builder = new CommandBuilder();
+
+				if ($rtl_tool === 'website_preview') {
+					// Website preview is gated behind a feature flag (Req 8.7).
+					if (!RESEARCH_WEBSITE_PREVIEW) {
+						// Disabled: never execute chromium; report no preview.
+						$response='{"status":"ok","data":'.json_encode(array('image'=>null,'reason'=>'no preview available')).'}';
+					} else {
+						// Server-generated temp output path (never user input).
+						$rtl_tmp = tempnam(sys_get_temp_dir(), 'rpidns_preview_');
+						$rtl_png = $rtl_tmp . '.png';
+						$rtl_image = null;
+						$rtl_reason = null;
+						try {
+							$rtl_cmds = $rtl_builder->build('website_preview', array('target'=>$rtl_target, 'output_path'=>$rtl_png));
+							$rtl_runner = new ToolRunner();
+							$rtl_result = $rtl_runner->run('website_preview', $rtl_target, $rtl_cmds[0]);
+							if (!$rtl_result['exitError'] and is_file($rtl_png) and filesize($rtl_png) > 0) {
+								$rtl_bytes = @file_get_contents($rtl_png);
+								if ($rtl_bytes !== false and $rtl_bytes !== '') {
+									$rtl_image = base64_encode($rtl_bytes);
+								} else {
+									// Screenshot could not be read: report gracefully (Req 8.11).
+									$rtl_reason = 'no preview available';
+								}
+							} else {
+								// chromium failed/timed out: surface without partial data (Req 8.11).
+								$rtl_reason = ($rtl_result['reason'] !== null) ? $rtl_result['reason'] : 'no preview available';
+							}
+						} catch (Exception $e) {
+							$rtl_reason = 'no preview available';
+						}
+						// Always clean up the server-side temp files.
+						if (is_file($rtl_png)) { @unlink($rtl_png); }
+						if (is_file($rtl_tmp)) { @unlink($rtl_tmp); }
+						$response='{"status":"ok","data":'.json_encode(array('image'=>$rtl_image,'reason'=>$rtl_reason)).'}';
+					}
+				} elseif ($rtl_tool === 'nsmx') {
+					// NS/MX enumeration builds two dig commands; run them under one
+					// shared budget and return the combined ToolResult (Req 8.2).
+					$rtl_cmds = $rtl_builder->build('nsmx', $rtl_params);
+					$rtl_runner = new ToolRunner();
+					$rtl_result = $rtl_runner->runMany('nsmx', $rtl_target, $rtl_cmds);
+					$response='{"status":"ok","data":'.json_encode($rtl_result).'}';
+				} elseif ($rtl_tool === 'bulk') {
+					// Bulk analysis: one result per item, in submitted order (Req 8.8).
+					// Share the overall 30s wall-clock bound across items so the
+					// aggregate self-terminates (Req 6.7 / 8.12).
+					$rtl_items = array_values($rtl_items);
+					$rtl_count = count($rtl_items);
+					$rtl_bulk_out = array();
+					$rtl_deadline = microtime(true) + ToolRunner::DEFAULT_TIMEOUT_SEC;
+					foreach ($rtl_items as $rtl_idx => $rtl_item) {
+						$rtl_item = (string)$rtl_item;
+						$rtl_remaining = $rtl_deadline - microtime(true);
+						$rtl_left = $rtl_count - $rtl_idx;
+						$rtl_per = ($rtl_remaining > 0 and $rtl_left > 0) ? max(1, (int)floor($rtl_remaining / $rtl_left)) : 1;
+						try {
+							$rtl_built = $rtl_builder->build($rtl_subtool, array('target'=>$rtl_item));
+							$rtl_item_runner = new ToolRunner($rtl_per);
+							if (count($rtl_built) > 1) {
+								$rtl_item_result = $rtl_item_runner->runMany($rtl_subtool, $rtl_item, $rtl_built);
+							} else {
+								$rtl_item_result = $rtl_item_runner->run($rtl_subtool, $rtl_item, $rtl_built[0]);
+							}
+						} catch (Exception $e) {
+							// Per-item build/start failure: record a failed result for
+							// this item and continue; never present partial as complete.
+							$rtl_item_result = array(
+								'tool'=>$rtl_subtool,'target'=>$rtl_item,'output'=>'',
+								'truncated'=>false,'exitError'=>true,'reason'=>'tool_start_failed'
+							);
+						}
+						$rtl_bulk_out[] = array('target'=>$rtl_item, 'result'=>$rtl_item_result);
+					}
+					$response='{"status":"ok","data":'.json_encode(array('items'=>$rtl_bulk_out)).'}';
+				} else {
+					// Single-command tools: rdap, dig, ping, traceroute, reverse_dns,
+					// geoip, asn, tls_cert, reputation. Build then run the first argv.
+					$rtl_cmds = $rtl_builder->build($rtl_tool, $rtl_params);
+					$rtl_runner = new ToolRunner();
+					$rtl_result = $rtl_runner->run($rtl_tool, $rtl_target, $rtl_cmds[0]);
+					$response='{"status":"ok","data":'.json_encode($rtl_result).'}';
+				}
+			} catch (Exception $e) {
+				// A build/start failure is surfaced without changing system state
+				// (Requirement 6.9).
+				$response='{"status":"error","reason":"tool_start_failed"}';
+			}
+      break;
+
 		case "GET dash_topX_req":
 			if ($REQUEST["period"] === 'custom') {
 				// Custom period: use absolute timestamps

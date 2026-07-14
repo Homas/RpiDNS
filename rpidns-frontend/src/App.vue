@@ -137,6 +137,24 @@
           />
         </BTab>
 
+        <!-- Research Tab -->
+        <BTab lazy>
+          <template #title>
+            <i class="fa fa-flask"></i>
+            <span class="d-none d-lg-inline" :class="{ hidden: toggleMenu > 0 }">&nbsp;&nbsp;Research</span>
+          </template>
+          <Research
+            :period="research_period"
+            :logs_height="logs_height"
+            :is-active="cfgTab === 3"
+            :custom-start="customPeriodStart"
+            :custom-end="customPeriodEnd"
+            @add-ioc="handleAddIOC"
+            @show-info="showInfo"
+            @custom-period-change="handleCustomPeriodChange"
+          />
+        </BTab>
+
         <!-- Admin Tab -->
         <BTab lazy>
           <template #title>
@@ -253,6 +271,7 @@ import Dashboard from './components/Dashboard.vue'
 import QueryLog from './components/QueryLog.vue'
 import RpzHits from './components/RpzHits.vue'
 import AdminTabs from './components/Admin/AdminTabs.vue'
+import Research from './components/Research/Research.vue'
 import AddAsset from './components/modals/AddAsset.vue'
 import AddIOC from './components/modals/AddIOC.vue'
 import ImportDB from './components/modals/ImportDB.vue'
@@ -268,6 +287,7 @@ export default {
     QueryLog,
     RpzHits,
     AdminTabs,
+    Research,
     AddAsset,
     AddIOC,
     ImportDB,
@@ -303,6 +323,10 @@ export default {
     provide('isAuthenticated', isAuthenticated)
 
     // UI State
+    // Tab index scheme (hash route #i2r/{index}):
+    //   0 Dashboard, 1 Query log, 2 RPZ log, 3 Research, 4 Admin, 5 Donate, 6 Help
+    const DEFAULT_TAB_INDEX = 0
+    const LAST_TAB_INDEX = 6
     const toggleMenu = ref(0)
     const cfgTab = ref(0)
     const windowInnerWidth = ref(800)
@@ -342,6 +366,9 @@ export default {
     // RPZ Hits state
     const hits_Filter = ref('')
     const hits_period = ref('30m')
+
+    // Research state
+    const research_period = ref('30m')
 
     // Custom period state (shared across tabs)
     const customPeriodStart = ref(null)  // Unix timestamp
@@ -676,7 +703,14 @@ export default {
         if (window.location.hash) {
           const parts = window.location.hash.split(/#|\//).filter(String)
           if (parts[0] === 'i2r') {
-            cfgTab.value = parseInt(parts[1])
+            // Tab order: Dashboard(0), Query log(1), RPZ log(2), Research(3),
+            // Admin(4), Donate(5), Help(6)
+            const requestedTab = parseInt(parts[1])
+            // Bounds check: an out-of-range or invalid hash index falls back to
+            // the default landing tab instead of rendering a blank page (Req 1.6)
+            cfgTab.value = (Number.isInteger(requestedTab) && requestedTab >= 0 && requestedTab <= LAST_TAB_INDEX)
+              ? requestedTab
+              : DEFAULT_TAB_INDEX
           }
           if (parts[2] === 'hidemenu') {
             toggleMenu.value = 2
@@ -724,6 +758,7 @@ export default {
       qlogs_period,
       hits_Filter,
       hits_period,
+      research_period,
       customPeriodStart,
       customPeriodEnd,
       addIOC,

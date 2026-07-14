@@ -302,6 +302,172 @@ The `objects` parameter specifies which data categories to import.
 
 ---
 
+## Research
+
+The Research API serves the Research page (see [frontend.md](./frontend.md)). It provides unique allowed-query retrieval, direct read-only SQL execution, table-name discovery, and network research tool execution. Every Research endpoint is **read-only** with respect to database and system state and is gated behind session authentication.
+
+**Common behavior across all Research endpoints:**
+
+- **Authentication (Req 1.7, 9.1):** Each endpoint calls `requireResearchSession()` (from `www/rpi_admin/ResearchAuth.php`) as its first action, before any query is built, any input is validated, or any command is executed. A request without a valid `rpidns_session` is denied with an authentication-required response (HTTP 401) and no protected data is returned.
+- **Validation before side effects (Req 9.4, 9.5):** Input and SQL validation always completes before any query or command runs. On a validation failure the request is rejected without execution, the database and system state are left unchanged, and a descriptive `reason` is returned.
+- **Rejection auditing (Req 9.6):** Rejected write attempts and malformed inputs are recorded (via `RejectionAudit::record`) with the session identifier, the rejection category, and the originating endpoint.
+- **No partial-as-complete (Req 2.10, 4.7, 4.10, 5.7, 8.11):** On error or timeout, partial results are never presented as a complete result set.
+
+| Method | Request Name | Description |
+|--------|-------------|-------------|
+| `GET` | `research_unique` | Unique allowed (non-blocked) FQDNs over a time range |
+| `GET` | `research_tables` | List available database table names |
+| `POST` | `research_sql` | Execute an administrator-supplied read-only SELECT statement |
+| `POST` | `research_tool` | Execute a network research tool against a validated target |
+
+### GET research_unique
+
+Returns distinct allowed FQDNs for the selected period, each with its total in-range query count and most-recent query time.
+
+**Accepted inputs:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `period` | string | Time period (`30m`, `1h`, `1d`, `1w`, `30d`, `custom`) |
+| `start_dt` | int | Start timestamp (Unix epoch) — used when `period=custom`, inclusive |
+| `end_dt` | int | End timestamp (Unix epoch) — used when `period=custom`, inclusive |
+| `filter` | string | Case-insensitive substring match on `fqdn` |
+| `sortBy` | string | Sort column, one of `fqdn`, `cnt`, `last_seen` (default `cnt`; unknown values fall back to `cnt`) |
+| `sortDesc` | string | `true` for descending order |
+| `pp` | int | Per-page limit (1–500, default 100) |
+| `cp` | int | Current page number |
+
+**Validation behavior:** Only queries with `action='allowed'` are included. The sort column is constrained to an allowlist; the filter value is escaped before use. The query runs `SELECT`-only and never modifies database state.
+
+**Success response:**
+
+```json
+{
+  "status": "ok",
+  "records": "42",
+  "data": [
+    { "fqdn": "example.com", "cnt": 17, "last_seen": "2024-01-15T10:30:00Z" }
+  ]
+}
+```
+
+**Error responses:**
+
+- `401` — authentication required (no valid session).
+- `{"status":"error","reason":"failed to retrieve unique allowed queries"}` — retrieval failed; no partial data is returned.
+
+### GET research_tables
+
+Lists the available table names so the SQL tool can build queries against the schema (Req 4.9).
+
+**Accepted inputs:** none.
+
+**Validation behavior:** Opens a **separate read-only** SQLite connection (`SQLITE3_OPEN_READONLY`) and queries `sqlite_master`, excluding internal `sqlite_*` objects. It never modifies database state.
+
+**Success response:**
+
+```json
+{ "status": "ok", "data": ["assets", "queries_raw", "hits_raw", "..."] }
+```
+
+**Error responses:**
+
+- `401` — authentication required.
+- `{"status":"error","reason":"failed to retrieve table names"}` — the table list could not be read.
+
+### POST research_sql
+
+Executes a single administrator-supplied read-only `SELECT` (or `WITH ... SELECT`) statement against the database and returns the resulting rows.
+
+**Accepted inputs:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `sql` | string | The SQL statement to execute (merged from the JSON body) |
+
+**Validation behavior:** The statement is validated by `SqlQueryValidator::validate()` **before any execution** (Req 4.1). The validator enforces:
+
+- **Single statement only (Req 4.4):** multi-statement submissions are rejected without executing any statement.
+- **Read-only entry point (Req 4.1, 4.2):** the first significant keyword must be `SELECT` or `WITH`.
+- **No write operations (Req 4.3):** statements containing data-definition, data-manipulation, or side-effecting keywords are rejected.
+- **Length bound (Req 4.11):** statements longer than 10,000 characters are rejected.
+
+Valid queries execute against a **separate connection opened in read-only mode** (`SQLITE3_OPEN_READONLY`) as defense-in-depth (Req 4.5, 9.2). Execution is bounded to **30 seconds** (best-effort, via `set_time_limit`, `busyTimeout`, and a wall-clock guard in the row-fetch loop; Req 4.8, 4.10). Results are capped at **10,000 rows**, and a `truncated` flag is set when more rows exist (Req 4.6).
+
+**Success response** (`SqlResult` model — columns are returned in query order, available even for a zero-row result set):
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "columns": ["fqdn", "cnt"],
+    "rows": [["example.com", 17]],
+    "rowCount": 1,
+    "truncated": false
+  }
+}
+```
+
+**Error responses:**
+
+- `401` — authentication required.
+- `{"status":"error","reason":"..."}` — validation rejection (write operation, multi-statement, over-length, or non-SELECT), returned **without executing** anything and with the audit recorded. The `reason` identifies that only read-only single-statement SELECT queries are permitted.
+- `{"status":"error","reason":"query exceeded the 30-second execution limit"}` — the query was terminated by the execution bound (Req 4.10).
+- `{"status":"error","reason":"<message>"}` — a syntactically invalid or runtime-failing query; the database is unchanged and no partial data is returned (Req 4.7).
+
+### POST research_tool
+
+Executes a network research tool against a validated target and returns its `ToolResult`. Covers the core tools (RDAP/WHOIS, `dig`, `ping`, `traceroute`) and the additional threat-hunting tools (`reverse_dns`, `nsmx`, `geoip`, `asn`, `tls_cert`, `reputation`, `website_preview`, `bulk`).
+
+**Accepted inputs:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `tool` | string | Tool name — must be in the allowlist |
+| `target` | string | Domain or IP target (at most 253 characters) |
+| `dns_server` | string | Optional custom DNS server for `dig` (IP or hostname) |
+| `items` | array | Bulk target list for the `bulk` tool (array or JSON string) |
+| `subtool` | string | Per-item single-command tool for `bulk` (default `rdap`) |
+
+**Validation behavior (Req 6.5, 6.6, 8.10, 8.12):**
+
+- **Tool allowlist:** an unknown or unsupported `tool` is rejected before any command is built.
+- **Per-tool input class:** IP-only tools (`reverse_dns`, `geoip`, `asn`) require a valid IP address; domain-only tools (`nsmx`, `tls_cert`, `reputation`, `website_preview`) require a valid domain; core tools (`rdap`, `dig`, `ping`, `traceroute`) accept a valid domain or IP. Validation uses `InputValidator`.
+- **`dig` DNS server:** when supplied, `dns_server` is validated as an IP address or hostname (Req 6.4).
+- **Bulk (Req 8.8, 8.9):** the `items` list must contain at most 100 valid items; larger or malformed lists are rejected. The `subtool` must be a recognized single-command tool.
+- **Command injection prevention (Req 6.6):** `CommandBuilder` passes every input as a discrete argv slot (no shell), so inputs cannot alter command structure.
+- **Bounded execution (Req 6.7, 6.8):** `ToolRunner` enforces a 30-second wall-clock bound and terminates the child process group on timeout; `ping`/`traceroute` are constrained to a fixed maximum number of probes. Output is captured and truncated to a maximum size (1 MiB), with a `truncated` flag.
+
+**Success response** (`ToolResult` — `reason` is `null`, `"timeout"`, or `"tool_start_failed"`):
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "tool": "dig",
+    "target": "example.com",
+    "output": "...",
+    "truncated": false,
+    "exitError": false,
+    "reason": null
+  }
+}
+```
+
+`nsmx` returns a combined `ToolResult`; `bulk` returns `{ "items": [{ "target", "result" }] }` with one `ToolResult` per submitted item, in order; `website_preview` returns `{ "image": <base64|null>, "reason": <string|null> }` (disabled by default behind the `RESEARCH_WEBSITE_PREVIEW` feature flag).
+
+**Error responses:**
+
+- `401` — authentication required.
+- `{"status":"error","reason":"unknown or unsupported tool"}` — tool not in the allowlist.
+- `{"status":"error","reason":"invalid target: must be an IP address"}` / `"...must be a domain name"` / `"...must be a domain name or IP address"` — target failed its per-tool input validation (Req 6.5, 8.10).
+- `{"status":"error","reason":"invalid dns_server: must be a valid IP address or hostname"}` — the `dig` DNS server failed validation.
+- `{"status":"error","reason":"invalid bulk list: at most 100 valid domain or IP items are permitted"}` / `"invalid bulk sub-tool"` — bulk submission rejected (Req 8.9).
+- `{"status":"error","reason":"tool_start_failed"}` — the utility could not be started; system state is unchanged (Req 6.9). Within a `ToolResult`, this surfaces as `reason: "tool_start_failed"`.
+- Within a `ToolResult`: `reason: "timeout"` when the 30-second bound is exceeded (Req 6.7); `exitError: true` when the utility exits non-zero (Req 6.12); `truncated: true` when output exceeded the maximum size (Req 6.2). Additional tools with external data sources surface `upstream_unavailable` when the source is unavailable or times out (Req 8.11).
+
+---
+
 ## Authentication System
 
 Authentication is handled by `www/rpi_admin/auth.php`, which defines the `AuthService` class and exposes its own set of API endpoints.

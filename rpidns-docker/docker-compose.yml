@@ -72,6 +72,18 @@ services:
       - RPIDNS_LOGGING=${RPIDNS_LOGGING:-local}
       - RPIDNS_LOGGING_HOST=${RPIDNS_LOGGING_HOST:-}
       - PHP_FPM_VERSION=${PHP_FPM_VERSION:-84}
+    # Research network tools (ping / traceroute) run as the unprivileged
+    # www-data user and need to open raw ICMP sockets (Req 6.7, 8.7).
+    # Grant CAP_NET_RAW so these tools can start; without it they fail to
+    # launch and the backend surfaces a `tool_start_failed` error.
+    cap_add:
+      - NET_RAW
+    # Alternative to CAP_NET_RAW: enable unprivileged ICMP for the www-data
+    # group (gid 82) via the ping_group_range sysctl. This lets ping/traceroute
+    # use unprivileged datagram ICMP sockets instead of raw sockets. Use EITHER
+    # cap_add: NET_RAW (above) OR this sysctl. Uncomment to prefer the sysctl:
+    #sysctls:
+    #  - net.ipv4.ping_group_range=82 82
     depends_on:
       bind:
         condition: service_healthy

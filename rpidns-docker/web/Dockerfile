@@ -63,6 +63,23 @@ RUN apk add --no-cache \
     docker-cli \
     && rm -rf /var/cache/apk/*
 
+# --- Research tools: optional / feature-flagged dependencies (Req 6.7, 8.7) ---
+# whois: OPTIONAL port-43 WHOIS fallback. RDAP-over-HTTPS (via the already
+#   installed curl / php84-curl) is the PRIMARY WHOIS mechanism, so this is
+#   only needed when the port-43 fallback path is desired.
+# chromium-swiftshader: headless browser used by the website-preview feature.
+#   This is the heaviest new dependency and is gated behind the website-preview
+#   feature flag. When the flag is off (or this package is not present), the
+#   backend returns "no preview available" (Req 8.7) and the control is disabled.
+#   swiftshader provides software GL so rendering works without a GPU.
+# NOTE: To keep the base image lean these are installed as a separate layer.
+#   Remove chromium-swiftshader here if the website-preview feature is never
+#   enabled in your deployment to significantly reduce image size.
+RUN apk add --no-cache \
+    whois \
+    chromium-swiftshader \
+    && rm -rf /var/cache/apk/*
+
 # Create www-data user/group (matching common web server conventions)
 RUN addgroup -g 82 -S www-data 2>/dev/null || true \
     && adduser -u 82 -D -S -G www-data www-data 2>/dev/null || true

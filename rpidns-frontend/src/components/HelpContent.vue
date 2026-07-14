@@ -38,15 +38,21 @@
           </a>
         </li>
         <li>
+          <a href="#research" @click.prevent="navigateTo('research')">
+            <i class="fa fa-flask"></i>
+            <span>5. Research</span>
+          </a>
+        </li>
+        <li>
           <a href="#admin-panel" @click.prevent="navigateTo('admin-panel')">
             <i class="fas fa-screwdriver"></i>
-            <span>5. Admin Panel</span>
+            <span>6. Admin Panel</span>
           </a>
         </li>
         <li>
           <a href="#common-actions" @click.prevent="navigateTo('common-actions')">
             <i class="fas fa-mouse-pointer"></i>
-            <span>6. Common Actions</span>
+            <span>7. Common Actions</span>
           </a>
         </li>
       </ul>
@@ -734,9 +740,104 @@
             </p>
           </section>
 
-          <!-- 5. Admin Panel -->
+          <!-- 5. Research -->
+          <section id="research" class="help-section mb-5">
+            <h2><i class="fa fa-flask"></i> 5. Research</h2>
+            <hr>
+
+            <h3 id="research-overview">5.1 Overview</h3>
+            <p>
+              The <strong>Research</strong> page is a dedicated workspace for deeper investigation and threat hunting,
+              located in the main navigation between the <strong>RPZ Log</strong> and <strong>Admin</strong> tabs. It brings
+              together advanced analysis capabilities that go beyond the Query Log and RPZ Log: a unique-queries view, a
+              direct read-only database query tool, dataset export, and a set of network research tools. Every Research
+              capability is protected by the same session-based authentication as the rest of RpiDNS and is strictly
+              read-only with respect to your database and system state, so you can investigate freely without risk of
+              changing anything.
+            </p>
+
+            <h3 id="research-unique-queries">5.2 Unique Queries View</h3>
+            <p>
+              The <strong>Unique Queries</strong> view lists the distinct allowed (non-blocked) fully qualified domain
+              names (FQDNs) that were queried over a selected time range. Rather than showing every individual log row, it
+              collapses duplicates so that each domain appears once, making it easy to spot unfamiliar or suspicious
+              destinations without wading through repeated entries.
+            </p>
+            <ul>
+              <li><strong>Time range</strong> - Uses the same period selector as the Query Log (30m, 1h, 1d, 1w, 30d, and
+                a custom start/end range), so you can scope the view to the window you care about.</li>
+              <li><strong>Allowed only</strong> - Results are restricted to queries with an "allowed" action; blocked
+                queries are excluded.</li>
+              <li><strong>Per-domain detail</strong> - For each unique FQDN the table shows the total query count and the
+                most recent query time within the selected range.</li>
+              <li><strong>Filter and sort</strong> - A case-insensitive substring filter narrows the list by domain text,
+                and sortable columns (FQDN, count, last seen) toggle between ascending and descending order.</li>
+              <li><strong>Context menu</strong> - Right-click an FQDN to open the shared context menu with external
+                research links and the network tool actions for that domain.</li>
+            </ul>
+
+            <h3 id="research-sql-tool">5.3 SQL Query Tool</h3>
+            <p>
+              The <strong>SQL Query Tool</strong> lets you run your own SQL statements against the RpiDNS database and view
+              the results in a table, so you can extract custom datasets that the predefined views do not cover. A list of
+              the available table names is provided to help you construct queries against the schema.
+            </p>
+            <p>
+              <i class="fas fa-shield-alt text-success"></i> <strong>Read-only and SELECT-only:</strong> This tool is
+              strictly read-only. It accepts <strong>only</strong> <code>SELECT</code> queries (including
+              <code>WITH ... SELECT</code>). Any write operation - such as <code>INSERT</code>, <code>UPDATE</code>,
+              <code>DELETE</code>, <code>DROP</code>, <code>CREATE</code>, <code>ALTER</code>, <code>ATTACH</code>, or a
+              state-changing <code>PRAGMA</code> - is <strong>rejected without being executed</strong>, leaving the
+              database unchanged. Submissions that contain more than one statement (multi-statement submissions) are also
+              <strong>rejected without executing</strong> any statement. In every rejection case the tool returns a
+              descriptive error explaining that only single read-only SELECT queries are permitted.
+            </p>
+            <p>
+              Results are capped at a maximum number of rows and the tool indicates when the displayed results have been
+              truncated at that limit. Long-running queries are bounded by an execution time limit and terminated if they
+              exceed it, returning a timeout error rather than partial data.
+            </p>
+
+            <h3 id="research-csv-copy">5.4 Copy Dataset as CSV</h3>
+            <p>
+              Both the Unique Queries view and the SQL Query Tool provide a <strong>Copy as CSV</strong> control that copies
+              the entire currently loaded dataset to your clipboard as RFC 4180-compliant CSV text. The exported CSV
+              contains a header row of column names followed by one row per record, with fields quoted and escaped as
+              needed so the data can be pasted directly into a spreadsheet or an external AI agent for further analysis.
+            </p>
+            <ul>
+              <li>A confirmation is shown when the copy succeeds, and an error indication is shown if the clipboard write
+                fails - your loaded dataset stays unchanged either way.</li>
+              <li>The copy control is disabled while no dataset has been loaded.</li>
+            </ul>
+
+            <h3 id="research-network-tools">5.5 Network Tools</h3>
+            <p>
+              The <strong>Network Tools</strong> section runs diagnostic and enrichment utilities against a domain or IP
+              address you supply, and the same tools are also available from the right-click context menu on domain cells
+              in the Query Log, RPZ Log, and Unique Queries view.
+            </p>
+            <ul>
+              <li><strong>RDAP/WHOIS</strong> - Looks up registration and ownership details for a domain or IP address.</li>
+              <li><strong>dig</strong> - Performs a DNS lookup using the appliance's default DNS server, or a DNS server you
+                specify.</li>
+              <li><strong>ping</strong> - Sends a bounded number of probes to test reachability of a target.</li>
+              <li><strong>traceroute</strong> - Traces the network path to a target using a bounded number of probes.</li>
+            </ul>
+            <p>
+              <i class="fas fa-shield-alt text-success"></i> <strong>Safe by design:</strong> The network tools
+              <strong>validate every input</strong> before running anything, so malformed domains or IP addresses are
+              rejected with a validation error and no command is executed. Each tool runs with a <strong>bounded execution
+              time and is terminated on timeout</strong> (ping and traceroute are additionally limited to a fixed number of
+              probes so they always self-terminate), and the tools <strong>do not modify your database or system
+              state</strong>. Tool output is displayed as text, with a truncation indication when the output exceeds the
+              size limit.
+            </p>
+          </section>
+
+          <!-- 6. Admin Panel -->
           <section id="admin-panel" class="help-section mb-5">
-            <h2><i class="fas fa-screwdriver"></i> 5. Admin Panel</h2>
+            <h2><i class="fas fa-screwdriver"></i> 6. Admin Panel</h2>
             <hr>
             <p>
               The Admin Panel is the central configuration hub for RpiDNS, providing access to all management and 
@@ -750,7 +851,7 @@
               tab is restricted to administrator accounts only.
             </p>
 
-            <h3 id="admin-assets">5.1 Assets</h3>
+            <h3 id="admin-assets">6.1 Assets</h3>
             <p>
               The Assets section allows you to manage and organize the network devices (assets) tracked by RpiDNS. 
               Assets represent the devices on your network that generate DNS queries. By maintaining an organized 
@@ -801,7 +902,7 @@
               or VPNs).
             </p>
 
-            <h3 id="admin-rpzfeeds">5.2 RPZ Feeds</h3>
+            <h3 id="admin-rpzfeeds">6.2 RPZ Feeds</h3>
             <p>
               RPZ (Response Policy Zone) Feeds are curated lists of domains that control DNS-level blocking behavior. 
               The RPZ Feeds section provides comprehensive management capabilities for adding, editing, removing, 
@@ -1015,7 +1116,7 @@
               <li>Click "Add Feed" to configure the feed</li>
             </ol>
 
-            <h3 id="admin-blocklist">5.3 Block List</h3>
+            <h3 id="admin-blocklist">6.3 Block List</h3>
             <p>
               The Block List is your custom collection of domains and IP addresses that you want to block on your 
               network. Unlike RPZ feeds which are managed externally, the Block List gives you complete control over 
@@ -1062,7 +1163,7 @@
               way to adjust multiple entries.
             </p>
 
-            <h3 id="admin-allowlist">5.4 Allow List</h3>
+            <h3 id="admin-allowlist">6.4 Allow List</h3>
             <p>
               The Allow List (also known as a whitelist) contains domains that should never be blocked, regardless of 
               RPZ feed rules. When a domain is on your Allow List, it bypasses all blocking rules and is always resolved 
@@ -1093,7 +1194,7 @@
               before allowing them.
             </p>
 
-            <h3 id="admin-settings">5.5 Settings</h3>
+            <h3 id="admin-settings">6.5 Settings</h3>
             <p>
               The Settings section provides configuration options for RpiDNS behavior, data retention policies, and 
               system preferences. Changes made here affect how the entire system operates.
@@ -1147,7 +1248,7 @@
               saved. If you navigate away without saving, your changes will be lost.
             </p>
 
-            <h3 id="admin-tools">5.6 Tools</h3>
+            <h3 id="admin-tools">6.6 Tools</h3>
             <p>
               The Tools section provides access to various utilities for system maintenance, backup, and troubleshooting.
             </p>
@@ -1198,7 +1299,7 @@
                 processing, zone updates, and blocking decisions. Essential for troubleshooting RPZ-related issues.</li>
             </ul>
 
-            <h3 id="admin-users">5.7 User Management</h3>
+            <h3 id="admin-users">6.7 User Management</h3>
             <p>
               <i class="fas fa-lock text-danger"></i> <strong>Administrator Only</strong> - This section is only 
               accessible to users with administrator privileges. Standard users will not see this tab.
@@ -1244,9 +1345,9 @@
             </p>
           </section>
 
-          <!-- 6. Common Actions -->
+          <!-- 7. Common Actions -->
           <section id="common-actions" class="help-section mb-5">
-            <h2><i class="fas fa-mouse-pointer"></i> 6. Common Actions</h2>
+            <h2><i class="fas fa-mouse-pointer"></i> 7. Common Actions</h2>
             <hr>
             <p>
               This section covers the most frequently performed tasks in RpiDNS and provides step-by-step guidance 
@@ -1254,7 +1355,7 @@
               places in the interface, allowing you to work in whatever context is most convenient.
             </p>
 
-            <h3 id="blocking-domain">6.1 Blocking a Domain</h3>
+            <h3 id="blocking-domain">7.1 Blocking a Domain</h3>
             <p>
               Blocking a domain prevents all devices on your network from accessing it. When a blocked domain is 
               queried, the DNS server returns an NXDOMAIN response, effectively making the domain unreachable. 
@@ -1296,7 +1397,7 @@
               domain will be blocked. Existing connections are not affected, but new connection attempts will fail.
             </p>
 
-            <h3 id="allowing-domain">6.2 Allowing a Domain</h3>
+            <h3 id="allowing-domain">7.2 Allowing a Domain</h3>
             <p>
               Adding a domain to the Allow List ensures it will never be blocked, regardless of RPZ feed rules or 
               Block List entries. The Allow List takes precedence over all other blocking mechanisms. This is 
@@ -1327,7 +1428,7 @@
               adding them to your Allow List. When in doubt, investigate further before allowing.
             </p>
 
-            <h3 id="research-links">6.3 Research Links</h3>
+            <h3 id="research-links">7.3 Research Links</h3>
             <p>
               RpiDNS provides quick access to external security research tools that help you investigate domains 
               before making blocking or allowing decisions. These tools aggregate threat intelligence from multiple 
@@ -1365,7 +1466,7 @@
               like recent registration dates, suspicious hosting, or associations with known threat actors.
             </p>
 
-            <h3 id="menu-controls">6.4 Menu Controls</h3>
+            <h3 id="menu-controls">7.4 Menu Controls</h3>
             <p>
               The RpiDNS navigation menu can be customized to suit your preferences and screen size. The collapsible 
               menu feature allows you to maximize screen space for content while maintaining quick access to all 
@@ -1386,7 +1487,7 @@
               the menu will be in the same state you left it. This preference is stored locally in your browser.
             </p>
 
-            <h3 id="navigating-from-dashboard">6.5 Navigating from Dashboard</h3>
+            <h3 id="navigating-from-dashboard">7.5 Navigating from Dashboard</h3>
             <p>
               The Dashboard serves as a navigation hub, allowing you to quickly drill down into detailed views 
               filtered by specific items. This contextual navigation preserves your current time period selection 

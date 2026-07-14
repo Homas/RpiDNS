@@ -32,6 +32,43 @@
       {{ link.name }}
     </a>
 
+    <!-- Tools Section (network research tools from the single-source useNetworkTools) -->
+    <template v-if="showToolsGroup">
+      <div class="context-menu-divider"></div>
+      <div class="context-menu-section-label">
+        <i class="fas fa-toolbox fa-sm"></i>&nbsp;Tools
+      </div>
+      <button
+        v-for="tool in toolActions"
+        :key="tool.name"
+        class="context-menu-item context-menu-action"
+        role="menuitem"
+        :disabled="toolState.running"
+        @click="onToolClick(tool)"
+      >
+        <i
+          v-if="toolState.running && toolState.toolName === tool.name"
+          class="fas fa-spinner fa-spin fa-sm"
+        ></i>
+        <i v-else class="fas fa-wrench fa-sm"></i>
+        &nbsp;{{ tool.label }}
+      </button>
+
+      <!-- Tool loading / output / error region -->
+      <div
+        v-if="toolState.running || toolState.output !== null || toolState.error !== null"
+        class="context-menu-tool-result"
+      >
+        <div v-if="toolState.running" class="context-menu-tool-loading">
+          <i class="fas fa-spinner fa-spin fa-sm"></i>&nbsp;Running {{ toolState.toolName }}&hellip;
+        </div>
+        <div v-else-if="toolState.error !== null" class="context-menu-tool-error">
+          <i class="fas fa-exclamation-triangle fa-sm"></i>&nbsp;{{ toolState.error }}
+        </div>
+        <pre v-else-if="toolState.output !== null" class="context-menu-tool-output">{{ toolState.output }}</pre>
+      </div>
+    </template>
+
     <div class="context-menu-divider"></div>
 
     <!-- Actions Section -->
@@ -55,6 +92,8 @@
 <script>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { getResearchUrls } from '../composables/useResearchLinks.js'
+import { getToolActions } from '../composables/useNetworkTools.js'
+import { useApi } from '../composables/useApi.js'
 
 export default {
   name: 'ContextMenu',
@@ -83,10 +122,15 @@ export default {
     showResearch: {
       type: Boolean,
       default: true
+    },
+    showTools: {
+      type: Boolean,
+      default: true
     }
   },
   emits: ['update:visible', 'action'],
   setup(props, { emit }) {
+    const api = useApi()
     const menuRef = ref(null)
     const adjustedX = ref(0)
     const adjustedY = ref(0)
@@ -94,6 +138,55 @@ export default {
     const researchUrls = computed(() => {
       return props.domain ? getResearchUrls(props.domain) : []
     })
+
+    // Network tool actions come from the single-source useNetworkTools composable,
+    // so adding/removing a tool there propagates to every page using the ContextMenu.
+    const toolActions = computed(() => {
+      return props.domain ? getToolActions(props.domain) : []
+    })
+
+    // Tools are rendered as a separate labeled group between the Research links and
+    // the page-specific Actions. They are shown on the same (domain) menus as the
+    // research links; column-filter menus pass show-research=false and thus hide them.
+    const showToolsGroup = computed(() => {
+      return props.showTools && props.showResearch && toolActions.value.length > 0
+    })
+
+    // Loading / output / error state for a tool launched from the context menu.
+    const toolState = ref({
+      running: false,
+      toolName: null,
+      output: null,
+      error: null
+    })
+
+    function resetToolState() {
+      toolState.value = { running: false, toolName: null, output: null, error: null }
+    }
+
+    // Execute the selected network tool via the research_tool endpoint, showing a
+    // loading indication while it runs and an error indication on failure. Running a
+    // tool never mutates the originating log row (no add-ioc/refresh is emitted).
+    const onToolClick = async (tool) => {
+      if (toolState.value.running) return
+      toolState.value = { running: true, toolName: tool.name, output: null, error: null }
+      try {
+        const res = await api.post(
+          { req: 'research_tool' },
+          { tool: tool.name, target: tool.domain }
+        )
+        if (res && res.status === 'ok') {
+          const output = res.data && res.data.output != null ? String(res.data.output) : ''
+          toolState.value = { running: false, toolName: tool.name, output, error: null }
+        } else {
+          const reason = (res && res.reason) ? res.reason : 'Tool execution failed'
+          toolState.value = { running: false, toolName: tool.name, output: null, error: reason }
+        }
+      } catch (err) {
+        const reason = (err && err.message) ? err.message : 'Tool execution failed'
+        toolState.value = { running: false, toolName: tool.name, output: null, error: reason }
+      }
+    }
 
     const menuStyle = computed(() => ({
       position: 'fixed',
@@ -155,6 +248,8 @@ export default {
     // --- Watch visibility to manage listeners and clamping ---
     watch(() => props.visible, (isVisible) => {
       if (isVisible) {
+        // Clear any prior tool output/error when the menu is (re)opened
+        resetToolState()
         // Set initial position from props before clamping
         adjustedX.value = props.x
         adjustedY.value = props.y
@@ -166,6 +261,11 @@ export default {
       } else {
         removeListeners()
       }
+    })
+
+    // Reset tool state when the menu targets a different domain
+    watch(() => props.domain, () => {
+      resetToolState()
     })
 
     // Also re-clamp when x or y change while visible (e.g., opening on a new target)
@@ -195,6 +295,10 @@ export default {
     return {
       menuRef,
       researchUrls,
+      toolActions,
+      showToolsGroup,
+      toolState,
+      onToolClick,
       menuStyle,
       adjustedX,
       adjustedY,
@@ -273,5 +377,43 @@ export default {
 
 .context-menu-action {
   font-weight: 500;
+}
+
+.context-menu-item:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.context-menu-tool-result {
+  padding: 4px 12px 6px 12px;
+  max-width: 280px;
+}
+
+.context-menu-tool-loading {
+  color: #aaa;
+  font-size: 0.8rem;
+}
+
+.context-menu-tool-error {
+  color: #e6a1a1;
+  font-size: 0.8rem;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.context-menu-tool-output {
+  margin: 0;
+  padding: 6px 8px;
+  background-color: #201d24;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #d0d0d0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  max-height: 220px;
+  max-width: 256px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 </style>

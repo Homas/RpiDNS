@@ -30,6 +30,12 @@ App.vue (root)
 │   ├── CustomPeriodPicker
 │   ├── ResearchLinks
 │   └── ContextMenu                    — Right-click research & allow actions
+├── Research                           — Research & analysis page
+│   ├── UniqueQueriesView              — Unique allowed FQDNs over time
+│   │   ├── CustomPeriodPicker
+│   │   └── ContextMenu                — Right-click research, block & tool actions
+│   ├── SqlQueryTool                   — Read-only SELECT query runner
+│   └── ResearchTools                  — Network research tools (RDAP/WHOIS, dig, ping, traceroute)
 ├── AdminTabs                          — Admin panel container
 │   ├── Assets                         — Network device management
 │   ├── RpzFeeds                       — RPZ feed configuration
@@ -124,6 +130,34 @@ Paginated, filterable table of RPZ-blocked DNS queries, displayed as "RPZ Log" i
 **Table columns:** Local Time, Client, Request, Action, Rule, Type, Count.
 
 **API endpoint:** `hits_raw`.
+
+### Research (`src/components/Research/Research.vue`)
+
+The Research page container, added as a dedicated tab in the main navigation sidebar positioned **immediately after "RPZ log" and immediately before "Admin"** (tab index 3 in the hash route scheme `#i2r/3`; full order: Dashboard, Query log, RPZ log, Research, Admin, Donate, Help). Its navigation title uses the `fa-flask` icon, and — like every other tab — the label text is hidden while the sidebar is collapsed so only the icon shows.
+
+`Research.vue` is a thin pass-through container that bundles the three research sections and re-emits child events verbatim to `App.vue`. It receives the same period/custom-period props and emits the same events as `QueryLog` and `RpzHits`, so `App.vue` wires it identically.
+
+| Props | Type | Description |
+|-------|------|-------------|
+| `isActive` | `Boolean` | Whether this tab is currently visible (`cfgTab === 3`) |
+| `logs_height` | `Number` | Table container height in pixels |
+| `customStart` | `Number` | Custom period start (Unix timestamp) |
+| `customEnd` | `Number` | Custom period end (Unix timestamp) |
+| `period` | `String` | Time period (`30m`, `1h`, `1d`, `1w`, `30d`, `custom`) |
+| `filter` | `String` | Pre-applied filter string |
+
+| Events | Payload | Description |
+|--------|---------|-------------|
+| `add-ioc` | `{ ioc, type }` | Block or allow a domain (bubbled from child) |
+| `custom-period-change` | `{ start_dt, end_dt }` | Propagate custom period |
+| `show-info` | `(msg, time)` | Display info toast |
+
+**Child components** (all under `src/components/Research/`):
+- **UniqueQueriesView** — a paginated, filterable, sortable table of distinct allowed (non-blocked) FQDNs over the selected period, mirroring the Query Log presentation. Each row shows the FQDN, its total in-range query count, and its most recent query time. Right-clicking an FQDN cell opens the shared `ContextMenu` with research links, block actions, and the network tool actions. Provides a CSV copy control for the loaded dataset (via `useCsvExport`). **API endpoint:** `research_unique`.
+- **SqlQueryTool** — an interface to run administrator-supplied read-only `SELECT` statements against the RpiDNS SQLite database, rendering the returned rows in a table with row count, truncation indication, and a CSV copy control. Fetches available table names to help build queries. **API endpoints:** `research_tables` (GET, table list) and `research_sql` (POST, query execution).
+- **ResearchTools** — renders the network research tool controls (RDAP/WHOIS, `dig` with optional DNS server, `ping`, `traceroute`, plus the additional threat-hunting tools) and displays their textual output. Tool definitions come from the shared `useNetworkTools` composable. **API endpoint:** `research_tool` (POST).
+
+**Context_Menu integration:** The Research page (and the Query Log and RPZ Log) render the same reusable `ContextMenu.vue`. Its network tool actions are generated from the single-source `useNetworkTools.js` definitions (the "Tools" group), shown as a separately labeled group alongside the external research links (from `useResearchLinks.js`). Adding or removing a tool in `useNetworkTools.js` propagates to every page that uses the Context_Menu without any per-page change. See the [Backend API — Research](./backend-api.md#research) section for the endpoints these components consume.
 
 ### LoginPage (`src/components/LoginPage.vue`)
 
@@ -377,6 +411,34 @@ Manages periodic data refresh with localStorage persistence.
 | `autoRefreshEnabled` | `Ref<Boolean>` | Reactive toggle for auto-refresh |
 
 Refresh interval is 60 seconds. Toggling `autoRefreshEnabled` on triggers an immediate refresh. The interval runs continuously but only calls `refreshFn` when both enabled and active.
+
+### useCsvExport (`composables/useCsvExport.js`)
+
+RFC 4180-compliant CSV serializer and clipboard copy helper, shared by the `UniqueQueriesView` and `SqlQueryTool` research components for the "copy dataset as CSV" capability.
+
+**Exports:**
+
+| Export | Signature | Description |
+|--------|-----------|-------------|
+| `toCsv(columns, rows)` | `(Array, Array<Array>) → string` | Produces CSV text with a header row of column names followed by one row per record. Every row (including the last) is terminated with CRLF. Fields containing a comma, double quote, CR, or LF are quoted, and embedded double quotes are doubled. Zero data rows yields header-only CSV. |
+| `copyDatasetAsCsv(columns, rows)` | `(Array, Array<Array>) → Promise<void>` | Serializes via `toCsv` and writes the result to the system clipboard (`navigator.clipboard.writeText`). Resolves on success; rejects if the clipboard write fails. |
+
+### useNetworkTools (`composables/useNetworkTools.js`)
+
+Single source of truth for the network research tool definitions, parallel to `useResearchLinks.js`. Consumed by `ResearchTools.vue`, the `ContextMenu`, and `UniqueQueriesView`. Adding or removing a tool here propagates to every page that renders the Context_Menu (Query Log, RPZ Log, Unique Queries) with no per-page change. Also provides pure client-side helpers used by `UniqueQueriesView`.
+
+**Exports:**
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `NETWORK_TOOLS` | `Array<{ name, label, target }>` | Constant array of tool definitions (RDAP/WHOIS, dig, ping, traceroute) with machine name, human label, and expected target type |
+| `getToolActions(domain)` | `Function → Array<{ label, name, domain }>` | Produces one context-menu action per defined tool, preserving definition order |
+| `filterByFqdn(rows, filterText)` | `Function → Array` | Case-insensitive substring filter on the `fqdn` field (pure, non-mutating) |
+| `sortRows(rows, column, descending?)` | `Function → Array` | Stable sort by a column, returning a new array |
+| `nextSortState(current, column)` | `Function → { column, descending }` | Computes the next sort state (new column → ascending; same column → toggle direction) |
+| `aggregateUniqueQueries(records, start?, end?)` | `Function → Array<{ fqdn, cnt, last_seen }>` | Groups allowed records within an inclusive range into distinct FQDN rows with total count and most-recent timestamp |
+
+**Included tools:** RDAP / WHOIS, `dig`, `ping`, `traceroute` (each targeting a domain or IP).
 
 ### useResearchLinks (`composables/useResearchLinks.js`)
 

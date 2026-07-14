@@ -34,7 +34,9 @@
     "vue3-apexcharts": "^1.11.1"
   },
   "devDependencies": {
+    "@vue/test-utils": "^2.4.11",
     "fast-check": "^4.8.0",
+    "jsdom": "^27.0.1",
     "vitest": "^4.1.8"
   }
 }
