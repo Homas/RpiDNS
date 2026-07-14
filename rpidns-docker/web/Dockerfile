@@ -131,6 +131,7 @@ COPY www/rpi_admin/InputValidator.php /opt/rpidns/www/rpi_admin/InputValidator.p
 COPY www/rpi_admin/CommandBuilder.php /opt/rpidns/www/rpi_admin/CommandBuilder.php
 COPY www/rpi_admin/ToolRunner.php /opt/rpidns/www/rpi_admin/ToolRunner.php
 COPY www/rpi_admin/RejectionAudit.php /opt/rpidns/www/rpi_admin/RejectionAudit.php
+COPY www/rpi_admin/ResearchFormatter.php /opt/rpidns/www/rpi_admin/ResearchFormatter.php
 COPY www/blocked /opt/rpidns/www/blocked
 COPY scripts /opt/rpidns/scripts
 # Pristine copy of the scripts, kept outside the bind-mounted path so the

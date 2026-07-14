@@ -712,7 +712,10 @@ export default {
               ? requestedTab
               : DEFAULT_TAB_INDEX
           }
-          if (parts[2] === 'hidemenu') {
+          // `hidemenu` may appear as the 3rd segment (e.g. #i2r/1/hidemenu) or
+          // after a page sub-slug (e.g. #i2r/3/sql/hidemenu), so match it
+          // regardless of position.
+          if (parts.includes('hidemenu')) {
             toggleMenu.value = 2
           }
         }

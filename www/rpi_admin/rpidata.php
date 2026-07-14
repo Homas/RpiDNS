@@ -652,6 +652,7 @@
 			require_once "/opt/rpidns/www/rpi_admin/CommandBuilder.php";
 			require_once "/opt/rpidns/www/rpi_admin/ToolRunner.php";
 			require_once "/opt/rpidns/www/rpi_admin/RejectionAudit.php";
+			require_once "/opt/rpidns/www/rpi_admin/ResearchFormatter.php";
 			$rtl_user = requireResearchSession();
 			$rtl_sid = (is_array($rtl_user) and array_key_exists('session_id',$rtl_user)) ? $rtl_user['session_id'] : '';
 
@@ -848,6 +849,10 @@
 								'truncated'=>false,'exitError'=>true,'reason'=>'tool_start_failed'
 							);
 						}
+						// Format each item's output for readability (JSON tools).
+						if (is_array($rtl_item_result) and isset($rtl_item_result['output'])) {
+							$rtl_item_result['output'] = ResearchFormatter::format($rtl_subtool, $rtl_item_result['output']);
+						}
 						$rtl_bulk_out[] = array('target'=>$rtl_item, 'result'=>$rtl_item_result);
 					}
 					$response='{"status":"ok","data":'.json_encode(array('items'=>$rtl_bulk_out)).'}';
@@ -857,6 +862,9 @@
 					$rtl_cmds = $rtl_builder->build($rtl_tool, $rtl_params);
 					$rtl_runner = new ToolRunner();
 					$rtl_result = $rtl_runner->run($rtl_tool, $rtl_target, $rtl_cmds[0]);
+					// Render JSON-producing tools (geoip, asn, rdap, reputation)
+					// in a human-readable form; text tools/errors pass through.
+					$rtl_result['output'] = ResearchFormatter::format($rtl_tool, $rtl_result['output']);
 					$response='{"status":"ok","data":'.json_encode($rtl_result).'}';
 				}
 			} catch (Exception $e) {

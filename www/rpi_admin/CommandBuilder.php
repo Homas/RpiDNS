@@ -71,8 +71,14 @@ class CommandBuilder {
     /** @var string GeoIP lookup base URL (IP embedded in the path). */
     private $geoipBase = 'https://ipapi.co';
 
-    /** @var string ASN lookup base URL (IP embedded in the path). */
-    private $asnBase = 'https://api.bgpview.io/ip';
+    /**
+     * @var string ASN lookup base URL (IP embedded as the `resource` query
+     *             parameter). Uses RIPEstat's prefix-overview data API, which is
+     *             free, needs no API key, and returns the origin ASN(s) plus the
+     *             AS holder/organization name. Replaces the defunct BGPView API
+     *             (api.bgpview.io no longer resolves).
+     */
+    private $asnBase = 'https://stat.ripe.net/data/prefix-overview/data.json';
 
     /** @var string Reputation/threat-intel base URL (domain embedded in the path). */
     private $reputationBase = 'https://otx.alienvault.com/api/v1/indicators/domain';
@@ -317,7 +323,9 @@ class CommandBuilder {
      * @return array<int, string> argv.
      */
     public function buildAsn(string $ip): array {
-        $url = $this->asnBase . '/' . $ip;
+        // The IP (already validated as a discrete IPv4/IPv6 by the caller) is
+        // confined to a single URL argument via the `resource` query parameter.
+        $url = $this->asnBase . '?resource=' . $ip;
         return $this->curlGet($url);
     }
 

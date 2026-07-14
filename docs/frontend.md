@@ -135,7 +135,7 @@ Paginated, filterable table of RPZ-blocked DNS queries, displayed as "RPZ Log" i
 
 The Research page container, added as a dedicated tab in the main navigation sidebar positioned **immediately after "RPZ log" and immediately before "Admin"** (tab index 3 in the hash route scheme `#i2r/3`; full order: Dashboard, Query log, RPZ log, Research, Admin, Donate, Help). Its navigation title uses the `fa-flask` icon, and — like every other tab — the label text is hidden while the sidebar is collapsed so only the icon shows.
 
-`Research.vue` is a thin pass-through container that bundles the three research sections and re-emits child events verbatim to `App.vue`. It receives the same period/custom-period props and emits the same events as `QueryLog` and `RpzHits`, so `App.vue` wires it identically.
+`Research.vue` is a container that presents the three research sections as horizontal card sub-tabs (mirroring the Admin page): **Unique Queries**, **SQL Query**, and **Tools**. The active sub-tab is reflected in the URL hash as `#i2r/3/{slug}` (`unique`, `sql`, `tools`) for deep-linking, so a specific tool is shareable/bookmarkable; the optional `hidemenu` flag is preserved (e.g. `#i2r/3/sql/hidemenu`). It receives the same period/custom-period props and emits the same events as `QueryLog` and `RpzHits`, re-emitting child events verbatim to `App.vue`, so `App.vue` wires it identically.
 
 | Props | Type | Description |
 |-------|------|-------------|
