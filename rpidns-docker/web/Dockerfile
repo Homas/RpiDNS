@@ -123,6 +123,14 @@ COPY www/rpi_admin/rpidata.php /opt/rpidns/www/rpi_admin/rpidata.php
 COPY www/rpi_admin/auth.php /opt/rpidns/www/rpi_admin/auth.php
 COPY www/rpi_admin/db_migrate.php /opt/rpidns/www/rpi_admin/db_migrate.php
 COPY www/rpi_admin/BindConfigManager.php /opt/rpidns/www/rpi_admin/BindConfigManager.php
+# Research page backend: auth guard, validators, command builder/runner, and
+# rejection audit log required by the research_* endpoints in rpidata.php.
+COPY www/rpi_admin/ResearchAuth.php /opt/rpidns/www/rpi_admin/ResearchAuth.php
+COPY www/rpi_admin/SqlQueryValidator.php /opt/rpidns/www/rpi_admin/SqlQueryValidator.php
+COPY www/rpi_admin/InputValidator.php /opt/rpidns/www/rpi_admin/InputValidator.php
+COPY www/rpi_admin/CommandBuilder.php /opt/rpidns/www/rpi_admin/CommandBuilder.php
+COPY www/rpi_admin/ToolRunner.php /opt/rpidns/www/rpi_admin/ToolRunner.php
+COPY www/rpi_admin/RejectionAudit.php /opt/rpidns/www/rpi_admin/RejectionAudit.php
 COPY www/blocked /opt/rpidns/www/blocked
 COPY scripts /opt/rpidns/scripts
 # Pristine copy of the scripts, kept outside the bind-mounted path so the
