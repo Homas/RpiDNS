@@ -1,39 +1,21 @@
 /**
  * Context Menu Tools Group - Unit / Integration Tests
  *
- * Covers the network-tools group added to ContextMenu.vue (task 10.3):
+ * Covers the network-tools group in ContextMenu.vue:
  *   - three separately labeled groups (Research links, Tools, Actions)
  *   - one Tools entry per NETWORK_TOOLS definition
- *   - selecting a tool executes research_tool via useApi (loading -> output)
- *   - a failed tool shows an error indication and leaves the originating row
- *     unchanged (no add-ioc / action / refresh emitted, menu stays open)
+ *   - selecting a tool dispatches the global `open-research-tools` event with the
+ *     right-clicked domain + tool name and closes the menu (the shared
+ *     ToolsModal then prefills the domain and runs the tool)
+ *   - selecting a tool leaves the originating log row unchanged (no add-ioc /
+ *     action emitted)
  *
- * Feature: research-tools (task 10.4)
+ * Feature: research-tools
  * Validates: Requirements 7.2, 7.3, 7.5
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { nextTick } from 'vue'
-import { flushPromises } from '@vue/test-utils'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mountWithBootstrap } from './helpers/mountWithBootstrap'
 
-// Mock useApi so tool execution hits a controllable stub — vi.mock is hoisted.
-const mockPost = vi.fn()
-vi.mock('@/composables/useApi', () => ({
-  useApi: () => ({
-    get: vi.fn(),
-    post: mockPost,
-    put: vi.fn(),
-    del: vi.fn()
-  }),
-  default: () => ({
-    get: vi.fn(),
-    post: mockPost,
-    put: vi.fn(),
-    del: vi.fn()
-  })
-}))
-
-// Import after the mock so the component picks up the stubbed useApi.
 import ContextMenu from '@/components/ContextMenu.vue'
 import { NETWORK_TOOLS } from '@/composables/useNetworkTools'
 
@@ -69,10 +51,6 @@ function toolButtons(wrapper) {
 }
 
 describe('ContextMenu tools group — group structure (Req 7.3)', () => {
-  beforeEach(() => {
-    mockPost.mockReset()
-  })
-
   it('renders three separately labeled groups: Research, Tools, Actions', () => {
     const wrapper = mountMenu()
     const labels = sectionLabels(wrapper)
@@ -113,102 +91,61 @@ describe('ContextMenu tools group — group structure (Req 7.3)', () => {
   })
 })
 
-describe('ContextMenu tools group — execution (Req 7.2, 7.4)', () => {
+describe('ContextMenu tools group — launch modal (Req 7.2, 7.4)', () => {
+  let openEvents
+
   beforeEach(() => {
-    mockPost.mockReset()
+    openEvents = []
+    window.addEventListener('open-research-tools', captureEvent)
   })
 
-  it('shows a loading indication then the output when a tool succeeds', async () => {
-    // Deferred promise so we can observe the loading state before resolution.
-    let resolveFn
-    mockPost.mockReturnValue(new Promise(resolve => { resolveFn = resolve }))
+  afterEach(() => {
+    window.removeEventListener('open-research-tools', captureEvent)
+  })
 
+  function captureEvent(e) {
+    openEvents.push(e.detail)
+  }
+
+  it('dispatches open-research-tools with the tool + domain and closes the menu', async () => {
     const wrapper = mountMenu()
     const pingBtn = toolButtons(wrapper).find(b => b.text().trim() === 'ping')
     expect(pingBtn).toBeTruthy()
 
     await pingBtn.trigger('click')
-    await nextTick()
 
-    // Loading indication while in flight (Req 7.4)
-    expect(wrapper.find('.context-menu-tool-loading').exists()).toBe(true)
+    // The shared ToolsModal is driven via a global window event carrying the
+    // right-clicked domain and the selected tool (Req 7.2).
+    expect(openEvents).toHaveLength(1)
+    expect(openEvents[0]).toEqual({ tool: 'ping', target: DOMAIN })
 
-    // Endpoint invoked correctly (Req 7.2)
-    expect(mockPost).toHaveBeenCalledTimes(1)
-    expect(mockPost).toHaveBeenCalledWith(
-      { req: 'research_tool' },
-      { tool: 'ping', target: DOMAIN }
-    )
-
-    resolveFn({ status: 'ok', data: { output: 'PING example.com 56 bytes' } })
-    await flushPromises()
-    await nextTick()
-
-    // Output displayed, loading cleared
-    expect(wrapper.find('.context-menu-tool-loading').exists()).toBe(false)
-    const output = wrapper.find('.context-menu-tool-output')
-    expect(output.exists()).toBe(true)
-    expect(output.text()).toContain('PING example.com')
+    // Selecting a tool closes the context menu (the modal takes over).
+    const visEvents = wrapper.emitted('update:visible')
+    expect(visEvents).toBeTruthy()
+    expect(visEvents[visEvents.length - 1]).toEqual([false])
 
     wrapper.unmount()
   })
 
   it('targets the right-clicked domain for each tool action', async () => {
-    mockPost.mockResolvedValue({ status: 'ok', data: { output: 'ok' } })
     const wrapper = mountMenu({ domain: 'evil.test' })
 
     const digBtn = toolButtons(wrapper).find(b => b.text().trim() === 'dig')
     await digBtn.trigger('click')
-    await flushPromises()
 
-    expect(mockPost).toHaveBeenCalledWith(
-      { req: 'research_tool' },
-      { tool: 'dig', target: 'evil.test' }
-    )
-    wrapper.unmount()
-  })
-})
-
-describe('ContextMenu tools group — error handling (Req 7.5)', () => {
-  beforeEach(() => {
-    mockPost.mockReset()
-  })
-
-  it('shows an error indication on an error status and leaves the row unchanged', async () => {
-    mockPost.mockResolvedValue({ status: 'error', reason: 'tool_start_failed' })
-
-    const wrapper = mountMenu()
-    const traceBtn = toolButtons(wrapper).find(b => b.text().trim() === 'traceroute')
-    await traceBtn.trigger('click')
-    await flushPromises()
-    await nextTick()
-
-    const err = wrapper.find('.context-menu-tool-error')
-    expect(err.exists()).toBe(true)
-    expect(err.text()).toContain('tool_start_failed')
-    expect(wrapper.find('.context-menu-tool-output').exists()).toBe(false)
-
-    // Originating row unchanged: no action / add-ioc emitted, menu stays open.
-    expect(wrapper.emitted('action')).toBeFalsy()
-    expect(wrapper.emitted('add-ioc')).toBeFalsy()
-    expect(wrapper.emitted('update:visible')).toBeFalsy()
+    expect(openEvents).toHaveLength(1)
+    expect(openEvents[0]).toEqual({ tool: 'dig', target: 'evil.test' })
 
     wrapper.unmount()
   })
 
-  it('shows an error indication when the request rejects', async () => {
-    mockPost.mockRejectedValue(new Error('network down'))
-
+  it('does not mutate the originating row (no action / add-ioc emitted)', async () => {
     const wrapper = mountMenu()
     const rdapBtn = toolButtons(wrapper).find(b => b.text().trim() === 'RDAP / WHOIS')
     await rdapBtn.trigger('click')
-    await flushPromises()
-    await nextTick()
 
-    const err = wrapper.find('.context-menu-tool-error')
-    expect(err.exists()).toBe(true)
-    expect(err.text()).toContain('network down')
-
+    expect(openEvents).toHaveLength(1)
+    expect(openEvents[0]).toEqual({ tool: 'rdap', target: DOMAIN })
     expect(wrapper.emitted('action')).toBeFalsy()
     expect(wrapper.emitted('add-ioc')).toBeFalsy()
 

@@ -180,7 +180,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useApi } from '../../composables/useApi'
 import { NETWORK_TOOLS } from '../../composables/useNetworkTools'
 
@@ -206,7 +206,7 @@ const ADDITIONAL_TOOLS = [
 
 export default {
   name: 'ResearchTools',
-  setup() {
+  setup(props, { expose }) {
     const { post } = useApi()
 
     const target = ref('')
@@ -239,6 +239,24 @@ export default {
         .map(line => line.trim())
         .filter(line => line.length > 0)
     )
+
+    // Reset every target-driven result region (text tools + website preview) to
+    // its initial empty state. Used both when the shared target changes and when
+    // the tools view is (re)opened for a new target from the context menu.
+    const resetTargetResults = () => {
+      for (const t of textTools) {
+        results[t.name] = { loading: false, error: null, output: null, truncated: false, exitError: false }
+      }
+      preview.loading = false
+      preview.error = null
+      preview.image = null
+    }
+
+    // When a new target is selected/typed, clear all previous results so stale
+    // output from a prior target is never shown alongside the new one.
+    watch(target, () => {
+      resetTargetResults()
+    })
 
     // Run a single text-output tool through the research_tool endpoint.
     const runTool = async (toolName) => {
@@ -320,6 +338,21 @@ export default {
       }
     }
 
+    // Programmatically drive the tools view: set the shared target and run a
+    // single text-output tool. Used by the ToolsModal launched from a context
+    // menu so the domain is prefilled and the selected tool runs immediately.
+    const runWith = async (newTarget, toolName) => {
+      target.value = String(newTarget || '')
+      // Let the target watcher clear any stale results before we start the run.
+      await nextTick()
+      if (toolName && results[toolName]) {
+        runTool(toolName)
+      }
+    }
+
+    // Exposed so a parent (ToolsModal) can prefill + auto-run via a template ref.
+    expose({ runWith })
+
     return {
       MAX_BULK_ITEMS,
       target,
@@ -332,7 +365,8 @@ export default {
       bulkItems,
       runTool,
       runPreview,
-      runBulk
+      runBulk,
+      runWith
     }
   }
 }

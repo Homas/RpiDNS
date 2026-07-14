@@ -239,6 +239,9 @@
       @show-info="showInfo"
     />
 
+    <!-- Research tools modal (opened from any page's context menu tool action) -->
+    <ToolsModal />
+
     <!-- Confirmation Modal -->
     <BModal
       v-model="confirmModalVisible"
@@ -272,6 +275,7 @@ import QueryLog from './components/QueryLog.vue'
 import RpzHits from './components/RpzHits.vue'
 import AdminTabs from './components/Admin/AdminTabs.vue'
 import Research from './components/Research/Research.vue'
+import ToolsModal from './components/Research/ToolsModal.vue'
 import AddAsset from './components/modals/AddAsset.vue'
 import AddIOC from './components/modals/AddIOC.vue'
 import ImportDB from './components/modals/ImportDB.vue'
@@ -288,6 +292,7 @@ export default {
     RpzHits,
     AdminTabs,
     Research,
+    ToolsModal,
     AddAsset,
     AddIOC,
     ImportDB,

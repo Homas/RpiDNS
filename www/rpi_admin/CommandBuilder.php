@@ -34,6 +34,25 @@ class CommandBuilder {
     /** Default wall-clock bound (seconds) applied to curl-based tools. */
     const DEFAULT_CURL_MAX_TIME = 25;
 
+    /**
+     * Default TCP connect timeout (seconds) for curl-based tools. Kept well
+     * below the overall max-time so an unreachable endpoint fails fast instead
+     * of consuming the entire wall-clock budget and surfacing as a bare
+     * "operation timed out" (the RDAP failure mode we hit against rdap.org).
+     */
+    const DEFAULT_CURL_CONNECT_TIMEOUT = 8;
+
+    /** Maximum HTTP redirects curl will follow (rdap.org bootstrap -> registry). */
+    const CURL_MAX_REDIRS = 8;
+
+    /**
+     * User-Agent sent by the curl-based tools. Several upstreams (notably the
+     * Cloudflare-fronted rdap.org bootstrap) stall or challenge requests that
+     * carry no/blank User-Agent, which manifests as a full-timeout with zero
+     * bytes received. A concrete UA avoids that.
+     */
+    const CURL_USER_AGENT = 'RpiDNS-Research/1.0';
+
     /** Executable names (resolved via PATH by the runner). */
     const BIN_DIG        = 'dig';
     const BIN_CURL       = 'curl';
@@ -57,6 +76,9 @@ class CommandBuilder {
 
     /** @var int Configured curl wall-clock bound in seconds. */
     private $curlMaxTime;
+
+    /** @var int Configured curl TCP connect timeout in seconds. */
+    private $curlConnectTimeout;
 
     /**
      * @var string|null Appliance default DNS server. When null, dig uses the
@@ -99,6 +121,9 @@ class CommandBuilder {
         $this->maxProbes = ($maxProbes > 0) ? min($maxProbes, self::DEFAULT_MAX_PROBES) : self::DEFAULT_MAX_PROBES;
         $this->maxHops = ($maxHops > 0) ? min($maxHops, self::DEFAULT_MAX_HOPS) : self::DEFAULT_MAX_HOPS;
         $this->curlMaxTime = ($curlMaxTime > 0) ? $curlMaxTime : self::DEFAULT_CURL_MAX_TIME;
+        // Connect timeout is bounded by the overall max-time so it can never
+        // exceed the wall-clock budget.
+        $this->curlConnectTimeout = min(self::DEFAULT_CURL_CONNECT_TIMEOUT, $this->curlMaxTime);
         $this->defaultDnsServer = $defaultDnsServer;
     }
 
@@ -187,8 +212,11 @@ class CommandBuilder {
         return [
             self::BIN_CURL,
             '-sSL',
-            '--connect-timeout', (string)$this->curlMaxTime,
+            '-4',                                                  // avoid IPv6 black-hole stalls
+            '--connect-timeout', (string)$this->curlConnectTimeout, // fail fast if unreachable
             '--max-time', (string)$this->curlMaxTime,
+            '--max-redirs', (string)self::CURL_MAX_REDIRS,         // bootstrap -> registry hop(s)
+            '-A', self::CURL_USER_AGENT,                           // avoid Cloudflare stalls
             '-H', 'Accept: application/rdap+json',
             $url,
         ];
@@ -424,8 +452,11 @@ class CommandBuilder {
         return [
             self::BIN_CURL,
             '-sSL',
-            '--connect-timeout', (string)$this->curlMaxTime,
+            '-4',                                                  // avoid IPv6 black-hole stalls
+            '--connect-timeout', (string)$this->curlConnectTimeout, // fail fast if unreachable
             '--max-time', (string)$this->curlMaxTime,
+            '--max-redirs', (string)self::CURL_MAX_REDIRS,
+            '-A', self::CURL_USER_AGENT,
             $url,
         ];
     }
