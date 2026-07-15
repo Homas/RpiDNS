@@ -186,6 +186,10 @@ import { NETWORK_TOOLS } from '../../composables/useNetworkTools'
 
 const MAX_BULK_ITEMS = 100
 
+// Tools that run through `dig` and therefore honor the optional custom DNS
+// server field: plain dig, NS/MX enumeration, and reverse DNS (PTR).
+const DNS_AWARE_TOOLS = ['dig', 'nsmx', 'reverse_dns']
+
 // Icons for the core network tools (keyed by the single-source tool name).
 const TOOL_ICONS = {
   rdap: 'fa-id-card',
@@ -270,7 +274,9 @@ export default {
       state.exitError = false
 
       const body = { tool: toolName, target: target.value }
-      if (toolName === 'dig' && dnsServer.value) {
+      // The dig-based tools (dig, NS/MX, reverse DNS) honor the optional custom
+      // DNS server; the others ignore it.
+      if (DNS_AWARE_TOOLS.includes(toolName) && dnsServer.value) {
         body.dns_server = dnsServer.value
       }
 

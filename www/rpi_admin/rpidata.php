@@ -803,9 +803,11 @@
 			}
 
 			// For dig with a user-supplied DNS server, validate it as an IP or
-			// hostname before execution (Requirement 6.4). Other tools ignore
-			// dns_server.
-			if ($rtl_tool === 'dig' and $rtl_dns !== null and !InputValidator::isValidDnsServer($rtl_dns)) {
+			// hostname before execution (Requirement 6.4). Only the dig-based
+			// tools (dig, nsmx, reverse_dns) honor a custom DNS server; the other
+			// tools ignore dns_server.
+			$rtl_dns_aware = array('dig','nsmx','reverse_dns');
+			if (in_array($rtl_tool, $rtl_dns_aware, true) and $rtl_dns !== null and !InputValidator::isValidDnsServer($rtl_dns)) {
 				RejectionAudit::record($rtl_sid, 'invalid_dns_server', 'research_tool');
 				$response='{"status":"error","reason":"invalid dns_server: must be a valid IP address or hostname"}';
 				break;
@@ -818,7 +820,7 @@
 			// non-zero exit, and timeout in the ToolResult. Neither modifies DB or
 			// system state (Requirements 6.2, 6.6, 6.7, 6.8, 6.9, 8.11, 8.12, 9.3).
 			$rtl_params = array('target' => $rtl_target);
-			if ($rtl_tool === 'dig' and $rtl_dns !== null) {
+			if (in_array($rtl_tool, $rtl_dns_aware, true) and $rtl_dns !== null) {
 				$rtl_params['dns_server'] = $rtl_dns;
 			}
 
