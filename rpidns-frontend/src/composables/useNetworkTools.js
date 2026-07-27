@@ -120,26 +120,44 @@ export function nextSortState(current, column) {
 }
 
 /**
- * Aggregate raw query records into distinct allowed FQDN rows for a time range.
+ * Aggregate raw query records into FIRST-SEEN allowed FQDN rows for a time range.
+ *
+ * "Unique" means newly observed: the FQDN was requested for the first time inside
+ * the selected range and was never requested at any point before the range start.
  * Mirrors the backend reference aggregation used by the Unique_Queries_View:
  *   (a) keep only records with action === 'allowed',
  *   (b) keep only records whose timestamp is within the inclusive [start, end] range,
  *   (c) group by fqdn so no fqdn repeats,
- *   (d) report the total in-range allowed count and the maximum in-range timestamp.
+ *   (d) report the total in-range allowed count and the maximum in-range timestamp,
+ *   (e) drop any fqdn that has ANY record (allowed or blocked) with dt < start,
+ *       since a previously requested domain is not newly observed.
  * Each record's count contribution is its numeric `cnt` field when present, otherwise 1.
  * @param {Array<{fqdn: string, action: string, dt: (number|string), cnt?: number}>} records
  * @param {(number|string)} [start] - Inclusive lower bound (omit for no lower bound)
  * @param {(number|string)} [end] - Inclusive upper bound (omit for no upper bound)
- * @returns {Array<{fqdn: string, cnt: number, last_seen: (number|string)}>} Unique rows
+ * @returns {Array<{fqdn: string, cnt: number, last_seen: (number|string)}>} First-seen rows
  */
 export function aggregateUniqueQueries(records, start, end) {
   if (!Array.isArray(records)) return []
+
+  // Pass 1: every fqdn with recorded activity of any action before the range
+  // start. These have been requested before and are therefore not newly seen.
+  const seenBefore = new Set()
+  if (start != null) {
+    for (const rec of records) {
+      if (!rec) continue
+      if (rec.dt < start) seenBefore.add(rec.fqdn)
+    }
+  }
+
+  // Pass 2: aggregate the in-range allowed records for the remaining fqdns.
   const groups = new Map()
   for (const rec of records) {
     if (!rec || rec.action !== 'allowed') continue
     const dt = rec.dt
     if (start != null && dt < start) continue
     if (end != null && dt > end) continue
+    if (seenBefore.has(rec.fqdn)) continue
 
     const fqdn = rec.fqdn
     const contribution =

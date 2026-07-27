@@ -315,14 +315,16 @@ The Research API serves the Research page (see [frontend.md](./frontend.md)). It
 
 | Method | Request Name | Description |
 |--------|-------------|-------------|
-| `GET` | `research_unique` | Unique allowed (non-blocked) FQDNs over a time range |
+| `GET` | `research_unique` | First-seen allowed (non-blocked) FQDNs over a time range |
 | `GET` | `research_tables` | List available database table names |
 | `POST` | `research_sql` | Execute an administrator-supplied read-only SELECT statement |
 | `POST` | `research_tool` | Execute a network research tool against a validated target |
 
 ### GET research_unique
 
-Returns distinct allowed FQDNs for the selected period, each with its total in-range query count and most-recent query time.
+Returns the **newly seen** allowed FQDNs for the selected period, each with its total in-range query count and most-recent query time.
+
+"Unique" here means *first seen*, not merely de-duplicated: an FQDN is returned only if it was requested for the first time inside the selected range and has **no recorded request before the range start**. A domain queried both inside and before the range is excluded, because it is not newly observed.
 
 **Accepted inputs:**
 
@@ -337,7 +339,14 @@ Returns distinct allowed FQDNs for the selected period, each with its total in-r
 | `pp` | int | Per-page limit (1–500, default 100) |
 | `cp` | int | Current page number |
 
-**Validation behavior:** Only queries with `action='allowed'` are included. The sort column is constrained to an allowlist; the filter value is escaped before use. The query runs `SELECT`-only and never modifies database state.
+**Validation behavior:** Only queries with `action='allowed'` are included in the in-range aggregation. The sort column is constrained to an allowlist; the filter value is escaped before use. The query runs `SELECT`-only and never modifies database state.
+
+**First-seen (prior history) evaluation:**
+
+- Prior activity is checked with `NOT EXISTS` against **all four query tiers** (`queries_raw`, `queries_5m`, `queries_1h`, `queries_1d`), so the lookback spans the full retained history (7 / 14 / 60 / 180 days by default) rather than the raw tier alone.
+- Prior activity is **not** restricted to `action='allowed'`. A domain previously requested and blocked has still been requested before, so it is not newly observed.
+- The range start used as the cut-off mirrors the lower bound of the matching aggregation branch: `start_dt` for custom ranges, `now - period` for periods up to one day, and the day-aligned `now - now % 86400 - period` for longer periods.
+- Because the aggregated tiers store interval-floored timestamps, a bucket whose start falls before the range start counts as prior activity even if part of that interval overlaps the range. This deliberately errs toward excluding a domain rather than reporting a previously-seen domain as new.
 
 **Success response:**
 

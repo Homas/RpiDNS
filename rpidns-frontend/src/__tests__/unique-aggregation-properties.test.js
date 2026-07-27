@@ -19,15 +19,22 @@ const FQDN_POOL = ['a.example.com', 'b.example.net', 'c.example.org', 'd.example
 const ACTION_POOL = ['allowed', 'blocked', 'redirected', 'allowed', '']
 
 /**
- * Independent reference: filter to action==='allowed' AND start<=dt<=end
- * (inclusive on both boundaries), group by fqdn, sum cnt (1 when absent /
- * non-finite), and take the maximum dt as last_seen. Written in a deliberately
- * different style (filter + reduce) from the implementation under test.
- * Returns a Map keyed by fqdn.
+ * Independent reference: keep only FQDNs that are FIRST SEEN in the range, i.e.
+ * that have no record of any action before `start`. Then filter to
+ * action==='allowed' AND start<=dt<=end (inclusive on both boundaries), group by
+ * fqdn, sum cnt (1 when absent / non-finite), and take the maximum dt as
+ * last_seen. Written in a deliberately different style (filter + reduce) from
+ * the implementation under test. Returns a Map keyed by fqdn.
  */
 function referenceAggregate(records, start, end) {
+  // An fqdn is disqualified if it appears at all (any action) before the range.
+  const priorFqdns = records
+    .filter(r => r && r.dt < start)
+    .map(r => r.fqdn)
+
   const allowed = records.filter(
-    r => r && r.action === 'allowed' && r.dt >= start && r.dt <= end
+    r => r && r.action === 'allowed' && r.dt >= start && r.dt <= end &&
+         !priorFqdns.includes(r.fqdn)
   )
   const byFqdn = new Map()
   for (const r of allowed) {
@@ -45,14 +52,15 @@ function referenceAggregate(records, start, end) {
 
 describe('Feature: research-tools, Property 2: Unique-queries aggregation is correct', () => {
   /**
-   * Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5
+   * Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.5, 2.12
    *
    * For any set of query records and any inclusive [start, end] time range, the
    * aggregation result SHALL equal the reference aggregation that (a) keeps only
    * rows with action='allowed', (b) keeps only rows whose timestamp is within the
-   * inclusive range, (c) groups by FQDN so no FQDN repeats, and (d) reports for
+   * inclusive range, (c) groups by FQDN so no FQDN repeats, (d) reports for
    * each FQDN the total in-range allowed count and the maximum in-range timestamp
-   * as "last seen".
+   * as "last seen", and (e) excludes any FQDN that has a record of any action
+   * before the range start (first-seen / newly-observed semantics).
    */
 
   // A single query record: fqdn from a small pool, mixed actions, integer
@@ -107,5 +115,41 @@ describe('Feature: research-tools, Property 2: Unique-queries aggregation is cor
       ),
       { numRuns: 100 }
     )
+  })
+})
+
+describe('Unique-queries first-seen rule (Req 2.12)', () => {
+  // Deterministic checks so the first-seen exclusion is explicitly pinned and the
+  // property above can never pass vacuously.
+
+  it('keeps an FQDN whose only activity is inside the range', () => {
+    const rows = aggregateUniqueQueries([
+      { fqdn: 'new.example', action: 'allowed', dt: 12 },
+      { fqdn: 'new.example', action: 'allowed', dt: 15 }
+    ], 10, 20)
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0].fqdn).toBe('new.example')
+    expect(rows[0].cnt).toBe(2)
+    expect(rows[0].last_seen).toBe(15)
+  })
+
+  it('excludes an FQDN that was also requested before the range start', () => {
+    const rows = aggregateUniqueQueries([
+      { fqdn: 'old.example', action: 'allowed', dt: 5 },  // before the range
+      { fqdn: 'old.example', action: 'allowed', dt: 12 }, // inside the range
+      { fqdn: 'new.example', action: 'allowed', dt: 12 }
+    ], 10, 20)
+
+    expect(rows.map(r => r.fqdn)).toEqual(['new.example'])
+  })
+
+  it('excludes an FQDN whose only prior activity was blocked (still a prior request)', () => {
+    const rows = aggregateUniqueQueries([
+      { fqdn: 'seen.example', action: 'blocked', dt: 5 },
+      { fqdn: 'seen.example', action: 'allowed', dt: 12 }
+    ], 10, 20)
+
+    expect(rows).toHaveLength(0)
   })
 })

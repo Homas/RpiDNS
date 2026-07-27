@@ -6,7 +6,11 @@
       <template #header>
         <BRow>
           <BCol cols="0" class="d-none d-lg-block" lg="3">
-            <span class="bold"><i class="fas fa-fingerprint"></i>&nbsp;&nbsp;Unique queries</span>
+            <span
+              v-b-tooltip.hover
+              title="FQDNs requested for the first time within the selected period, and never requested before it"
+              class="bold"
+            ><i class="fas fa-fingerprint"></i>&nbsp;&nbsp;Unique queries</span>
           </BCol>
           <BCol cols="12" lg="9" class="text-end">
             <BButton
@@ -112,7 +116,7 @@
               <BThead>
                 <BTr>
                   <BTh class="sortable-col" @click="sortByColumn('fqdn')">
-                    Request {{ sortIndicator('fqdn') }}
+                    Newly seen request {{ sortIndicator('fqdn') }}
                   </BTh>
                   <BTh class="sortable-col" @click="sortByColumn('cnt')">
                     Count {{ sortIndicator('cnt') }}
@@ -133,7 +137,8 @@
                 <!-- Empty-state indication (Req 2.11) -->
                 <BTr v-else-if="!isLoading && pagedItems.length === 0">
                   <BTd colspan="3" class="text-center text-muted">
-                    No unique allowed FQDNs were found for the selected range.
+                    No newly seen allowed FQDNs were found for the selected range
+                    (every requested FQDN had already been requested before it).
                   </BTd>
                 </BTr>
                 <!-- Data rows -->

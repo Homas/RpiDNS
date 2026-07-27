@@ -418,7 +418,10 @@
       break;
 
     case "GET research_unique":
-			// Research: unique non-blocked (allowed) FQDNs over the selected range.
+			// Research: FIRST-SEEN (newly observed) non-blocked (allowed) FQDNs over
+			// the selected range. "Unique" means the FQDN was requested for the first
+			// time within the selected period and was never requested at any point
+			// before the period start - not merely de-duplicated within the period.
 			// Auth guard runs first, before any query is built or executed
 			// (Requirements 1.7, 9.1, 9.4).
 			require_once "/opt/rpidns/www/rpi_admin/ResearchAuth.php";
@@ -442,6 +445,19 @@
 
 			// Reuse the period pre-switch conventions ($period / $start_dt / $end_dt).
 			$ru_period = isset($period) ? intval($period) : 1800;
+
+			// The inclusive start of the selected range, as a SQL expression. This is
+			// the cut-off used for the "never requested before" test below, and it
+			// mirrors exactly the lower bound each aggregation branch applies.
+			if (array_key_exists("period",$REQUEST) and $REQUEST["period"] === 'custom') {
+				$ru_start = "$start_dt";
+			} elseif ($ru_period <= 86400) {
+				$ru_start = "strftime('%s', 'now')-$ru_period";
+			} else {
+				// Long periods are aligned to the day boundary, matching the queries_1d
+				// tier the aggregation reads from.
+				$ru_start = "strftime('%s', 'now')-strftime('%s', 'now')%86400-$ru_period";
+			}
 
 			// Tiered aggregation over the allowed queries in the selected range
 			// (Requirements 2.2, 2.3, 2.4). Inclusive bounds for custom range.
@@ -467,10 +483,31 @@
 				}
 			}
 
+			// FIRST-SEEN restriction: keep only FQDNs with NO recorded request of any
+			// kind before the range start. Prior activity is checked across every
+			// query tier so the lookback spans the full retained history (raw 7d,
+			// 5m 14d, 1h 60d, 1d 180d by default) rather than just the raw tier.
+			//
+			// Prior activity is deliberately NOT restricted to action='allowed': a
+			// domain that was previously requested and blocked has still been
+			// requested before, so it is not newly observed.
+			//
+			// Note on granularity: the aggregated tiers store interval-floored
+			// timestamps, so a bucket whose start falls before the range start is
+			// treated as prior activity even if part of that interval overlaps the
+			// range. This errs toward excluding a domain rather than reporting a
+			// previously-seen domain as new.
+			$ru_hist_tiers = array('queries_raw','queries_5m','queries_1h','queries_1d');
+			$ru_hist = '';
+			foreach ($ru_hist_tiers as $ru_tier) {
+				$ru_hist .= " and not exists (select 1 from $ru_tier h where h.fqdn=u.fqdn and h.dt<($ru_start))";
+			}
+			$ru_new = "select fqdn, cnt, last_dt from ($ru_agg) u where 1=1 $ru_hist";
+
 			// Group by fqdn guarantees distinctness (Requirement 2.1); MAX(dt) ->
 			// ISO8601 UTC last_seen mirrors the strftime convention (Requirement 2.5).
-			$ru_data_sql = "select fqdn, cnt, strftime('%Y-%m-%dT%H:%M:%SZ', last_dt, 'unixepoch', 'utc') as last_seen from ($ru_agg) order by $ru_sortCol $ru_dir limit $ru_pp offset $ru_offset;";
-			$ru_count_sql = "select count(*) as cnt from ($ru_agg);";
+			$ru_data_sql = "select fqdn, cnt, strftime('%Y-%m-%dT%H:%M:%SZ', last_dt, 'unixepoch', 'utc') as last_seen from ($ru_new) order by $ru_sortCol $ru_dir limit $ru_pp offset $ru_offset;";
+			$ru_count_sql = "select count(*) as cnt from ($ru_new);";
 
 			// SELECT-only: never modifies DB state (Requirement 9.2). On failure
 			// return an error and never present partial data as complete (Req 2.10).
