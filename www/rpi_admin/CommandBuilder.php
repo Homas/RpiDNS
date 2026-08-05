@@ -59,13 +59,37 @@ class CommandBuilder {
     const BIN_PING       = 'ping';
     const BIN_TRACEROUTE = 'traceroute';
     const BIN_OPENSSL    = 'openssl';
-    const BIN_CHROMIUM   = 'chromium-browser';
+    const BIN_CHROMIUM   = 'chromium';
+
+    /**
+     * Headless-browser executable names, in preference order. Distributions
+     * disagree on the name: Alpine's `chromium` package installs `chromium`
+     * (older releases used `chromium-browser`), Debian/Ubuntu ship
+     * `chromium`/`chromium-browser`, and a Chrome install provides
+     * `google-chrome`. The first one found on disk is used.
+     */
+    const CHROMIUM_CANDIDATES = [
+        'chromium',
+        'chromium-browser',
+        'chrome',
+        'google-chrome',
+        'google-chrome-stable',
+    ];
+
+    /** Directories searched for the headless-browser executable. */
+    const CHROMIUM_SEARCH_DIRS = ['/usr/bin', '/usr/local/bin', '/usr/lib/chromium', '/opt/google/chrome'];
+
+    /** Wall-clock budget (ms) chromium is given to load and render the page. */
+    const PREVIEW_VIRTUAL_TIME_BUDGET_MS = 8000;
+
+    /** Hard per-run timeout (ms) passed to chromium as a safety net. */
+    const PREVIEW_TIMEOUT_MS = 20000;
 
     /** Tools that CommandBuilder knows how to build. */
     const SUPPORTED_TOOLS = [
         'rdap', 'dig', 'ping', 'traceroute',
         'reverse_dns', 'nsmx', 'geoip', 'asn',
-        'tls_cert', 'reputation', 'website_preview', 'bulk'
+        'tls_cert', 'reputation', 'website_preview'
     ];
 
     /** @var int Configured maximum probe count for ping/traceroute. */
@@ -141,8 +165,8 @@ class CommandBuilder {
      * Build the command(s) for a tool.
      *
      * Every tool returns a LIST of argv arrays (`string[][]`). Most tools return
-     * a single argv; composite tools (e.g. NS/MX enumeration, bulk analysis)
-     * return several. Each argv is a self-contained argument vector.
+     * a single argv; composite tools (e.g. NS/MX enumeration) return several.
+     * Each argv is a self-contained argument vector.
      *
      * @param string $tool   One of self::SUPPORTED_TOOLS.
      * @param array  $params Tool parameters. Recognized keys:
@@ -150,8 +174,7 @@ class CommandBuilder {
      *                       - 'dns_server'  ?string custom DNS server for dig (user input)
      *                       - 'record_type' ?string dig record type (fixed, caller-chosen)
      *                       - 'output_path' ?string website-preview screenshot destination
-     *                       - 'subtool'     ?string bulk: per-item tool name
-     *                       - 'items'       ?array  bulk: list of targets
+     *                       - 'profile_dir' ?string website-preview chromium profile dir
      * @return array<int, array<int, string>> List of argv arrays.
      * @throws InvalidArgumentException When the tool is unknown.
      */
@@ -185,11 +208,8 @@ class CommandBuilder {
                 return [$this->buildReputation($target)];
             case 'website_preview':
                 $outputPath = isset($params['output_path']) ? (string)$params['output_path'] : '';
-                return [$this->buildWebsitePreview($target, $outputPath)];
-            case 'bulk':
-                $subtool = isset($params['subtool']) ? (string)$params['subtool'] : '';
-                $items = isset($params['items']) && is_array($params['items']) ? $params['items'] : [];
-                return $this->buildBulk($subtool, $items, $dnsServer);
+                $profileDir = isset($params['profile_dir']) ? (string)$params['profile_dir'] : '';
+                return [$this->buildWebsitePreview($target, $outputPath, $profileDir)];
             default:
                 throw new InvalidArgumentException("Unknown research tool: {$tool}");
         }
@@ -389,57 +409,91 @@ class CommandBuilder {
     }
 
     /**
-     * Website preview screenshot via headless Chromium (Req 8.7, feature-flagged).
+     * Locate the headless-browser executable, or null when none is installed.
      *
-     * The domain is confined to a single URL argument. The screenshot output
-     * path is server-generated (not user input) and passed as a fixed-form flag.
+     * The runner resolves bare names through PATH, but PHP-FPM often runs with a
+     * minimal PATH, so absolute paths are resolved here instead. The result is
+     * memoized for the request.
      *
-     * @param string $domain     Domain (validated by caller).
-     * @param string $outputPath Server-generated destination PNG path.
-     * @return array<int, string> argv.
+     * @return string|null Absolute path to a chromium/chrome binary, or null.
      */
-    public function buildWebsitePreview(string $domain, string $outputPath): array {
-        $url = 'https://' . $domain;
-        return [
-            self::BIN_CHROMIUM,
-            '--headless',
-            '--disable-gpu',
-            '--no-sandbox',
-            '--hide-scrollbars',
-            '--window-size=1280,1024',
-            '--screenshot=' . $outputPath,
-            $url, // domain confined to a single URL argument
-        ];
-    }
+    public static function findChromium(): ?string {
+        static $resolved = false;
+        static $path = null;
 
-    /**
-     * Bulk analysis: build one command list per item by delegating to the given
-     * sub-tool (Req 8.8). Preserves submitted order, one command-set per item.
-     *
-     * @param string      $subtool   Per-item tool name (must be a single-command tool).
-     * @param array       $items     List of targets (validated by caller, <= 100).
-     * @param string|null $dnsServer Optional custom DNS server passed through.
-     * @return array<int, array<int, string>> Flat list of argv arrays, in item order.
-     * @throws InvalidArgumentException When the sub-tool is unknown or is itself 'bulk'.
-     */
-    public function buildBulk(string $subtool, array $items, ?string $dnsServer = null): array {
-        if ($subtool === 'bulk' || !in_array($subtool, self::SUPPORTED_TOOLS, true)) {
-            throw new InvalidArgumentException("Invalid bulk sub-tool: {$subtool}");
+        if ($resolved) {
+            return $path;
         }
+        $resolved = true;
 
-        $commands = [];
-        foreach ($items as $item) {
-            $built = $this->build($subtool, [
-                'target' => (string)$item,
-                'dns_server' => $dnsServer,
-            ]);
-            // $built is a list of argv arrays; append each, preserving order.
-            foreach ($built as $argv) {
-                $commands[] = $argv;
+        foreach (self::CHROMIUM_SEARCH_DIRS as $dir) {
+            foreach (self::CHROMIUM_CANDIDATES as $name) {
+                $candidate = $dir . '/' . $name;
+                if (@is_executable($candidate)) {
+                    $path = $candidate;
+                    return $path;
+                }
             }
         }
 
-        return $commands;
+        return $path;
+    }
+
+    /**
+     * Whether the website-preview tool can run on this host, i.e. a headless
+     * browser is installed (Req 8.7). Used to decide the default state of the
+     * website-preview feature flag so the tool works out of the box on images
+     * that bundle chromium and degrades gracefully where it is absent.
+     *
+     * @return bool True when a headless-browser executable was found.
+     */
+    public static function websitePreviewAvailable(): bool {
+        return self::findChromium() !== null;
+    }
+
+    /**
+     * Website preview screenshot via headless Chromium (Req 8.7, feature-flagged).
+     *
+     * The domain is confined to a single URL argument. The screenshot output path
+     * and the throwaway profile directory are server-generated (not user input)
+     * and passed as fixed-form flags.
+     *
+     * A dedicated `--user-data-dir` is required because the web server user has
+     * no writable HOME; without it chromium fails to start. `--no-sandbox` is
+     * required inside the container (no user namespaces), and the virtual time
+     * budget bounds how long the page is given to render before the screenshot
+     * is taken.
+     *
+     * @param string $domain     Domain (validated by caller).
+     * @param string $outputPath Server-generated destination PNG path.
+     * @param string $profileDir Server-generated throwaway profile directory.
+     * @return array<int, string> argv.
+     */
+    public function buildWebsitePreview(string $domain, string $outputPath, string $profileDir = ''): array {
+        $url = 'https://' . $domain;
+        $argv = [
+            self::findChromium() ?? self::BIN_CHROMIUM,
+            '--headless',
+            '--disable-gpu',
+            '--no-sandbox',
+            '--disable-dev-shm-usage',       // /dev/shm is small in containers
+            '--no-first-run',
+            '--no-default-browser-check',
+            '--disable-extensions',
+            '--hide-scrollbars',
+            '--window-size=1280,1024',
+            '--virtual-time-budget=' . self::PREVIEW_VIRTUAL_TIME_BUDGET_MS,
+            '--timeout=' . self::PREVIEW_TIMEOUT_MS,
+        ];
+        if ($profileDir !== '') {
+            // Writable profile location: the web server user has no usable HOME.
+            $argv[] = '--user-data-dir=' . $profileDir;
+            $argv[] = '--crash-dumps-dir=' . $profileDir;
+        }
+        $argv[] = '--screenshot=' . $outputPath;
+        $argv[] = $url; // domain confined to a single URL argument
+
+        return $argv;
     }
 
     /**

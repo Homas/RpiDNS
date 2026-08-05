@@ -16,7 +16,7 @@
  * randomly chosen category. Where possible the category is derived from the real
  * validators (SqlQueryValidator for write_attempt / multi_statement / too_long /
  * invalid_input; InputValidator for invalid_domain / invalid_ip /
- * invalid_dns_server / bulk_too_large) so the audited category corresponds to an
+ * invalid_dns_server) so the audited category corresponds to an
  * actual rejected submission. The rejection is then recorded via
  * RejectionAudit::record($sessionId, $category, $endpoint, $tempDir) and read
  * back with RejectionAudit::readAll($tempDir). We assert:
@@ -62,7 +62,7 @@ function randSessionId() {
 function randEndpoint() {
     return pick([
         'research/sql', 'research/tools/whois', 'research/tools/dig',
-        'research/tools/ping', 'research/bulk', 'research/unique',
+        'research/tools/ping', 'research/tools/geoip', 'research/unique',
     ]);
 }
 
@@ -117,15 +117,6 @@ function genInvalidDnsServer() {
     return [$rejected, 'invalid_dns_server'];
 }
 
-function genBulkTooLarge() {
-    // A bulk list large enough / malformed enough to be rejected.
-    $items = [];
-    $n = ri(1, 5);
-    for ($i = 0; $i < $n; $i++) $items[] = 'bad domain ' . $i;
-    $rejected = (InputValidator::isValidBulkList($items) === false);
-    return [$rejected, 'bulk_too_large'];
-}
-
 $generators = [
     'write_attempt'      => 'genWriteAttempt',
     'multi_statement'    => 'genMultiStatement',
@@ -134,7 +125,6 @@ $generators = [
     'invalid_domain'     => 'genInvalidDomain',
     'invalid_ip'         => 'genInvalidIp',
     'invalid_dns_server' => 'genInvalidDnsServer',
-    'bulk_too_large'     => 'genBulkTooLarge',
 ];
 
 /* -------------------------------------------------------------------------- */

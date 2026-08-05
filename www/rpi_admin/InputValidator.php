@@ -9,7 +9,7 @@
  * arguments, performs no I/O, and produces no side effects.
  *
  * @see .kiro/specs/research-tools/design.md ("InputValidator")
- * Requirements: 6.4, 6.5, 8.8, 8.9, 8.10, 9.4
+ * Requirements: 6.4, 6.5, 8.10, 9.4
  */
 class InputValidator {
 
@@ -18,9 +18,6 @@ class InputValidator {
 
     /** @var int Maximum length of a single DNS label (RFC 1035). */
     const MAX_LABEL_LENGTH = 63;
-
-    /** @var int Maximum number of items accepted by the bulk-analysis tool. */
-    const MAX_BULK_ITEMS = 100;
 
     /**
      * Validate a domain name against RFC 1035 hostname syntax.
@@ -116,32 +113,5 @@ class InputValidator {
      */
     public static function isValidDnsServer($s): bool {
         return self::isValidIp($s) || self::isValidDomain($s);
-    }
-
-    /**
-     * Validate a bulk-analysis list.
-     *
-     * A list is accepted if and only if it contains at most 100 items and every
-     * item is a valid domain or IP address.
-     *
-     * @param array $items Candidate list of targets.
-     * @return bool True if the list is accepted, false otherwise.
-     */
-    public static function isValidBulkList($items): bool {
-        if (!is_array($items)) {
-            return false;
-        }
-
-        if (count($items) > self::MAX_BULK_ITEMS) {
-            return false;
-        }
-
-        foreach ($items as $item) {
-            if (!self::isDomainOrIp($item)) {
-                return false;
-            }
-        }
-
-        return true;
     }
 }

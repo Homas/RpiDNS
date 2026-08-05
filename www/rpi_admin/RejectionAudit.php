@@ -49,7 +49,6 @@ class RejectionAudit {
         'invalid_domain',
         'invalid_ip',
         'invalid_dns_server',
-        'bulk_too_large',
         'invalid_input',
     ];
 

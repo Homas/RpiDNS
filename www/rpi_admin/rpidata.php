@@ -746,34 +746,23 @@
 			$rtl_dns    = (array_key_exists("dns_server",$REQUEST) and $REQUEST["dns_server"] !== null and $REQUEST["dns_server"] !== '')
 				? (string)$REQUEST["dns_server"] : null;
 
-			// Feature flag for the website-preview tool (Req 8.7). Disabled by
-			// default because it requires a headless chromium binary in the web
-			// container. Define it as true in configuration (e.g. rpisettings.php)
-			// once chromium is installed to enable server-side screenshots.
+			// Feature flag for the website-preview tool (Req 8.7). It requires a
+			// headless chromium binary; when one is installed (as in the RpiDNS
+			// web container) the tool is enabled automatically, otherwise it is
+			// off and the endpoint reports that no preview is available. Define
+			// the constant in configuration (e.g. rpisettings.php) to force it
+			// on or off explicitly.
 			if (!defined('RESEARCH_WEBSITE_PREVIEW')) {
-				define('RESEARCH_WEBSITE_PREVIEW', false);
+				define('RESEARCH_WEBSITE_PREVIEW', CommandBuilder::websitePreviewAvailable());
 			}
-
-			// Additional bulk request inputs. `items` is the bulk target list and
-			// may arrive either as a native array (JSON body) or as a JSON string
-			// (form-encoded); normalize both to an array. `subtool` names the
-			// per-item single-command tool to run for a bulk request.
-			$rtl_items = array_key_exists("items",$REQUEST) ? $REQUEST["items"] : array();
-			if (is_string($rtl_items)) {
-				$rtl_decoded = json_decode($rtl_items, true);
-				$rtl_items = is_array($rtl_decoded) ? $rtl_decoded : array();
-			}
-			if (!is_array($rtl_items)) { $rtl_items = array(); }
-			$rtl_subtool = (array_key_exists("subtool",$REQUEST) and $REQUEST["subtool"] !== null and $REQUEST["subtool"] !== '')
-				? (string)$REQUEST["subtool"] : 'rdap';
 
 			// Tool allowlist. Core single-command tools plus the additional
 			// threat-hunting tools (reverse_dns, nsmx, geoip, asn, tls_cert,
-			// reputation, website_preview, bulk). Only allowlisted tools may run.
+			// reputation, website_preview). Only allowlisted tools may run.
 			$rtl_allowlist = array(
 				'rdap','dig','ping','traceroute',
 				'reverse_dns','nsmx','geoip','asn',
-				'tls_cert','reputation','website_preview','bulk'
+				'tls_cert','reputation','website_preview'
 			);
 
 			// Tool input-shape classes used for per-tool validation below.
@@ -781,13 +770,6 @@
 			// domain-only tools reject anything that is not a valid hostname.
 			$rtl_ip_tools     = array('reverse_dns','geoip','asn');
 			$rtl_domain_tools = array('nsmx','tls_cert','reputation','website_preview');
-			// A bulk sub-tool must itself be one of the single-command tools that
-			// take a domain-or-IP target (nsmx is multi-command, website_preview is
-			// image-producing, bulk cannot nest).
-			$rtl_bulk_subtool_allowlist = array(
-				'rdap','dig','ping','traceroute',
-				'reverse_dns','geoip','asn','tls_cert','reputation'
-			);
 
 			if (!in_array($rtl_tool, $rtl_allowlist, true)) {
 				// Unknown/unsupported tool: audit and reject before any execution
@@ -814,20 +796,6 @@
 				if (!InputValidator::isValidDomain($rtl_target)) {
 					RejectionAudit::record($rtl_sid, 'invalid_domain', 'research_tool');
 					$response='{"status":"error","reason":"invalid target: must be a domain name"}';
-					break;
-				}
-			} elseif ($rtl_tool === 'bulk') {
-				// Bulk: reject lists that exceed 100 items or contain a malformed
-				// item (Req 8.8, 8.9). isValidBulkList covers both size and items.
-				if (!InputValidator::isValidBulkList($rtl_items)) {
-					RejectionAudit::record($rtl_sid, 'bulk_too_large', 'research_tool');
-					$response='{"status":"error","reason":"invalid bulk list: at most 100 valid domain or IP items are permitted"}';
-					break;
-				}
-				// The per-item sub-tool must be a recognized single-command tool.
-				if (!in_array($rtl_subtool, $rtl_bulk_subtool_allowlist, true)) {
-					RejectionAudit::record($rtl_sid, 'invalid_input', 'research_tool');
-					$response='{"status":"error","reason":"invalid bulk sub-tool"}';
 					break;
 				}
 			} else {
@@ -867,19 +835,32 @@
 				if ($rtl_tool === 'website_preview') {
 					// Website preview is gated behind a feature flag (Req 8.7).
 					if (!RESEARCH_WEBSITE_PREVIEW) {
-						// Disabled: never execute chromium; report no preview.
-						$response='{"status":"ok","data":'.json_encode(array('image'=>null,'reason'=>'no preview available')).'}';
+						// No headless browser available: never execute chromium and
+						// say why, so the UI can explain it instead of showing a
+						// bare "no preview" (Req 8.11).
+						$response='{"status":"ok","data":'.json_encode(array('image'=>null,'reason'=>'website preview is disabled: no headless browser installed')).'}';
 					} else {
-						// Server-generated temp output path (never user input).
+						// Server-generated temp paths (never user input): the target
+						// PNG plus a throwaway chromium profile directory, which is
+						// required because the web server user has no writable HOME.
 						$rtl_tmp = tempnam(sys_get_temp_dir(), 'rpidns_preview_');
 						$rtl_png = $rtl_tmp . '.png';
+						$rtl_profile = $rtl_tmp . '.profile';
 						$rtl_image = null;
 						$rtl_reason = null;
 						try {
-							$rtl_cmds = $rtl_builder->build('website_preview', array('target'=>$rtl_target, 'output_path'=>$rtl_png));
+							@mkdir($rtl_profile, 0700, true);
+							$rtl_cmds = $rtl_builder->build('website_preview', array(
+								'target'      => $rtl_target,
+								'output_path' => $rtl_png,
+								'profile_dir' => $rtl_profile
+							));
 							$rtl_runner = new ToolRunner();
 							$rtl_result = $rtl_runner->run('website_preview', $rtl_target, $rtl_cmds[0]);
-							if (!$rtl_result['exitError'] and is_file($rtl_png) and filesize($rtl_png) > 0) {
+							// Chromium writes progress/warnings to stderr and can
+							// return non-zero even after producing a usable PNG, so
+							// the screenshot file is the source of truth.
+							if (is_file($rtl_png) and filesize($rtl_png) > 0) {
 								$rtl_bytes = @file_get_contents($rtl_png);
 								if ($rtl_bytes !== false and $rtl_bytes !== '') {
 									$rtl_image = base64_encode($rtl_bytes);
@@ -888,15 +869,32 @@
 									$rtl_reason = 'no preview available';
 								}
 							} else {
-								// chromium failed/timed out: surface without partial data (Req 8.11).
-								$rtl_reason = ($rtl_result['reason'] !== null) ? $rtl_result['reason'] : 'no preview available';
+								// chromium failed/timed out: surface the reason without
+								// returning partial data (Req 8.11). Chromium's stderr is
+								// full of unrelated dbus/GL noise even on success, so only
+								// the runner's own reason is reported.
+								$rtl_reason = ($rtl_result['reason'] !== null)
+									? $rtl_result['reason']
+									: 'no preview available';
 							}
 						} catch (Exception $e) {
 							$rtl_reason = 'no preview available';
 						}
-						// Always clean up the server-side temp files.
+						// Always clean up the server-side temp files/profile.
 						if (is_file($rtl_png)) { @unlink($rtl_png); }
 						if (is_file($rtl_tmp)) { @unlink($rtl_tmp); }
+						if (is_dir($rtl_profile)) {
+							// Remove the throwaway chromium profile (depth-first).
+							$rtl_walk = new RecursiveIteratorIterator(
+								new RecursiveDirectoryIterator($rtl_profile, FilesystemIterator::SKIP_DOTS),
+								RecursiveIteratorIterator::CHILD_FIRST
+							);
+							foreach ($rtl_walk as $rtl_entry) {
+								if ($rtl_entry->isDir()) { @rmdir($rtl_entry->getPathname()); }
+								else { @unlink($rtl_entry->getPathname()); }
+							}
+							@rmdir($rtl_profile);
+						}
 						$response='{"status":"ok","data":'.json_encode(array('image'=>$rtl_image,'reason'=>$rtl_reason)).'}';
 					}
 				} elseif ($rtl_tool === 'nsmx') {
@@ -906,42 +904,6 @@
 					$rtl_runner = new ToolRunner();
 					$rtl_result = $rtl_runner->runMany('nsmx', $rtl_target, $rtl_cmds);
 					$response='{"status":"ok","data":'.json_encode($rtl_result).'}';
-				} elseif ($rtl_tool === 'bulk') {
-					// Bulk analysis: one result per item, in submitted order (Req 8.8).
-					// Share the overall 30s wall-clock bound across items so the
-					// aggregate self-terminates (Req 6.7 / 8.12).
-					$rtl_items = array_values($rtl_items);
-					$rtl_count = count($rtl_items);
-					$rtl_bulk_out = array();
-					$rtl_deadline = microtime(true) + ToolRunner::DEFAULT_TIMEOUT_SEC;
-					foreach ($rtl_items as $rtl_idx => $rtl_item) {
-						$rtl_item = (string)$rtl_item;
-						$rtl_remaining = $rtl_deadline - microtime(true);
-						$rtl_left = $rtl_count - $rtl_idx;
-						$rtl_per = ($rtl_remaining > 0 and $rtl_left > 0) ? max(1, (int)floor($rtl_remaining / $rtl_left)) : 1;
-						try {
-							$rtl_built = $rtl_builder->build($rtl_subtool, array('target'=>$rtl_item));
-							$rtl_item_runner = new ToolRunner($rtl_per);
-							if (count($rtl_built) > 1) {
-								$rtl_item_result = $rtl_item_runner->runMany($rtl_subtool, $rtl_item, $rtl_built);
-							} else {
-								$rtl_item_result = $rtl_item_runner->run($rtl_subtool, $rtl_item, $rtl_built[0]);
-							}
-						} catch (Exception $e) {
-							// Per-item build/start failure: record a failed result for
-							// this item and continue; never present partial as complete.
-							$rtl_item_result = array(
-								'tool'=>$rtl_subtool,'target'=>$rtl_item,'output'=>'',
-								'truncated'=>false,'exitError'=>true,'reason'=>'tool_start_failed'
-							);
-						}
-						// Format each item's output for readability (JSON tools).
-						if (is_array($rtl_item_result) and isset($rtl_item_result['output'])) {
-							$rtl_item_result['output'] = ResearchFormatter::format($rtl_subtool, $rtl_item_result['output']);
-						}
-						$rtl_bulk_out[] = array('target'=>$rtl_item, 'result'=>$rtl_item_result);
-					}
-					$response='{"status":"ok","data":'.json_encode(array('items'=>$rtl_bulk_out)).'}';
 				} else {
 					// Single-command tools: rdap, dig, ping, traceroute, reverse_dns,
 					// geoip, asn, tls_cert, reputation. Build then run the first argv.

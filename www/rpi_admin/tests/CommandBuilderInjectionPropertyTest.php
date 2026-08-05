@@ -133,10 +133,10 @@ function randomAdversarial(): string {
  *
  * - Argument-style tools:   rdap*, dig, ping, traceroute, reverse_dns, nsmx
  * - URL/host-style tools:   rdap, geoip, asn, tls_cert, reputation, website_preview
- * - Composite:              bulk (delegates to a sub-tool per item)
  *
- * For website_preview the output path is server-generated (fixed, not user input),
- * so we pin it to a constant for both baseline and adversarial builds.
+ * For website_preview the output path and profile directory are server-generated
+ * (fixed, not user input), so we pin them to constants for both the baseline and
+ * the adversarial builds.
  */
 function toolInvocations(string $input): array {
     return [
@@ -150,10 +150,11 @@ function toolInvocations(string $input): array {
         'asn'             => ['target' => $input],
         'tls_cert'        => ['target' => $input],
         'reputation'      => ['target' => $input],
-        'website_preview' => ['target' => $input, 'output_path' => '/tmp/rpidns_preview.png'],
-        // bulk delegates to a single-command sub-tool; the adversarial input is the
-        // one and only list item, so it must surface verbatim in the built command.
-        'bulk'            => ['subtool' => 'dig', 'items' => [$input]],
+        'website_preview' => [
+            'target'      => $input,
+            'output_path' => '/tmp/rpidns_preview.png',
+            'profile_dir' => '/tmp/rpidns_preview.profile',
+        ],
     ];
 }
 
@@ -261,11 +262,10 @@ mt_srand(20240608);
 
 $builder = new CommandBuilder();
 
-// Tools exercised by this property. `bulk` is included: its per-item command must
-// also confine the item verbatim to a single slot.
+// Tools exercised by this property: every tool CommandBuilder can build.
 $tools = [
     'rdap', 'dig', 'ping', 'traceroute', 'reverse_dns', 'nsmx',
-    'geoip', 'asn', 'tls_cert', 'reputation', 'website_preview', 'bulk',
+    'geoip', 'asn', 'tls_cert', 'reputation', 'website_preview',
 ];
 
 // Assemble the adversarial input set: the fixed corpus plus random inputs, for a

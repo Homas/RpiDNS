@@ -16,7 +16,8 @@
  *
  *     php www/rpi_admin/tests/InputValidatorPropertyTest.php
  *
- * It does NOT cover the bulk-list validator (Property 12 / task 1.5).
+ * (The bulk-list validator and its Property 12 test were withdrawn with the
+ * bulk-analysis tool.)
  *
  * Testing approach
  * ----------------
