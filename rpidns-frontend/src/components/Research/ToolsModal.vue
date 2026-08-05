@@ -2,10 +2,11 @@
 <!--
   ToolsModal.vue
   App-level modal wrapper around the ResearchTools view. It listens for the
-  global `open-research-tools` window event (dispatched by ContextMenu when a
-  network tool is selected), opens with the right-clicked domain prefilled, and
-  immediately runs the selected tool. Rendered once at the App root so every
-  page that shows a context menu shares a single modal instance.
+  global `open-research-tools` window event (dispatched by ContextMenu when
+  Analyze is selected), opens with the right-clicked target prefilled, and runs
+  every applicable tool (or a single named tool when one is supplied). Rendered
+  once at the App root so every page that shows a context menu shares a single
+  modal instance.
 -->
 <template>
   <BModal
@@ -14,7 +15,7 @@
     size="xl"
     scrollable
     hide-footer
-    body-class="pt-2"
+    body-class="pt-0"
     @shown="onShown"
   >
     <ResearchTools ref="toolsRef" />

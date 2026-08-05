@@ -756,24 +756,30 @@
               changing anything.
             </p>
 
-            <h3 id="research-unique-queries">5.2 Unique Queries View</h3>
+            <h3 id="research-newly-seen-queries">5.2 Newly Seen Queries View</h3>
             <p>
-              The <strong>Unique Queries</strong> view lists the distinct allowed (non-blocked) fully qualified domain
-              names (FQDNs) that were queried over a selected time range. Rather than showing every individual log row, it
-              collapses duplicates so that each domain appears once, making it easy to spot unfamiliar or suspicious
-              destinations without wading through repeated entries.
+              The <strong>Newly Seen Queries</strong> view (previously "Unique Queries") lists the allowed (non-blocked)
+              fully qualified domain names (FQDNs) that were requested for the <strong>first time</strong> during the
+              selected time range. A domain appears only if it has no recorded request at any point before the start of
+              that range, so the view surfaces destinations your network has not talked to before rather than the domains
+              it contacts routinely.
             </p>
             <ul>
               <li><strong>Time range</strong> - Uses the same period selector as the Query Log (30m, 1h, 1d, 1w, 30d, and
                 a custom start/end range), so you can scope the view to the window you care about.</li>
               <li><strong>Allowed only</strong> - Results are restricted to queries with an "allowed" action; blocked
                 queries are excluded.</li>
-              <li><strong>Per-domain detail</strong> - For each unique FQDN the table shows the total query count and the
-                most recent query time within the selected range.</li>
+              <li><strong>First seen only</strong> - A domain that was also requested before the selected range is left
+                out, even if it was queried inside the range. Prior requests count regardless of whether they were
+                allowed or blocked, since a blocked request is still a request. The lookback spans the full retained
+                query history, not just the most recent days.</li>
+              <li><strong>Per-domain detail</strong> - For each newly seen FQDN the table shows the total query count and
+                the most recent query time within the selected range.</li>
               <li><strong>Filter and sort</strong> - A case-insensitive substring filter narrows the list by domain text,
                 and sortable columns (FQDN, count, last seen) toggle between ascending and descending order.</li>
               <li><strong>Context menu</strong> - Right-click an FQDN to open the shared context menu with external
-                research links and the network tool actions for that domain.</li>
+                research links, an <strong>Analyze</strong> action that runs the network tools for that domain, and the
+                block/allow actions.</li>
             </ul>
 
             <h3 id="research-sql-tool">5.3 SQL Query Tool</h3>
@@ -800,7 +806,7 @@
 
             <h3 id="research-csv-copy">5.4 Copy Dataset as CSV</h3>
             <p>
-              Both the Unique Queries view and the SQL Query Tool provide a <strong>Copy as CSV</strong> control that copies
+              Both the Newly Seen Queries view and the SQL Query Tool provide a <strong>Copy as CSV</strong> control that copies
               the entire currently loaded dataset to your clipboard as RFC 4180-compliant CSV text. The exported CSV
               contains a header row of column names followed by one row per record, with fields quoted and escaped as
               needed so the data can be pasted directly into a spreadsheet or an external AI agent for further analysis.
@@ -813,17 +819,35 @@
 
             <h3 id="research-network-tools">5.5 Network Tools</h3>
             <p>
-              The <strong>Network Tools</strong> section runs diagnostic and enrichment utilities against a domain or IP
-              address you supply, and the same tools are also available from the right-click context menu on domain cells
-              in the Query Log, RPZ Log, and Unique Queries view.
+              The <strong>Network Tools</strong> section runs diagnostic and enrichment utilities against a single domain
+              or IP address. Enter a target and press <strong>Analyze</strong>: every tool that applies to that kind of
+              target runs and its result appears as a card in the grid below, so you can read all of them side by side
+              instead of launching each tool separately. The same panel opens from the right-click context menu on domain
+              cells in the Query Log, RPZ Log, and Newly Seen Queries view via the <strong>Analyze</strong> action.
             </p>
             <ul>
               <li><strong>RDAP/WHOIS</strong> - Looks up registration and ownership details for a domain or IP address.</li>
               <li><strong>dig</strong> - Performs a DNS lookup using the appliance's default DNS server, or a DNS server you
                 specify.</li>
+              <li><strong>NS/MX records</strong> - Enumerates the nameservers and mail exchangers of a domain.</li>
+              <li><strong>Reverse DNS (PTR)</strong> - Resolves the PTR record of an IP address.</li>
+              <li><strong>GeoIP</strong> and <strong>ASN</strong> - Geographic location and originating autonomous system
+                of an IP address.</li>
               <li><strong>ping</strong> - Sends a bounded number of probes to test reachability of a target.</li>
               <li><strong>traceroute</strong> - Traces the network path to a target using a bounded number of probes.</li>
+              <li><strong>TLS certificate</strong> - Retrieves the certificate presented by a domain on port 443.</li>
+              <li><strong>Reputation / threat intel</strong> - Looks up threat-intelligence context for a domain.</li>
+              <li><strong>Website preview</strong> - Renders a screenshot of the domain's site server-side, so you never
+                have to visit a suspicious page yourself. It requires a headless browser on the appliance; when none is
+                installed the card says so instead of showing an image.</li>
             </ul>
+            <p>
+              The target is classified as a domain or an IP address as you type, and only the tools that accept that kind
+              of target are run - the rest stay dimmed with the reason, so a lookup is never rejected for using the wrong
+              input type. Use the <strong>Options</strong> control next to Analyze to pick a subset of tools (handy for
+              skipping slow ones like traceroute) or to point the DNS-based tools at a specific DNS server. Each card also
+              has a small re-run control if you want to refresh just that one result, and a copy control for its output.
+            </p>
             <p>
               <i class="fas fa-shield-alt text-success"></i> <strong>Safe by design:</strong> The network tools
               <strong>validate every input</strong> before running anything, so malformed domains or IP addresses are

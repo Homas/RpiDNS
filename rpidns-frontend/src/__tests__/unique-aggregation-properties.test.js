@@ -1,8 +1,8 @@
 /**
- * Unique-Queries Aggregation - Property Tests
+ * Newly-Seen-Queries Aggregation - Property Tests
  *
  * Property-based tests verifying the client-side reference aggregation used by
- * the Unique Queries View (aggregateUniqueQueries) against an independent
+ * the Newly seen queries view (aggregateUniqueQueries) against an independent
  * reference implementation.
  *
  * Feature: research-tools

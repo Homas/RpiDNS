@@ -85,8 +85,8 @@ describe('Feature: research-tools, Documentation verification', () => {
       expect(help).toMatch(/Research/)
     })
 
-    it('describes the Unique Queries view (Req 10.1)', () => {
-      expect(help).toMatch(/Unique Queries/i)
+    it('describes the Newly Seen Queries view (Req 10.1)', () => {
+      expect(help).toMatch(/Newly Seen Queries/i)
     })
 
     it('describes the SQL Query Tool (Req 10.1)', () => {

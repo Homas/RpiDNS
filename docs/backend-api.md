@@ -434,7 +434,7 @@ Valid queries execute against a **separate connection opened in read-only mode**
 
 ### POST research_tool
 
-Executes a network research tool against a validated target and returns its `ToolResult`. Covers the core tools (RDAP/WHOIS, `dig`, `ping`, `traceroute`) and the additional threat-hunting tools (`reverse_dns`, `nsmx`, `geoip`, `asn`, `tls_cert`, `reputation`, `website_preview`, `bulk`).
+Executes a network research tool against a validated target and returns its `ToolResult`. Covers the core tools (RDAP/WHOIS, `dig`, `ping`, `traceroute`) and the additional threat-hunting tools (`reverse_dns`, `nsmx`, `geoip`, `asn`, `tls_cert`, `reputation`, `website_preview`).
 
 **Accepted inputs:**
 
@@ -442,16 +442,13 @@ Executes a network research tool against a validated target and returns its `Too
 |-----------|------|-------------|
 | `tool` | string | Tool name — must be in the allowlist |
 | `target` | string | Domain or IP target (at most 253 characters) |
-| `dns_server` | string | Optional custom DNS server for `dig` (IP or hostname) |
-| `items` | array | Bulk target list for the `bulk` tool (array or JSON string) |
-| `subtool` | string | Per-item single-command tool for `bulk` (default `rdap`) |
+| `dns_server` | string | Optional custom DNS server for the `dig`-based tools (IP or hostname) |
 
 **Validation behavior (Req 6.5, 6.6, 8.10, 8.12):**
 
 - **Tool allowlist:** an unknown or unsupported `tool` is rejected before any command is built.
-- **Per-tool input class:** IP-only tools (`reverse_dns`, `geoip`, `asn`) require a valid IP address; domain-only tools (`nsmx`, `tls_cert`, `reputation`, `website_preview`) require a valid domain; core tools (`rdap`, `dig`, `ping`, `traceroute`) accept a valid domain or IP. Validation uses `InputValidator`.
+- **Per-tool input class:** IP-only tools (`reverse_dns`, `geoip`, `asn`) require a valid IP address; domain-only tools (`nsmx`, `tls_cert`, `reputation`, `website_preview`) require a valid domain; core tools (`rdap`, `dig`, `ping`, `traceroute`) accept a valid domain or IP. Validation uses `InputValidator`. The frontend classifies the target the same way and only submits applicable tools.
 - **`dig` DNS server:** when supplied, `dns_server` is validated as an IP address or hostname (Req 6.4).
-- **Bulk (Req 8.8, 8.9):** the `items` list must contain at most 100 valid items; larger or malformed lists are rejected. The `subtool` must be a recognized single-command tool.
 - **Command injection prevention (Req 6.6):** `CommandBuilder` passes every input as a discrete argv slot (no shell), so inputs cannot alter command structure.
 - **Bounded execution (Req 6.7, 6.8):** `ToolRunner` enforces a 30-second wall-clock bound and terminates the child process group on timeout; `ping`/`traceroute` are constrained to a fixed maximum number of probes. Output is captured and truncated to a maximum size (1 MiB), with a `truncated` flag.
 
@@ -471,7 +468,7 @@ Executes a network research tool against a validated target and returns its `Too
 }
 ```
 
-`nsmx` returns a combined `ToolResult`; `bulk` returns `{ "items": [{ "target", "result" }] }` with one `ToolResult` per submitted item, in order; `website_preview` returns `{ "image": <base64|null>, "reason": <string|null> }` (disabled by default behind the `RESEARCH_WEBSITE_PREVIEW` feature flag).
+`nsmx` returns a combined `ToolResult`. `website_preview` returns `{ "image": <base64 PNG|null>, "reason": <string|null> }`; it is gated behind the `RESEARCH_WEBSITE_PREVIEW` feature flag, which defaults to whether a headless browser (`chromium`/`chrome`) is present on the host, so previews work out of the box on the RpiDNS web image and report `"website preview is disabled: no headless browser installed"` elsewhere. Define the constant in `rpisettings.php` to force it on or off. The screenshot file is the source of truth for success, since chromium writes unrelated diagnostics to stderr and may exit non-zero after producing a usable image.
 
 **Error responses:**
 
@@ -479,7 +476,6 @@ Executes a network research tool against a validated target and returns its `Too
 - `{"status":"error","reason":"unknown or unsupported tool"}` — tool not in the allowlist.
 - `{"status":"error","reason":"invalid target: must be an IP address"}` / `"...must be a domain name"` / `"...must be a domain name or IP address"` — target failed its per-tool input validation (Req 6.5, 8.10).
 - `{"status":"error","reason":"invalid dns_server: must be a valid IP address or hostname"}` — the `dig` DNS server failed validation.
-- `{"status":"error","reason":"invalid bulk list: at most 100 valid domain or IP items are permitted"}` / `"invalid bulk sub-tool"` — bulk submission rejected (Req 8.9).
 - `{"status":"error","reason":"tool_start_failed"}` — the utility could not be started; system state is unchanged (Req 6.9). Within a `ToolResult`, this surfaces as `reason: "tool_start_failed"`.
 - Within a `ToolResult`: `reason: "timeout"` when the 30-second bound is exceeded (Req 6.7); `exitError: true` when the utility exits non-zero (Req 6.12); `truncated: true` when output exceeded the maximum size (Req 6.2). Additional tools with external data sources surface `upstream_unavailable` when the source is unavailable or times out (Req 8.11).
 

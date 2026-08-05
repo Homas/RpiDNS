@@ -3,7 +3,7 @@
   Research.vue
   Container for the Research page. Presents the three research sections as
   horizontal card sub-tabs (mirroring the Admin page pattern):
-    - Unique Queries  (#i2r/3/unique)
+    - Newly seen queries  (#i2r/3/unique)
     - SQL Query       (#i2r/3/sql)
     - Tools           (#i2r/3/tools)
 
@@ -18,8 +18,8 @@
     <div class="v-spacer"></div>
     <BCard no-body>
       <BTabs card v-model="activeTab" @update:model-value="onSubTabChange">
-        <!-- Unique Queries -->
-        <BTab title="Unique Queries" lazy>
+        <!-- Newly seen queries -->
+        <BTab title="Newly seen queries" lazy>
           <UniqueQueriesView
             :filter="filter"
             :period="period"

@@ -2,7 +2,7 @@
  * (c) Vadim Pavlov 2020 - 2026
  * CSV export composable for RpiDNS Research tools
  * Provides a pure RFC 4180 CSV serializer and a clipboard copy helper
- * shared by the Unique Queries view and the SQL Query tool.
+ * shared by the Newly seen queries view and the SQL Query tool.
  */
 
 // RFC 4180 record separator.

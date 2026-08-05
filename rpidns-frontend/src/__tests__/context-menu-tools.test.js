@@ -1,13 +1,13 @@
 /**
  * Context Menu Tools Group - Unit / Integration Tests
  *
- * Covers the network-tools group in ContextMenu.vue:
+ * Covers the tools group in ContextMenu.vue:
  *   - three separately labeled groups (Research links, Tools, Actions)
- *   - one Tools entry per NETWORK_TOOLS definition
- *   - selecting a tool dispatches the global `open-research-tools` event with the
- *     right-clicked domain + tool name and closes the menu (the shared
- *     ToolsModal then prefills the domain and runs the tool)
- *   - selecting a tool leaves the originating log row unchanged (no add-ioc /
+ *   - a single "Analyze" entry (not one entry per tool), identical on every page
+ *   - selecting it dispatches the global `open-research-tools` event with the
+ *     right-clicked target and no specific tool, so the shared ToolsModal runs
+ *     the full applicable tool set
+ *   - selecting it leaves the originating log row unchanged (no add-ioc /
  *     action emitted)
  *
  * Feature: research-tools
@@ -17,7 +17,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mountWithBootstrap } from './helpers/mountWithBootstrap'
 
 import ContextMenu from '@/components/ContextMenu.vue'
-import { NETWORK_TOOLS } from '@/composables/useNetworkTools'
 
 const DOMAIN = 'example.com'
 
@@ -42,12 +41,11 @@ function sectionLabels(wrapper) {
     .map(n => n.text().trim())
 }
 
-// Return the buttons that correspond to NETWORK_TOOLS entries (by label text).
-function toolButtons(wrapper) {
-  const labels = NETWORK_TOOLS.map(t => t.label)
+// The Analyze entry that opens the Research tools panel.
+function analyzeButtons(wrapper) {
   return wrapper
     .findAll('button.context-menu-action')
-    .filter(btn => labels.includes(btn.text().trim()))
+    .filter(btn => btn.text().trim() === 'Analyze')
 }
 
 describe('ContextMenu tools group — group structure (Req 7.3)', () => {
@@ -69,15 +67,15 @@ describe('ContextMenu tools group — group structure (Req 7.3)', () => {
     wrapper.unmount()
   })
 
-  it('renders exactly one Tools entry per NETWORK_TOOLS definition', () => {
+  it('renders exactly one Analyze entry, not one entry per tool', () => {
     const wrapper = mountMenu()
-    const btns = toolButtons(wrapper)
+    expect(analyzeButtons(wrapper)).toHaveLength(1)
 
-    expect(btns).toHaveLength(NETWORK_TOOLS.length)
-    const rendered = btns.map(b => b.text().trim())
-    for (const tool of NETWORK_TOOLS) {
-      expect(rendered).toContain(tool.label)
-    }
+    // Per-tool entries are gone: the panel owns tool selection now.
+    const labels = wrapper.findAll('button.context-menu-action').map(b => b.text().trim())
+    expect(labels).not.toContain('ping')
+    expect(labels).not.toContain('traceroute')
+    expect(labels).not.toContain('RDAP / WHOIS')
 
     wrapper.unmount()
   })
@@ -86,7 +84,13 @@ describe('ContextMenu tools group — group structure (Req 7.3)', () => {
     const wrapper = mountMenu({ showResearch: false })
     const labels = sectionLabels(wrapper)
     expect(labels.some(l => /Tools/i.test(l))).toBe(false)
-    expect(toolButtons(wrapper)).toHaveLength(0)
+    expect(analyzeButtons(wrapper)).toHaveLength(0)
+    wrapper.unmount()
+  })
+
+  it('hides the Tools group when there is no target', () => {
+    const wrapper = mountMenu({ domain: '' })
+    expect(analyzeButtons(wrapper)).toHaveLength(0)
     wrapper.unmount()
   })
 })
@@ -107,19 +111,19 @@ describe('ContextMenu tools group — launch modal (Req 7.2, 7.4)', () => {
     openEvents.push(e.detail)
   }
 
-  it('dispatches open-research-tools with the tool + domain and closes the menu', async () => {
+  it('dispatches open-research-tools with the target and closes the menu', async () => {
     const wrapper = mountMenu()
-    const pingBtn = toolButtons(wrapper).find(b => b.text().trim() === 'ping')
-    expect(pingBtn).toBeTruthy()
+    const analyze = analyzeButtons(wrapper)[0]
+    expect(analyze).toBeTruthy()
 
-    await pingBtn.trigger('click')
+    await analyze.trigger('click')
 
     // The shared ToolsModal is driven via a global window event carrying the
-    // right-clicked domain and the selected tool (Req 7.2).
+    // right-clicked target. An empty tool means "run every applicable tool".
     expect(openEvents).toHaveLength(1)
-    expect(openEvents[0]).toEqual({ tool: 'ping', target: DOMAIN })
+    expect(openEvents[0]).toEqual({ tool: '', target: DOMAIN })
 
-    // Selecting a tool closes the context menu (the modal takes over).
+    // Selecting Analyze closes the context menu (the modal takes over).
     const visEvents = wrapper.emitted('update:visible')
     expect(visEvents).toBeTruthy()
     expect(visEvents[visEvents.length - 1]).toEqual([false])
@@ -127,25 +131,22 @@ describe('ContextMenu tools group — launch modal (Req 7.2, 7.4)', () => {
     wrapper.unmount()
   })
 
-  it('targets the right-clicked domain for each tool action', async () => {
+  it('targets the right-clicked domain', async () => {
     const wrapper = mountMenu({ domain: 'evil.test' })
 
-    const digBtn = toolButtons(wrapper).find(b => b.text().trim() === 'dig')
-    await digBtn.trigger('click')
+    await analyzeButtons(wrapper)[0].trigger('click')
 
     expect(openEvents).toHaveLength(1)
-    expect(openEvents[0]).toEqual({ tool: 'dig', target: 'evil.test' })
+    expect(openEvents[0]).toEqual({ tool: '', target: 'evil.test' })
 
     wrapper.unmount()
   })
 
   it('does not mutate the originating row (no action / add-ioc emitted)', async () => {
     const wrapper = mountMenu()
-    const rdapBtn = toolButtons(wrapper).find(b => b.text().trim() === 'RDAP / WHOIS')
-    await rdapBtn.trigger('click')
+    await analyzeButtons(wrapper)[0].trigger('click')
 
     expect(openEvents).toHaveLength(1)
-    expect(openEvents[0]).toEqual({ tool: 'rdap', target: DOMAIN })
     expect(wrapper.emitted('action')).toBeFalsy()
     expect(wrapper.emitted('add-ioc')).toBeFalsy()
 

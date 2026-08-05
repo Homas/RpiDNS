@@ -10,7 +10,7 @@
               v-b-tooltip.hover
               title="FQDNs requested for the first time within the selected period, and never requested before it"
               class="bold"
-            ><i class="fas fa-fingerprint"></i>&nbsp;&nbsp;Unique queries</span>
+            ><i class="fas fa-fingerprint"></i>&nbsp;&nbsp;Newly seen queries</span>
           </BCol>
           <BCol cols="12" lg="9" class="text-end">
             <BButton
@@ -101,7 +101,7 @@
         </BCol>
       </BRow>
 
-      <!-- Unique Queries Table -->
+      <!-- Newly seen queries table -->
       <BRow>
         <BCol sm="12">
           <div ref="refLogsDiv">
@@ -116,7 +116,7 @@
               <BThead>
                 <BTr>
                   <BTh class="sortable-col" @click="sortByColumn('fqdn')">
-                    Newly seen request {{ sortIndicator('fqdn') }}
+                    Request {{ sortIndicator('fqdn') }}
                   </BTh>
                   <BTh class="sortable-col" @click="sortByColumn('cnt')">
                     Count {{ sortIndicator('cnt') }}
@@ -131,7 +131,7 @@
                 <BTr v-if="hasError">
                   <BTd colspan="3" class="text-center text-danger">
                     <i class="fas fa-triangle-exclamation"></i>&nbsp;
-                    Failed to retrieve unique queries. Results may be incomplete.
+                    Failed to retrieve newly seen queries. Results may be incomplete.
                   </BTd>
                 </BTr>
                 <!-- Empty-state indication (Req 2.11) -->
@@ -177,7 +177,6 @@ import CustomPeriodPicker from '../CustomPeriodPicker.vue'
 import { useApi } from '../../composables/useApi'
 import { copyDatasetAsCsv } from '../../composables/useCsvExport'
 import {
-  getToolActions,
   filterByFqdn,
   sortRows,
   nextSortState
@@ -196,7 +195,7 @@ export default {
   },
   emits: ['add-ioc', 'custom-period-change', 'show-info'],
   setup(props, { emit }) {
-    const { get, post } = useApi()
+    const { get } = useApi()
 
     const localFilter = ref(props.filter)
     const localPeriod = ref(props.period)
@@ -216,18 +215,12 @@ export default {
     // --- Context menu state (FQDN cell) ---
     const ctxMenu = ref({ visible: false, domain: '', x: 0, y: 0 })
 
-    // Research links (via ContextMenu showResearch) + network tool actions (Req 2.8)
-    const ctxMenuActions = computed(() => {
-      const actions = [
-        { label: 'Block', icon: 'fas fa-ban' },
-        { label: 'Allow', icon: 'fas fa-check-circle' }
-      ]
-      // Network tool actions from the single-source definitions (Req 7.1/7.6)
-      for (const tool of getToolActions(ctxMenu.value.domain)) {
-        actions.push({ label: tool.label, icon: 'fas fa-network-wired', name: tool.name })
-      }
-      return actions
-    })
+    // Page-specific actions only. Research links and the Analyze entry are
+    // rendered by ContextMenu itself, so they must not be duplicated here.
+    const ctxMenuActions = computed(() => [
+      { label: 'Block', icon: 'fas fa-ban' },
+      { label: 'Allow', icon: 'fas fa-check-circle' }
+    ])
 
     const openContextMenu = (event, item) => {
       ctxMenu.value = {
@@ -238,34 +231,11 @@ export default {
       }
     }
 
-    const onCtxMenuAction = async ({ actionName, domain }) => {
+    const onCtxMenuAction = ({ actionName, domain }) => {
       if (actionName === 'Block') {
         emit('add-ioc', { ioc: domain, type: 'bl' })
-        return
-      }
-      if (actionName === 'Allow') {
+      } else if (actionName === 'Allow') {
         emit('add-ioc', { ioc: domain, type: 'wl' })
-        return
-      }
-      // Otherwise it is a network tool action — resolve by label
-      const tool = getToolActions(domain).find(t => t.label === actionName)
-      if (tool) {
-        await runTool(tool.name, domain)
-      }
-    }
-
-    // Run a network tool for a domain and surface the result (Req 7.2)
-    const runTool = async (toolName, target) => {
-      try {
-        const resp = await post({ req: 'research_tool' }, { tool: toolName, target })
-        if (resp && resp.status === 'ok') {
-          const out = resp.data && resp.data.output ? String(resp.data.output) : ''
-          emit('show-info', `${toolName} (${target}):\n${out}`, 6)
-        } else {
-          emit('show-info', `${toolName} failed for "${target}"`, 4)
-        }
-      } catch (e) {
-        emit('show-info', `${toolName} failed for "${target}"`, 4)
       }
     }
 

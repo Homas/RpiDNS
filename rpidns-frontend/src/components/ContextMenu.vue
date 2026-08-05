@@ -32,21 +32,21 @@
       {{ link.name }}
     </a>
 
-    <!-- Tools Section (network research tools from the single-source useNetworkTools) -->
+    <!-- Tools Section: one entry that opens the Research tools panel for this
+         target and runs every applicable tool. A single action keeps the menu
+         short and consistent on every log page. -->
     <template v-if="showToolsGroup">
       <div class="context-menu-divider"></div>
       <div class="context-menu-section-label">
         <i class="fas fa-toolbox fa-sm"></i>&nbsp;Tools
       </div>
       <button
-        v-for="tool in toolActions"
-        :key="tool.name"
         class="context-menu-item context-menu-action"
         role="menuitem"
-        @click="onToolClick(tool)"
+        @click="onAnalyzeClick"
       >
-        <i class="fas fa-wrench fa-sm"></i>
-        &nbsp;{{ tool.label }}
+        <i class="fas fa-toolbox fa-sm"></i>
+        &nbsp;Analyze
       </button>
     </template>
 
@@ -73,7 +73,6 @@
 <script>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { getResearchUrls } from '../composables/useResearchLinks.js'
-import { getToolActions } from '../composables/useNetworkTools.js'
 
 export default {
   name: 'ContextMenu',
@@ -118,28 +117,22 @@ export default {
       return props.domain ? getResearchUrls(props.domain) : []
     })
 
-    // Network tool actions come from the single-source useNetworkTools composable,
-    // so adding/removing a tool there propagates to every page using the ContextMenu.
-    const toolActions = computed(() => {
-      return props.domain ? getToolActions(props.domain) : []
-    })
-
-    // Tools are rendered as a separate labeled group between the Research links and
-    // the page-specific Actions. They are shown on the same (domain) menus as the
-    // research links; column-filter menus pass show-research=false and thus hide them.
+    // The Tools group is a separate labeled group between the Research links and
+    // the page-specific Actions. It is shown on the same (domain) menus as the
+    // research links; column-filter menus pass show-research=false and thus hide it.
     const showToolsGroup = computed(() => {
-      return props.showTools && props.showResearch && toolActions.value.length > 0
+      return props.showTools && props.showResearch && !!props.domain
     })
 
-    // Selecting a network tool opens the shared Research tools modal with the
-    // right-clicked domain prefilled and the chosen tool auto-executed. A global
-    // window event is used (matching the app's existing cross-component event
-    // pattern) so every page that renders the ContextMenu behaves identically
-    // without threading props through each parent. The originating log row is
+    // Analyze opens the shared Research tools panel with the right-clicked target
+    // prefilled and every applicable tool executed, so the same single action
+    // works from Query log, RPZ log, and Newly seen queries. A global window
+    // event is used (matching the app's existing cross-component event pattern)
+    // so no props need threading through each parent. The originating log row is
     // never mutated (no add-ioc/action/refresh is emitted).
-    const onToolClick = (tool) => {
+    const onAnalyzeClick = () => {
       window.dispatchEvent(new CustomEvent('open-research-tools', {
-        detail: { target: tool.domain, tool: tool.name }
+        detail: { target: props.domain, tool: '' }
       }))
       emit('update:visible', false)
     }
@@ -244,9 +237,8 @@ export default {
     return {
       menuRef,
       researchUrls,
-      toolActions,
       showToolsGroup,
-      onToolClick,
+      onAnalyzeClick,
       menuStyle,
       adjustedX,
       adjustedY,

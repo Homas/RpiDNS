@@ -1,5 +1,5 @@
 /**
- * Unique Queries Filter - Property Tests
+ * Newly Seen Queries Filter - Property Tests
  *
  * Property-based tests verifying the case-insensitive substring filter
  * used by the Unique_Queries_View (filterByFqdn in useNetworkTools.js).

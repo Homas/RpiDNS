@@ -1,212 +1,255 @@
 <!-- (c) Vadim Pavlov 2020 - 2026 -->
 <!--
   ResearchTools.vue
-  Network research tools section of the Research page.
-  Provides a shared target input plus per-tool controls for RDAP/WHOIS, dig
-  (with an optional DNS-server field), ping, traceroute, and the additional
-  threat-hunting tools (reverse DNS, NS/MX, GeoIP, ASN, TLS certificate,
-  reputation, website-preview, bulk analysis).
-  Each text tool renders its output in a <pre> region with a loading indicator
-  (Req 6.10) and an error state (Req 6.12); output is shown on completion
-  (Req 6.11). Website-preview renders the returned base64 image (Req 8.7) and
-  bulk analysis accepts a textarea of up to 100 items (Req 8.8, 8.9).
-  All tool execution is driven through the research_tool endpoint.
+  Research tools panel: one target, one Analyze action, and a card grid that
+  shows every tool result side by side.
+
+  Layout rationale (replaces the previous stack of ten rows, each with its own
+  Run button):
+    - A single sticky command bar owns the target and the primary action, so
+      there is exactly one "execute" control for the common case.
+    - Tool selection and the optional custom DNS server live in a collapsed
+      Options drawer, keeping the bar to one uncluttered line.
+    - Results render as a responsive card grid so several tools can be read at
+      the same time instead of scrolling a tall single column. Each card keeps a
+      quiet icon-only re-run/copy affordance in its header.
+    - Targets are classified client-side (domain vs IP) exactly as the backend
+      validators do, so only the tools the server will accept are run; the rest
+      are shown dimmed with the reason instead of failing with a validation
+      error.
 -->
 <template>
-  <div>
-    <BCard class="h-100">
-      <template #header>
-        <span class="bold"><i class="fas fa-toolbox"></i>&nbsp;&nbsp;Research tools</span>
-      </template>
+  <div class="research-tools">
+    <!-- Command bar: target + primary action (single execute control) -->
+    <div class="rt-bar">
+      <BInputGroup size="sm" class="rt-target">
+        <template #prepend>
+          <BInputGroupText><i class="fas fa-crosshairs fa-fw"></i></BInputGroupText>
+        </template>
+        <BFormInput
+          v-model="target"
+          placeholder="Domain or IP — example.com or 1.2.3.4"
+          maxlength="253"
+          autocomplete="off"
+          aria-label="Target domain or IP"
+          @keyup.enter="runAll"
+        ></BFormInput>
+        <template #append>
+          <BButton
+            v-b-tooltip.hover
+            title="Clear target"
+            variant="outline-secondary"
+            :disabled="!target"
+            @click="target = ''"
+          >
+            <i class="fas fa-xmark"></i>
+          </BButton>
+        </template>
+      </BInputGroup>
 
-      <!-- Shared target input (domain or IP) -->
-      <BRow class="mb-3">
+      <!-- Target classification: tells the user which tool set applies -->
+      <span class="rt-kind" :class="`rt-kind--${targetKind}`">{{ kindLabel }}</span>
+
+      <BButton
+        variant="primary"
+        size="sm"
+        class="rt-run"
+        :disabled="!canRun"
+        @click="runAll"
+      >
+        <BSpinner v-if="anyRunning" small></BSpinner>
+        <i v-else class="fas fa-play"></i>&nbsp;Analyze
+      </BButton>
+
+      <BButton
+        v-b-tooltip.hover
+        title="Options: tool selection and DNS server"
+        :variant="showOptions ? 'secondary' : 'outline-secondary'"
+        size="sm"
+        @click="showOptions = !showOptions"
+      >
+        <i class="fas fa-sliders"></i>
+      </BButton>
+    </div>
+
+    <!-- Options drawer: which tools to run + optional DNS server -->
+    <div v-if="showOptions" class="rt-options">
+      <BRow class="gy-2">
         <BCol cols="12" lg="8">
-          <BFormGroup label="Target (domain or IP)" label-cols-sm="3" label-size="sm">
-            <BInputGroup size="sm">
-              <template #prepend>
-                <BInputGroupText><i class="fas fa-crosshairs fa-fw"></i></BInputGroupText>
-              </template>
-              <BFormInput
-                v-model="target"
-                placeholder="example.com or 1.2.3.4"
-                size="sm"
-                maxlength="253"
-                @keyup.enter="runTool('rdap')"
-              ></BFormInput>
-              <template #append>
-                <BButton size="sm" :disabled="!target" @click="target = ''">Clear</BButton>
-              </template>
-            </BInputGroup>
-          </BFormGroup>
+          <div class="rt-options__label">
+            Tools to run
+            <BButton variant="link" size="sm" class="rt-linkbtn" @click="selectAllTools(true)">all</BButton>
+            <span class="text-muted">/</span>
+            <BButton variant="link" size="sm" class="rt-linkbtn" @click="selectAllTools(false)">none</BButton>
+          </div>
+          <div class="rt-chips">
+            <BFormCheckbox
+              v-for="tool in tools"
+              :key="tool.name"
+              v-model="selected[tool.name]"
+              inline
+              size="sm"
+            >{{ tool.label }}</BFormCheckbox>
+          </div>
         </BCol>
         <BCol cols="12" lg="4">
-          <BFormGroup label="DNS server (dig)" label-cols-sm="4" label-size="sm">
-            <BInputGroup size="sm">
-              <template #prepend>
-                <BInputGroupText><i class="fas fa-server fa-fw"></i></BInputGroupText>
-              </template>
-              <BFormInput
-                v-model="dnsServer"
-                placeholder="optional (default appliance)"
-                size="sm"
-              ></BFormInput>
-            </BInputGroup>
-          </BFormGroup>
+          <div class="rt-options__label">DNS server <span class="text-muted">(dig, NS/MX, PTR)</span></div>
+          <BInputGroup size="sm">
+            <template #prepend>
+              <BInputGroupText><i class="fas fa-server fa-fw"></i></BInputGroupText>
+            </template>
+            <BFormInput
+              v-model="dnsServer"
+              placeholder="default: appliance resolver"
+              aria-label="Custom DNS server"
+            ></BFormInput>
+          </BInputGroup>
         </BCol>
       </BRow>
+    </div>
 
-      <!-- Text-output tools: per-tool button + <pre> output region -->
-      <div
-        v-for="tool in textTools"
+    <!-- Empty state: nothing to show until a target is entered -->
+    <div v-if="targetKind === 'empty'" class="rt-empty">
+      <i class="fas fa-toolbox fa-2x"></i>
+      <p class="mb-0 mt-2">Enter a domain or IP address, then press Analyze.</p>
+      <p class="text-muted small mb-0">
+        Every applicable tool runs against the same target and its result appears below.
+      </p>
+    </div>
+    <BAlert v-else-if="targetKind === 'invalid'" :model-value="true" variant="warning" class="rt-invalid py-2 px-3">
+      <i class="fas fa-triangle-exclamation"></i>&nbsp;
+      "{{ target }}" is neither a valid domain name nor a valid IP address.
+    </BAlert>
+
+    <!-- Result grid: all tools visible at once -->
+    <div v-else class="rt-grid">
+      <section
+        v-for="tool in tools"
         :key="tool.name"
-        class="tool-block border rounded p-2 mb-2"
+        class="rt-card"
+        :class="{ 'rt-card--na': !applicable(tool), 'rt-card--wide': isWide(tool) }"
       >
-        <div class="d-flex align-items-center justify-content-between mb-1">
-          <span class="bold"><i class="fas fa-fw" :class="tool.icon"></i>&nbsp;{{ tool.label }}</span>
-          <BButton
-            variant="outline-secondary"
-            size="sm"
-            :disabled="!target || results[tool.name].loading"
-            @click="runTool(tool.name)"
-          >
-            <BSpinner v-if="results[tool.name].loading" small></BSpinner>
-            <i v-else class="fa fa-play"></i>&nbsp;Run
-          </BButton>
-        </div>
-
-        <!-- Loading indication (Req 6.10) -->
-        <div v-if="results[tool.name].loading" class="text-muted small">
-          <BSpinner small></BSpinner>&nbsp;&nbsp;Running {{ tool.label }}...
-        </div>
-
-        <!-- Error state (Req 6.12) -->
-        <BAlert v-else-if="results[tool.name].error" :model-value="true" variant="danger" class="py-1 px-2 mb-0 small">
-          <i class="fas fa-triangle-exclamation"></i>&nbsp;{{ results[tool.name].error }}
-        </BAlert>
-
-        <!-- Tool output on completion (Req 6.11) -->
-        <template v-else-if="results[tool.name].output !== null">
-          <BAlert
-            v-if="results[tool.name].exitError"
-            :model-value="true"
-            variant="warning"
-            class="py-1 px-2 mb-1 small"
-          >
-            <i class="fas fa-circle-exclamation"></i>&nbsp;Tool exited with an error.
-          </BAlert>
-          <pre class="tool-output mb-0">{{ results[tool.name].output }}</pre>
-          <div v-if="results[tool.name].truncated" class="text-muted small mt-1">
-            <i class="fas fa-scissors"></i>&nbsp;Output truncated.
-          </div>
-        </template>
-      </div>
-
-      <!-- Website preview tool (renders returned base64 image) -->
-      <div class="tool-block border rounded p-2 mb-2">
-        <div class="d-flex align-items-center justify-content-between mb-1">
-          <span class="bold"><i class="fas fa-image fa-fw"></i>&nbsp;Website preview</span>
-          <BButton
-            variant="outline-secondary"
-            size="sm"
-            :disabled="!target || preview.loading"
-            @click="runPreview"
-          >
-            <BSpinner v-if="preview.loading" small></BSpinner>
-            <i v-else class="fa fa-camera"></i>&nbsp;Capture
-          </BButton>
-        </div>
-
-        <div v-if="preview.loading" class="text-muted small">
-          <BSpinner small></BSpinner>&nbsp;&nbsp;Capturing preview...
-        </div>
-        <BAlert v-else-if="preview.error" :model-value="true" variant="danger" class="py-1 px-2 mb-0 small">
-          <i class="fas fa-triangle-exclamation"></i>&nbsp;{{ preview.error }}
-        </BAlert>
-        <div v-else-if="preview.image">
-          <img :src="`data:image/png;base64,${preview.image}`" alt="Website preview" class="preview-img" />
-        </div>
-      </div>
-
-      <!-- Bulk analysis tool (textarea, up to 100 items) -->
-      <div class="tool-block border rounded p-2 mb-0">
-        <div class="d-flex align-items-center justify-content-between mb-1">
-          <span class="bold"><i class="fas fa-list fa-fw"></i>&nbsp;Bulk analysis</span>
-          <BButton
-            variant="outline-secondary"
-            size="sm"
-            :disabled="bulkItems.length === 0 || bulkItems.length > MAX_BULK_ITEMS || bulk.loading"
-            @click="runBulk"
-          >
-            <BSpinner v-if="bulk.loading" small></BSpinner>
-            <i v-else class="fa fa-play"></i>&nbsp;Analyze
-          </BButton>
-        </div>
-
-        <BFormTextarea
-          v-model="bulkText"
-          placeholder="One domain or IP per line (max 100)"
-          rows="4"
-          max-rows="10"
-          size="sm"
-        ></BFormTextarea>
-        <div class="small mt-1" :class="bulkItems.length > MAX_BULK_ITEMS ? 'text-danger' : 'text-muted'">
-          {{ bulkItems.length }} / {{ MAX_BULK_ITEMS }} items
-          <span v-if="bulkItems.length > MAX_BULK_ITEMS">
-            &mdash; too many items, remove {{ bulkItems.length - MAX_BULK_ITEMS }}
+        <header class="rt-card__head">
+          <span class="rt-card__title">
+            <i class="fas fa-fw" :class="tool.icon"></i>&nbsp;{{ tool.label }}
           </span>
-        </div>
+          <span class="rt-card__tools">
+            <BSpinner v-if="results[tool.name].loading" small></BSpinner>
+            <i
+              v-else-if="results[tool.name].error"
+              v-b-tooltip.hover
+              :title="results[tool.name].error"
+              class="fas fa-circle-exclamation text-danger"
+            ></i>
+            <i
+              v-else-if="results[tool.name].exitError"
+              v-b-tooltip.hover
+              title="The tool exited with an error"
+              class="fas fa-circle-exclamation text-warning"
+            ></i>
+            <i v-else-if="hasResult(tool)" class="fas fa-circle-check text-success"></i>
 
-        <div v-if="bulk.loading" class="text-muted small mt-2">
-          <BSpinner small></BSpinner>&nbsp;&nbsp;Analyzing {{ bulkItems.length }} items...
+            <button
+              v-if="results[tool.name].output"
+              v-b-tooltip.hover
+              title="Copy output"
+              type="button"
+              class="rt-iconbtn"
+              @click="copyOutput(tool)"
+            >
+              <i class="fas" :class="copied === tool.name ? 'fa-check' : 'fa-copy'"></i>
+            </button>
+            <button
+              v-b-tooltip.hover
+              :title="`Run ${tool.label}`"
+              type="button"
+              class="rt-iconbtn"
+              :disabled="!applicable(tool) || results[tool.name].loading"
+              @click="runTool(tool.name)"
+            >
+              <i class="fas fa-rotate-right"></i>
+            </button>
+          </span>
+        </header>
+
+        <div class="rt-card__body">
+          <!-- Not applicable to this target class -->
+          <p v-if="!applicable(tool)" class="rt-note mb-0">
+            <i class="fas fa-minus"></i>&nbsp;{{ naReason(tool) }}
+          </p>
+
+          <!-- Running -->
+          <p v-else-if="results[tool.name].loading" class="rt-note mb-0">
+            <BSpinner small></BSpinner>&nbsp;&nbsp;Running...
+          </p>
+
+          <!-- Request-level failure -->
+          <p v-else-if="results[tool.name].error" class="rt-note rt-note--error mb-0">
+            {{ results[tool.name].error }}
+          </p>
+
+          <!-- Image result (website preview) -->
+          <template v-else-if="tool.render === 'image'">
+            <img
+              v-if="results[tool.name].image"
+              :src="`data:image/png;base64,${results[tool.name].image}`"
+              :alt="`Website preview of ${target}`"
+              class="rt-preview"
+            />
+            <p v-else-if="results[tool.name].ran" class="rt-note mb-0">
+              {{ results[tool.name].reason || 'No preview available.' }}
+            </p>
+            <p v-else class="rt-note mb-0">Not run yet.</p>
+          </template>
+
+          <!-- Text result -->
+          <template v-else-if="results[tool.name].output !== null">
+            <pre class="rt-output mb-0">{{ results[tool.name].output || '(no output)' }}</pre>
+            <p v-if="results[tool.name].truncated" class="rt-note mb-0 mt-1">
+              <i class="fas fa-scissors"></i>&nbsp;Output truncated.
+            </p>
+          </template>
+
+          <p v-else class="rt-note mb-0">Not run yet.</p>
         </div>
-        <BAlert v-else-if="bulk.error" :model-value="true" variant="danger" class="py-1 px-2 mb-0 mt-2 small">
-          <i class="fas fa-triangle-exclamation"></i>&nbsp;{{ bulk.error }}
-        </BAlert>
-        <div v-else-if="bulk.items.length" class="mt-2">
-          <div v-for="(item, idx) in bulk.items" :key="idx" class="mb-2">
-            <div class="bold small">
-              <i class="fas fa-angle-right"></i>&nbsp;{{ item.target }}
-              <span v-if="item.result && item.result.exitError" class="text-warning">
-                &nbsp;<i class="fas fa-circle-exclamation"></i>&nbsp;error
-              </span>
-            </div>
-            <pre class="tool-output mb-0">{{ item.result ? item.result.output : '' }}</pre>
-          </div>
-        </div>
-      </div>
-    </BCard>
+      </section>
+    </div>
   </div>
 </template>
 
 <script>
 import { ref, reactive, computed, watch, nextTick } from 'vue'
 import { useApi } from '../../composables/useApi'
-import { NETWORK_TOOLS } from '../../composables/useNetworkTools'
+import {
+  RESEARCH_TOOLS,
+  DNS_AWARE_TOOLS,
+  classifyTarget,
+  toolAccepts,
+  toolsForTarget,
+  TARGET_DOMAIN,
+  TARGET_IP,
+  TARGET_EMPTY,
+  ACCEPTS_DOMAIN
+} from '../../composables/useNetworkTools'
 
-const MAX_BULK_ITEMS = 100
+// How many tools may be in flight at once. Each request occupies one PHP-FPM
+// worker for up to 30s, so the fan-out is capped to keep the appliance
+// responsive while still filling the grid quickly.
+const MAX_CONCURRENT = 3
 
-// Tools that run through `dig` and therefore honor the optional custom DNS
-// server field: plain dig, NS/MX enumeration, and reverse DNS (PTR).
-const DNS_AWARE_TOOLS = ['dig', 'nsmx', 'reverse_dns']
+// Tools whose output is wide or tall enough to deserve a full-width card.
+const WIDE_TOOLS = ['traceroute', 'rdap', 'tls_cert', 'website_preview']
 
-// Icons for the core network tools (keyed by the single-source tool name).
-const TOOL_ICONS = {
-  rdap: 'fa-id-card',
-  dig: 'fa-magnifying-glass',
-  ping: 'fa-satellite-dish',
-  traceroute: 'fa-route'
-}
-
-// Additional threat-hunting tools rendered as text-output tools.
-const ADDITIONAL_TOOLS = [
-  { name: 'reverse_dns', label: 'Reverse DNS (PTR)', icon: 'fa-arrows-rotate' },
-  { name: 'nsmx', label: 'NS / MX records', icon: 'fa-envelope' },
-  { name: 'geoip', label: 'GeoIP', icon: 'fa-globe' },
-  { name: 'asn', label: 'ASN', icon: 'fa-network-wired' },
-  { name: 'tls_cert', label: 'TLS certificate', icon: 'fa-lock' },
-  { name: 'reputation', label: 'Reputation / threat intel', icon: 'fa-shield-halved' }
-]
+const freshState = () => ({
+  loading: false,
+  error: null,
+  output: null,
+  image: null,
+  reason: null,
+  truncated: false,
+  exitError: false,
+  ran: false
+})
 
 export default {
   name: 'ResearchTools',
@@ -215,67 +258,71 @@ export default {
 
     const target = ref('')
     const dnsServer = ref('')
+    const showOptions = ref(false)
+    const copied = ref(null)
 
-    // Build the ordered list of text-output tools from the single-source
-    // NETWORK_TOOLS definitions plus the additional threat-hunting tools.
-    const textTools = NETWORK_TOOLS.map(t => ({
-      name: t.name,
-      label: t.label,
-      icon: TOOL_ICONS[t.name] || 'fa-wrench'
-    })).concat(ADDITIONAL_TOOLS)
+    const tools = RESEARCH_TOOLS
 
-    // Per-tool output state: { loading, error, output, truncated, exitError }.
+    // Per-tool result state, keyed by tool name.
     const results = reactive({})
-    for (const t of textTools) {
-      results[t.name] = { loading: false, error: null, output: null, truncated: false, exitError: false }
+    // Which tools take part in "Analyze". All on by default so a single click
+    // gives the full picture; unchecking is how a user skips the slow ones.
+    const selected = reactive({})
+    for (const tool of tools) {
+      results[tool.name] = freshState()
+      selected[tool.name] = true
     }
 
-    // Website-preview state.
-    const preview = reactive({ loading: false, error: null, image: null })
+    const targetKind = computed(() => classifyTarget(target.value))
 
-    // Bulk-analysis state.
-    const bulkText = ref('')
-    const bulk = reactive({ loading: false, error: null, items: [] })
-
-    const bulkItems = computed(() =>
-      bulkText.value
-        .split('\n')
-        .map(line => line.trim())
-        .filter(line => line.length > 0)
-    )
-
-    // Reset every target-driven result region (text tools + website preview) to
-    // its initial empty state. Used both when the shared target changes and when
-    // the tools view is (re)opened for a new target from the context menu.
-    const resetTargetResults = () => {
-      for (const t of textTools) {
-        results[t.name] = { loading: false, error: null, output: null, truncated: false, exitError: false }
-      }
-      preview.loading = false
-      preview.error = null
-      preview.image = null
-    }
-
-    // When a new target is selected/typed, clear all previous results so stale
-    // output from a prior target is never shown alongside the new one.
-    watch(target, () => {
-      resetTargetResults()
+    const kindLabel = computed(() => {
+      if (targetKind.value === TARGET_DOMAIN) return 'domain'
+      if (targetKind.value === TARGET_IP) return 'IP'
+      if (targetKind.value === TARGET_EMPTY) return 'no target'
+      return 'invalid'
     })
 
-    // Run a single text-output tool through the research_tool endpoint.
+    const applicable = (tool) => toolAccepts(tool, targetKind.value)
+
+    const isWide = (tool) => WIDE_TOOLS.includes(tool.name)
+
+    // Why a card is inactive for the current target, phrased for the user.
+    const naReason = (tool) => (tool.accepts === ACCEPTS_DOMAIN
+      ? 'Needs a domain name.'
+      : 'Needs an IP address.')
+
+    const hasResult = (tool) => results[tool.name].ran
+
+    const anyRunning = computed(() => tools.some(tool => results[tool.name].loading))
+
+    const plannedTools = computed(() =>
+      toolsForTarget(targetKind.value).filter(tool => selected[tool.name])
+    )
+
+    const canRun = computed(() => plannedTools.value.length > 0 && !anyRunning.value)
+
+    // Clear every result so output from a previous target is never shown next to
+    // a new one.
+    const resetResults = () => {
+      for (const tool of tools) {
+        Object.assign(results[tool.name], freshState())
+      }
+      copied.value = null
+    }
+
+    watch(target, () => { resetResults() })
+
+    // Execute one tool through the research_tool endpoint. Image-rendering tools
+    // (website preview) return `{ image, reason }` instead of a ToolResult.
     const runTool = async (toolName) => {
+      const tool = tools.find(t => t.name === toolName)
       const state = results[toolName]
-      if (!state || !target.value || state.loading) return
+      if (!tool || !state || state.loading) return
+      if (!applicable(tool)) return
 
-      state.loading = true
-      state.error = null
-      state.output = null
-      state.truncated = false
-      state.exitError = false
+      Object.assign(state, freshState(), { loading: true })
 
-      const body = { tool: toolName, target: target.value }
-      // The dig-based tools (dig, NS/MX, reverse DNS) honor the optional custom
-      // DNS server; the others ignore it.
+      const body = { tool: toolName, target: target.value.trim() }
       if (DNS_AWARE_TOOLS.includes(toolName) && dnsServer.value) {
         body.dns_server = dnsServer.value
       }
@@ -284,9 +331,14 @@ export default {
         const resp = await post({ req: 'research_tool' }, body)
         if (resp && resp.status === 'ok') {
           const data = resp.data || {}
-          state.output = data.output != null ? data.output : ''
-          state.truncated = !!data.truncated
-          state.exitError = !!data.exitError
+          if (tool.render === 'image') {
+            state.image = data.image || null
+            state.reason = data.reason || null
+          } else {
+            state.output = data.output != null ? data.output : ''
+            state.truncated = !!data.truncated
+            state.exitError = !!data.exitError
+          }
         } else {
           state.error = (resp && resp.reason) || 'Tool execution failed'
         }
@@ -294,84 +346,82 @@ export default {
         state.error = e && e.message ? e.message : 'Tool execution failed'
       } finally {
         state.loading = false
+        state.ran = true
       }
     }
 
-    // Run the website-preview tool and render the returned base64 PNG.
-    const runPreview = async () => {
-      if (!target.value || preview.loading) return
-      preview.loading = true
-      preview.error = null
-      preview.image = null
-      try {
-        const resp = await post({ req: 'research_tool' }, { tool: 'website_preview', target: target.value })
-        if (resp && resp.status === 'ok') {
-          const data = resp.data || {}
-          if (data.image) {
-            preview.image = data.image
-          } else {
-            preview.error = data.reason || 'No preview available'
-          }
-        } else {
-          preview.error = (resp && resp.reason) || 'No preview available'
+    // Run every selected, applicable tool with a bounded fan-out. Fast tools are
+    // dispatched before the slow ones so the grid fills top-down.
+    const runAll = async () => {
+      if (!canRun.value) return
+      const queue = plannedTools.value
+        .slice()
+        .sort((a, b) => (a.slow ? 1 : 0) - (b.slow ? 1 : 0))
+        .map(tool => tool.name)
+
+      const worker = async () => {
+        while (queue.length > 0) {
+          await runTool(queue.shift())
         }
-      } catch (e) {
-        preview.error = e && e.message ? e.message : 'Preview capture failed'
-      } finally {
-        preview.loading = false
       }
+      const workers = []
+      for (let i = 0; i < Math.min(MAX_CONCURRENT, queue.length); i++) {
+        workers.push(worker())
+      }
+      await Promise.all(workers)
     }
 
-    // Run bulk analysis for up to MAX_BULK_ITEMS items (one per line).
-    const runBulk = async () => {
-      const items = bulkItems.value
-      if (items.length === 0 || items.length > MAX_BULK_ITEMS || bulk.loading) return
+    const selectAllTools = (value) => {
+      for (const tool of tools) selected[tool.name] = value
+    }
 
-      bulk.loading = true
-      bulk.error = null
-      bulk.items = []
+    const copyOutput = async (tool) => {
+      const text = results[tool.name].output
+      if (!text) return
       try {
-        const resp = await post({ req: 'research_tool' }, { tool: 'bulk', target: '', items })
-        if (resp && resp.status === 'ok') {
-          bulk.items = (resp.data && resp.data.items) || []
-        } else {
-          bulk.error = (resp && resp.reason) || 'Bulk analysis failed'
-        }
+        await navigator.clipboard.writeText(text)
+        copied.value = tool.name
+        setTimeout(() => { if (copied.value === tool.name) copied.value = null }, 1500)
       } catch (e) {
-        bulk.error = e && e.message ? e.message : 'Bulk analysis failed'
-      } finally {
-        bulk.loading = false
+        // Clipboard access denied: nothing to do, the output stays selectable.
       }
     }
 
-    // Programmatically drive the tools view: set the shared target and run a
-    // single text-output tool. Used by the ToolsModal launched from a context
-    // menu so the domain is prefilled and the selected tool runs immediately.
+    // Programmatic entry point used by ToolsModal when a target is picked from a
+    // log context menu: prefill the target and analyze it immediately. A named
+    // tool runs just that tool; anything else runs the full applicable set.
     const runWith = async (newTarget, toolName) => {
       target.value = String(newTarget || '')
-      // Let the target watcher clear any stale results before we start the run.
       await nextTick()
       if (toolName && results[toolName]) {
-        runTool(toolName)
+        await runTool(toolName)
+      } else {
+        await runAll()
       }
     }
 
-    // Exposed so a parent (ToolsModal) can prefill + auto-run via a template ref.
     expose({ runWith })
 
     return {
-      MAX_BULK_ITEMS,
       target,
       dnsServer,
-      textTools,
+      showOptions,
+      copied,
+      tools,
       results,
-      preview,
-      bulkText,
-      bulk,
-      bulkItems,
+      selected,
+      targetKind,
+      kindLabel,
+      applicable,
+      isWide,
+      naReason,
+      hasResult,
+      anyRunning,
+      canRun,
       runTool,
-      runPreview,
-      runBulk,
+      runAll,
+      selectAllTools,
+      copyOutput,
       runWith
     }
   }
@@ -379,25 +429,137 @@ export default {
 </script>
 
 <style scoped>
-.tool-block {
+/* --- Command bar: one line, stays in view while results scroll --- */
+.rt-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  background-color: var(--bs-body-bg, #fff);
+}
+
+.rt-target { flex: 1 1 auto; min-width: 12rem; }
+.rt-run { white-space: nowrap; }
+
+.rt-kind {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+.rt-kind--domain { color: #0a7d54; border-color: #0a7d54; }
+.rt-kind--ip { color: #1d6fa5; border-color: #1d6fa5; }
+.rt-kind--empty { color: #888; border-color: #ccc; }
+.rt-kind--invalid { color: #a5321d; border-color: #a5321d; }
+
+/* --- Options drawer --- */
+.rt-options {
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
   background-color: rgba(0, 0, 0, 0.02);
 }
-.tool-output {
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 320px;
-  overflow: auto;
-  font-size: 0.8rem;
+.rt-options__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  margin-bottom: 0.25rem;
+}
+.rt-chips { display: flex; flex-wrap: wrap; gap: 0.15rem 0.75rem; }
+.rt-linkbtn { padding: 0 0.15rem; font-size: 0.75rem; vertical-align: baseline; }
+
+/* --- Empty / invalid states --- */
+.rt-empty {
+  text-align: center;
+  color: #6c757d;
+  padding: 3rem 1rem;
+}
+.rt-invalid { margin-top: 0.25rem; }
+
+/* --- Result grid: several tools readable at once --- */
+.rt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  gap: 0.75rem;
+  align-items: start;
+}
+.rt-card {
+  border: 1px solid var(--bs-border-color, #dee2e6);
+  border-radius: 0.375rem;
+  overflow: hidden;
+  min-width: 0;
+}
+/* Wide output (traceroute, RDAP, certificates, preview) gets the full row. */
+@media (min-width: 992px) {
+  .rt-card--wide { grid-column: 1 / -1; }
+}
+.rt-card--na { opacity: 0.55; }
+
+.rt-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid var(--bs-border-color, #dee2e6);
+}
+.rt-card__title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rt-card__tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+/* Quiet, icon-only card affordances instead of a wall of Run buttons. */
+.rt-iconbtn {
+  border: 0;
+  background: transparent;
+  color: #6c757d;
+  padding: 0.1rem 0.25rem;
+  line-height: 1;
+  border-radius: 0.2rem;
+  cursor: pointer;
+}
+.rt-iconbtn:hover:not(:disabled) { color: #212529; background-color: rgba(0, 0, 0, 0.06); }
+.rt-iconbtn:disabled { opacity: 0.4; cursor: default; }
+
+.rt-card__body { padding: 0.5rem; }
+.rt-note { font-size: 0.8rem; color: #6c757d; }
+.rt-note--error { color: #a5321d; }
+
+.rt-output {
   margin: 0;
   padding: 0.5rem;
+  max-height: 20rem;
+  overflow: auto;
   background-color: #1e1e1e;
-  color: #e0e0e0;
-  border-radius: 4px;
+  color: #e8e8e8;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
-.preview-img {
+.rt-preview {
+  display: block;
   max-width: 100%;
   height: auto;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  border-radius: 0.25rem;
 }
 </style>

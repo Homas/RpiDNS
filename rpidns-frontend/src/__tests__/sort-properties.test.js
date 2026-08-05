@@ -1,8 +1,8 @@
 /**
- * Unique Queries Sorting - Property Tests
+ * Newly Seen Queries Sorting - Property Tests
  *
  * Property-based tests verifying the sorting behavior of the client-side
- * helpers used by the Unique Queries view.
+ * helpers used by the Newly seen queries view.
  *
  * Feature: research-tools
  */
@@ -27,7 +27,7 @@ function referenceCompare(a, b) {
   return as.localeCompare(bs, undefined, { sensitivity: 'base', numeric: true })
 }
 
-// The sortable columns exposed by the Unique Queries view.
+// The sortable columns exposed by the Newly seen queries view.
 const COLUMNS = ['fqdn', 'cnt', 'last_seen']
 
 // A single cell value: either a number (numeric comparison) or a string

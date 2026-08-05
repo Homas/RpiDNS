@@ -35,7 +35,7 @@ App.vue (root)
 │   │   ├── CustomPeriodPicker
 │   │   └── ContextMenu                — Right-click research, block & tool actions
 │   ├── SqlQueryTool                   — Read-only SELECT query runner
-│   └── ResearchTools                  — Network research tools (RDAP/WHOIS, dig, ping, traceroute)
+│   └── ResearchTools                  — One target, one Analyze action, result card grid
 ├── ToolsModal                         — App-level modal wrapper around ResearchTools (opened from context menus)
 ├── AdminTabs                          — Admin panel container
 │   ├── Assets                         — Network device management
@@ -136,7 +136,7 @@ Paginated, filterable table of RPZ-blocked DNS queries, displayed as "RPZ Log" i
 
 The Research page container, added as a dedicated tab in the main navigation sidebar positioned **immediately after "RPZ log" and immediately before "Admin"** (tab index 3 in the hash route scheme `#i2r/3`; full order: Dashboard, Query log, RPZ log, Research, Admin, Donate, Help). Its navigation title uses the `fa-flask` icon, and — like every other tab — the label text is hidden while the sidebar is collapsed so only the icon shows.
 
-`Research.vue` is a container that presents the three research sections as horizontal card sub-tabs (mirroring the Admin page): **Unique Queries**, **SQL Query**, and **Tools**. The active sub-tab is reflected in the URL hash as `#i2r/3/{slug}` (`unique`, `sql`, `tools`) for deep-linking, so a specific tool is shareable/bookmarkable; the optional `hidemenu` flag is preserved (e.g. `#i2r/3/sql/hidemenu`). It receives the same period/custom-period props and emits the same events as `QueryLog` and `RpzHits`, re-emitting child events verbatim to `App.vue`, so `App.vue` wires it identically.
+`Research.vue` is a container that presents the three research sections as horizontal card sub-tabs (mirroring the Admin page): **Newly seen queries**, **SQL Query**, and **Tools**. The active sub-tab is reflected in the URL hash as `#i2r/3/{slug}` (`unique`, `sql`, `tools`) for deep-linking — the `unique` slug is retained so existing bookmarks keep working, so a specific tool is shareable/bookmarkable; the optional `hidemenu` flag is preserved (e.g. `#i2r/3/sql/hidemenu`). It receives the same period/custom-period props and emits the same events as `QueryLog` and `RpzHits`, re-emitting child events verbatim to `App.vue`, so `App.vue` wires it identically.
 
 | Props | Type | Description |
 |-------|------|-------------|
@@ -154,12 +154,12 @@ The Research page container, added as a dedicated tab in the main navigation sid
 | `show-info` | `(msg, time)` | Display info toast |
 
 **Child components** (all under `src/components/Research/`):
-- **UniqueQueriesView** — a paginated, filterable, sortable table of **first-seen** allowed (non-blocked) FQDNs over the selected period, mirroring the Query Log presentation. "Unique" means newly observed: an FQDN appears only if it was requested for the first time inside the selected period and was never requested before the period start (see [Backend API — GET research_unique](./backend-api.md#get-research_unique) for how prior history is evaluated). Each row shows the FQDN, its total in-range query count, and its most recent query time. Right-clicking an FQDN cell opens the shared `ContextMenu` with research links, block actions, and the network tool actions. Provides a CSV copy control for the loaded dataset (via `useCsvExport`). **API endpoint:** `research_unique`.
+- **UniqueQueriesView** — presented in the UI as **Newly seen queries**; a paginated, filterable, sortable table of **first-seen** allowed (non-blocked) FQDNs over the selected period, mirroring the Query Log presentation. An FQDN appears only if it was requested for the first time inside the selected period and was never requested before the period start (see [Backend API — GET research_unique](./backend-api.md#get-research_unique) for how prior history is evaluated). Each row shows the FQDN, its total in-range query count, and its most recent query time. Right-clicking an FQDN cell opens the shared `ContextMenu` with research links, the Analyze action, and block/allow actions; the view contributes only its own page-specific actions so nothing is duplicated. Provides a CSV copy control for the loaded dataset (via `useCsvExport`). **API endpoint:** `research_unique`.
 - **SqlQueryTool** — an interface to run administrator-supplied read-only `SELECT` statements against the RpiDNS SQLite database, rendering the returned rows in a table with row count, truncation indication, and a CSV copy control. Fetches available table names to help build queries. **API endpoints:** `research_tables` (GET, table list) and `research_sql` (POST, query execution).
-- **ResearchTools** — renders the network research tool controls (RDAP/WHOIS, `dig` with optional DNS server, `ping`, `traceroute`, plus the additional threat-hunting tools) and displays their textual output. Tool definitions come from the shared `useNetworkTools` composable. Clearing/typing a new target resets all previously shown results. Exposes a `runWith(target, tool)` method so it can be prefilled and auto-run from the `ToolsModal`. **API endpoint:** `research_tool` (POST).
-- **ToolsModal** — an application-level modal (rendered once in `App.vue`) that wraps `ResearchTools`. It listens for the global `open-research-tools` window event dispatched by `ContextMenu` when a network tool is selected, opens with the right-clicked domain prefilled, and immediately runs the chosen tool. This replaces the previous inline, in-menu tool execution so results render in a full-size modal instead of the narrow context menu.
+- **ResearchTools** — the tools panel: a single sticky command bar (target input, target-class badge, one **Analyze** button, and an Options toggle) above a responsive grid of result cards, one per tool. Analyze runs every selected tool that applies to the current target with a bounded fan-out (3 concurrent requests, fast tools first) so several results can be read side by side. The target is classified as domain or IP client-side with the same rules as the backend validators, so only applicable tools run; the rest render dimmed with the reason instead of producing a validation error. The Options drawer holds the per-tool checkboxes and the optional DNS server for the `dig`-based tools. Each card carries quiet icon-only re-run and copy-output controls, and the website-preview card renders the returned PNG. Tool definitions come from the shared `useNetworkTools` composable. Typing a new target resets all previously shown results. Exposes `runWith(target, tool)` — with an empty `tool` meaning "run everything applicable" — so it can be prefilled and auto-run from the `ToolsModal`. **API endpoint:** `research_tool` (POST).
+- **ToolsModal** — an application-level modal (rendered once in `App.vue`) that wraps `ResearchTools`. It listens for the global `open-research-tools` window event dispatched by `ContextMenu` when Analyze is selected, opens with the right-clicked target prefilled, and runs the applicable tool set. Results render in a full-size modal instead of the narrow context menu.
 
-**Context_Menu integration:** The Research page (and the Query Log and RPZ Log) render the same reusable `ContextMenu.vue`. Its network tool actions are generated from the single-source `useNetworkTools.js` definitions (the "Tools" group), shown as a separately labeled group alongside the external research links (from `useResearchLinks.js`). Adding or removing a tool in `useNetworkTools.js` propagates to every page that uses the Context_Menu without any per-page change. Selecting a tool dispatches the global `open-research-tools` event, which the shared `ToolsModal` handles by opening the full Research tools view with the domain prefilled and the chosen tool executed. See the [Backend API — Research](./backend-api.md#research) section for the endpoints these components consume.
+**Context_Menu integration:** The Research page (and the Query Log and RPZ Log) render the same reusable `ContextMenu.vue`. Its "Tools" group holds a single **Analyze** entry, shown as a separately labeled group between the external research links (from `useResearchLinks.js`) and the page-specific actions. Selecting it dispatches the global `open-research-tools` event, which the shared `ToolsModal` handles by opening the full Research tools view with the target prefilled and every applicable tool executed. Because the entry is a single action rather than one entry per tool, adding or removing a tool in `useNetworkTools.js` changes only the panel, and the menu stays identical on every page. See the [Backend API — Research](./backend-api.md#research) section for the endpoints these components consume.
 
 ### LoginPage (`src/components/LoginPage.vue`)
 
@@ -427,20 +427,23 @@ RFC 4180-compliant CSV serializer and clipboard copy helper, shared by the `Uniq
 
 ### useNetworkTools (`composables/useNetworkTools.js`)
 
-Single source of truth for the network research tool definitions, parallel to `useResearchLinks.js`. Consumed by `ResearchTools.vue`, the `ContextMenu`, and `UniqueQueriesView`. Adding or removing a tool here propagates to every page that renders the Context_Menu (Query Log, RPZ Log, Unique Queries) with no per-page change. Also provides pure client-side helpers used by `UniqueQueriesView`.
+Single source of truth for the research tool definitions, parallel to `useResearchLinks.js`. Consumed by `ResearchTools.vue` and `UniqueQueriesView`. Adding or removing a tool here changes the Research tools panel everywhere it is rendered (the Research page and the shared `ToolsModal`) with no per-page change. Also provides pure client-side helpers used by `UniqueQueriesView`.
 
 **Exports:**
 
 | Export | Type | Description |
 |--------|------|-------------|
-| `NETWORK_TOOLS` | `Array<{ name, label, target }>` | Constant array of tool definitions (RDAP/WHOIS, dig, ping, traceroute) with machine name, human label, and expected target type |
-| `getToolActions(domain)` | `Function → Array<{ label, name, domain }>` | Produces one context-menu action per defined tool, preserving definition order |
+| `RESEARCH_TOOLS` | `Array<{ name, label, icon, accepts, render, slow? }>` | Constant array of tool definitions: endpoint tool name, human label, icon, accepted target class (`both`/`domain`/`ip`), result rendering kind (`text`/`image`), and whether the tool is slow (run last) |
+| `DNS_AWARE_TOOLS` | `Array<string>` | Tool names that honor a custom DNS server (`dig`, `nsmx`, `reverse_dns`) |
+| `classifyTarget(value)` | `Function → 'empty' \| 'domain' \| 'ip' \| 'invalid'` | Classifies a target with the same rules as the backend `InputValidator` |
+| `toolAccepts(tool, kind)` | `Function → boolean` | Whether a tool definition accepts a target class |
+| `toolsForTarget(kind)` | `Function → Array` | The subset of `RESEARCH_TOOLS` applicable to a target class, in definition order |
 | `filterByFqdn(rows, filterText)` | `Function → Array` | Case-insensitive substring filter on the `fqdn` field (pure, non-mutating) |
 | `sortRows(rows, column, descending?)` | `Function → Array` | Stable sort by a column, returning a new array |
 | `nextSortState(current, column)` | `Function → { column, descending }` | Computes the next sort state (new column → ascending; same column → toggle direction) |
 | `aggregateUniqueQueries(records, start?, end?)` | `Function → Array<{ fqdn, cnt, last_seen }>` | Groups allowed records within an inclusive range into first-seen FQDN rows with total count and most-recent timestamp, dropping any FQDN that has a record of any action before `start` |
 
-**Included tools:** RDAP / WHOIS, `dig`, `ping`, `traceroute` (each targeting a domain or IP).
+**Included tools:** RDAP / WHOIS, `dig`, NS / MX records, Reverse DNS (PTR), GeoIP, ASN, `ping`, `traceroute`, TLS certificate, Reputation / threat intel, Website preview. Domain-only tools (NS/MX, TLS, reputation, preview) and IP-only tools (PTR, GeoIP, ASN) are offered only for the matching target class.
 
 ### useResearchLinks (`composables/useResearchLinks.js`)
 

@@ -1,38 +1,118 @@
 /*
  * (c) Vadim Pavlov 2020 - 2026
  * Network tools composable for RpiDNS
- * Single source of network research tool definitions, parallel to useResearchLinks.js.
- * Adding or removing a tool here propagates to every page that renders the ContextMenu
- * (Query Log, RPZ Log, Unique Queries) with no per-page change.
+ * Single source of research tool definitions, parallel to useResearchLinks.js.
+ * Adding or removing a tool here propagates to the Research tools panel and to
+ * every page that renders the ContextMenu (Query Log, RPZ Log, Newly seen
+ * queries) with no per-page change.
  */
 
+/** Target classes a tool can accept. */
+export const ACCEPTS_BOTH = 'both'
+export const ACCEPTS_DOMAIN = 'domain'
+export const ACCEPTS_IP = 'ip'
+
+/** Result rendering kind: plain text output, or a captured image. */
+export const RENDER_TEXT = 'text'
+export const RENDER_IMAGE = 'image'
+
 /**
- * Network tool definitions for backend-executed research utilities.
- * Each entry defines a machine name, a human label, and the expected target type.
- * This is the single source of truth consumed by getToolActions() and the ContextMenu.
- * @type {Array<{name: string, label: string, target: string}>}
+ * Research tool definitions for backend-executed utilities. This is the single
+ * source of truth consumed by the Research tools panel and the ContextMenu.
+ *
+ * Each entry declares:
+ *  - `name`     the machine name accepted by the `research_tool` endpoint
+ *  - `label`    the human label rendered in the UI
+ *  - `icon`     Font Awesome icon class
+ *  - `accepts`  which target class the backend validator requires
+ *  - `render`   how the result is displayed (text output or image)
+ *  - `slow`     true for tools that routinely take several seconds, so the UI
+ *               can run them last and let the fast ones paint first
+ *
+ * Order is the display order: identification first, then DNS, then reachability,
+ * then transport/reputation, with the visual preview last.
+ *
+ * @type {Array<{name: string, label: string, icon: string, accepts: string, render: string, slow?: boolean}>}
  */
-export const NETWORK_TOOLS = [
-  { name: 'rdap', label: 'RDAP / WHOIS', target: 'domain_or_ip' },
-  { name: 'dig', label: 'dig', target: 'domain_or_ip' },
-  { name: 'ping', label: 'ping', target: 'domain_or_ip' },
-  { name: 'traceroute', label: 'traceroute', target: 'domain_or_ip' }
-  // additional tools appended here; propagate everywhere automatically
+export const RESEARCH_TOOLS = [
+  { name: 'rdap', label: 'RDAP / WHOIS', icon: 'fa-id-card', accepts: ACCEPTS_BOTH, render: RENDER_TEXT },
+  { name: 'dig', label: 'DNS records (dig)', icon: 'fa-magnifying-glass', accepts: ACCEPTS_BOTH, render: RENDER_TEXT },
+  { name: 'nsmx', label: 'NS / MX records', icon: 'fa-envelope', accepts: ACCEPTS_DOMAIN, render: RENDER_TEXT },
+  { name: 'reverse_dns', label: 'Reverse DNS (PTR)', icon: 'fa-arrows-rotate', accepts: ACCEPTS_IP, render: RENDER_TEXT },
+  { name: 'geoip', label: 'GeoIP', icon: 'fa-globe', accepts: ACCEPTS_IP, render: RENDER_TEXT },
+  { name: 'asn', label: 'ASN', icon: 'fa-network-wired', accepts: ACCEPTS_IP, render: RENDER_TEXT },
+  { name: 'ping', label: 'ping', icon: 'fa-satellite-dish', accepts: ACCEPTS_BOTH, render: RENDER_TEXT },
+  { name: 'traceroute', label: 'traceroute', icon: 'fa-route', accepts: ACCEPTS_BOTH, render: RENDER_TEXT, slow: true },
+  { name: 'tls_cert', label: 'TLS certificate', icon: 'fa-lock', accepts: ACCEPTS_DOMAIN, render: RENDER_TEXT },
+  { name: 'reputation', label: 'Reputation / threat intel', icon: 'fa-shield-halved', accepts: ACCEPTS_DOMAIN, render: RENDER_TEXT },
+  { name: 'website_preview', label: 'Website preview', icon: 'fa-image', accepts: ACCEPTS_DOMAIN, render: RENDER_IMAGE, slow: true }
 ]
 
 /**
- * Produce one context-menu action per defined network tool, each targeting the domain.
- * The output length always equals NETWORK_TOOLS.length and preserves definition order,
- * so adding/removing a tool in the single source propagates identically to every page.
- * @param {string} domain - The domain (or IP) to target with each tool action
- * @returns {Array<{label: string, name: string, domain: string}>} One action per tool
+ * Tools whose backend implementation runs through `dig` and therefore honor the
+ * optional custom DNS server. Every other tool ignores it.
+ * @type {string[]}
  */
-export function getToolActions(domain) {
-  return NETWORK_TOOLS.map(tool => ({
-    label: tool.label,
-    name: tool.name,
-    domain: domain
-  }))
+export const DNS_AWARE_TOOLS = ['dig', 'nsmx', 'reverse_dns']
+
+/** Target classification results. */
+export const TARGET_EMPTY = 'empty'
+export const TARGET_DOMAIN = 'domain'
+export const TARGET_IP = 'ip'
+export const TARGET_INVALID = 'invalid'
+
+const IPV4_RE = /^(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/
+const LABEL_RE = /^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?$/
+
+/**
+ * Classify a target the same way the backend validators do, so the UI only
+ * offers (and only runs) the tools that the server will actually accept.
+ * Mirrors InputValidator::isValidIp / isValidDomain.
+ * @param {string} value - Raw target string
+ * @returns {string} One of TARGET_EMPTY | TARGET_IP | TARGET_DOMAIN | TARGET_INVALID
+ */
+export function classifyTarget(value) {
+  const s = (value == null ? '' : String(value)).trim()
+  if (s === '') return TARGET_EMPTY
+  if (IPV4_RE.test(s)) return TARGET_IP
+  // IPv6: hex groups and colons only, at least one colon.
+  if (s.includes(':') && /^[0-9A-Fa-f:.]+$/.test(s)) return TARGET_IP
+  if (s.length > 253) return TARGET_INVALID
+
+  const bare = s.endsWith('.') ? s.slice(0, -1) : s
+  if (bare === '') return TARGET_INVALID
+  const labels = bare.split('.')
+  for (const label of labels) {
+    if (label.length < 1 || label.length > 63) return TARGET_INVALID
+    if (!LABEL_RE.test(label)) return TARGET_INVALID
+  }
+  // A purely numeric TLD is neither a valid hostname nor a valid IP.
+  if (/^[0-9]+$/.test(labels[labels.length - 1])) return TARGET_INVALID
+  return TARGET_DOMAIN
+}
+
+/**
+ * True if a tool accepts the given target class. Tools that accept `both` are
+ * applicable to any valid target; the rest require their own class.
+ * @param {{accepts: string}} tool - A RESEARCH_TOOLS entry
+ * @param {string} kind - A TARGET_* classification
+ * @returns {boolean} Whether the tool can run against that target class
+ */
+export function toolAccepts(tool, kind) {
+  if (!tool) return false
+  if (kind !== TARGET_DOMAIN && kind !== TARGET_IP) return false
+  if (tool.accepts === ACCEPTS_BOTH) return true
+  return tool.accepts === kind
+}
+
+/**
+ * The subset of RESEARCH_TOOLS that can run against a target class, in
+ * definition order. Returns an empty list for an empty or invalid target.
+ * @param {string} kind - A TARGET_* classification
+ * @returns {Array<Object>} Applicable tool definitions, in definition order
+ */
+export function toolsForTarget(kind) {
+  return RESEARCH_TOOLS.filter(tool => toolAccepts(tool, kind))
 }
 
 /*
