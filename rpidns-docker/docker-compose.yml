@@ -72,18 +72,22 @@ services:
       - RPIDNS_LOGGING=${RPIDNS_LOGGING:-local}
       - RPIDNS_LOGGING_HOST=${RPIDNS_LOGGING_HOST:-}
       - PHP_FPM_VERSION=${PHP_FPM_VERSION:-84}
-    # Research network tools (ping / traceroute) run as the unprivileged
-    # www-data user and need to open raw ICMP sockets (Req 6.7, 8.7).
-    # Grant CAP_NET_RAW so these tools can start; without it they fail to
-    # launch and the backend surfaces a `tool_start_failed` error.
+    # Capabilities (must be a SINGLE cap_add block - a duplicate cap_add key
+    # makes Compose fail to parse this file entirely:
+    # 'mapping key "cap_add" already defined'):
+    #  - NET_ADMIN: network configuration performed by the web container.
+    #  - NET_RAW:   the research network tools (ping / traceroute) run as the
+    #               unprivileged www-data user and open raw ICMP sockets
+    #               (socket(AF_INET, SOCK_RAW, IPPROTO_ICMP)). Docker drops
+    #               NET_RAW by default, which makes traceroute fail with
+    #               "socket(AF_INET,3,1): Operation not permitted" (Req 6.7, 8.7).
     cap_add:
+      - NET_ADMIN
       - NET_RAW
-    # Alternative to CAP_NET_RAW: enable unprivileged ICMP for the www-data
-    # group (gid 82) via the ping_group_range sysctl. This lets ping/traceroute
-    # use unprivileged datagram ICMP sockets instead of raw sockets. Use EITHER
-    # cap_add: NET_RAW (above) OR this sysctl. Uncomment to prefer the sysctl:
-    #sysctls:
-    #  - net.ipv4.ping_group_range=82 82
+    # Note: the net.ipv4.ping_group_range sysctl is NOT an alternative here.
+    # It only permits unprivileged *datagram* ICMP sockets (SOCK_DGRAM), which
+    # busybox ping can use, but traceroute still needs a raw socket to receive
+    # ICMP errors. CAP_NET_RAW is required for traceroute.
     depends_on:
       bind:
         condition: service_healthy

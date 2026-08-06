@@ -13,6 +13,10 @@
     - Results render as a responsive card grid so several tools can be read at
       the same time instead of scrolling a tall single column. Each card keeps a
       quiet icon-only re-run/copy affordance in its header.
+    - Tools backed by JSON APIs (RDAP/WHOIS, reputation) are shown as the
+      readable summary the backend derives, with a per-card switch to the raw
+      JSON it came from. Both forms arrive in the same response, so toggling
+      costs no extra request, and the switch only appears where both exist.
     - Targets are classified client-side (domain vs IP) exactly as the backend
       validators do, and only the tools the server will accept are rendered.
       Tools that cannot apply (PTR/GeoIP/ASN for a domain, TLS/NS-MX/preview for
@@ -150,8 +154,21 @@
             ></i>
             <i v-else-if="hasResult(tool)" class="fas fa-circle-check text-success"></i>
 
+            <!-- Summary / JSON switch, only for results that have both forms -->
             <button
-              v-if="results[tool.name].output"
+              v-if="results[tool.name].raw"
+              v-b-tooltip.hover
+              :title="results[tool.name].showRaw ? 'Show readable summary' : 'Show raw JSON'"
+              type="button"
+              class="rt-iconbtn"
+              :class="{ 'rt-iconbtn--on': results[tool.name].showRaw }"
+              @click="toggleRaw(tool)"
+            >
+              <i class="fas" :class="results[tool.name].showRaw ? 'fa-list' : 'fa-code'"></i>
+            </button>
+
+            <button
+              v-if="displayedOutput(tool)"
               v-b-tooltip.hover
               title="Copy output"
               type="button"
@@ -198,9 +215,9 @@
             <p v-else class="rt-note mb-0">Not run yet.</p>
           </template>
 
-          <!-- Text result -->
+          <!-- Text result: the readable summary, or the JSON it came from -->
           <template v-else-if="results[tool.name].output !== null">
-            <pre class="rt-output mb-0">{{ results[tool.name].output || '(no output)' }}</pre>
+            <pre class="rt-output mb-0">{{ displayedOutput(tool) || '(no output)' }}</pre>
             <p v-if="results[tool.name].truncated" class="rt-note mb-0 mt-1">
               <i class="fas fa-scissors"></i>&nbsp;Output truncated.
             </p>
@@ -246,6 +263,11 @@ const freshState = () => ({
   loading: false,
   error: null,
   output: null,
+  // Pretty-printed JSON behind `output` for the tools whose upstream is a JSON
+  // API (RDAP, reputation, ...). Null when the backend has no separate JSON
+  // view to offer, which is what hides the summary/JSON toggle.
+  raw: null,
+  showRaw: false,
   image: null,
   reason: null,
   truncated: false,
@@ -305,6 +327,22 @@ export default {
 
     const hasResult = (tool) => results[tool.name].ran
 
+    // What the card body shows: the readable summary by default, the raw JSON
+    // while the per-card toggle is on. Copy follows whatever is on screen.
+    const displayedOutput = (tool) => {
+      const state = results[tool.name]
+      if (!state) return ''
+      return (state.showRaw && state.raw) ? state.raw : state.output
+    }
+
+    const toggleRaw = (tool) => {
+      const state = results[tool.name]
+      if (!state || !state.raw) return
+      state.showRaw = !state.showRaw
+      // The copy confirmation refers to the previous view, so retract it.
+      if (copied.value === tool.name) copied.value = null
+    }
+
     const anyRunning = computed(() => tools.some(tool => results[tool.name].loading))
 
     const plannedTools = computed(() =>
@@ -332,7 +370,9 @@ export default {
       if (!tool || !state || state.loading) return
       if (!applicable(tool)) return
 
-      Object.assign(state, freshState(), { loading: true })
+      // A re-run keeps the card's chosen view (summary vs JSON); it falls back
+      // to the summary on its own if the new result carries no JSON.
+      Object.assign(state, freshState(), { loading: true, showRaw: state.showRaw })
 
       const body = { tool: toolName, target: target.value.trim() }
       if (DNS_AWARE_TOOLS.includes(toolName) && dnsServer.value) {
@@ -348,6 +388,7 @@ export default {
             state.reason = data.reason || null
           } else {
             state.output = data.output != null ? data.output : ''
+            state.raw = data.raw != null && data.raw !== '' ? String(data.raw) : null
             state.truncated = !!data.truncated
             state.exitError = !!data.exitError
           }
@@ -388,7 +429,7 @@ export default {
     }
 
     const copyOutput = async (tool) => {
-      const text = results[tool.name].output
+      const text = displayedOutput(tool)
       if (!text) return
       try {
         await navigator.clipboard.writeText(text)
@@ -429,6 +470,8 @@ export default {
       optionTools,
       isWide,
       hasResult,
+      displayedOutput,
+      toggleRaw,
       anyRunning,
       canRun,
       runTool,
@@ -557,6 +600,8 @@ export default {
 }
 .rt-iconbtn:hover:not(:disabled) { color: #212529; background-color: rgba(0, 0, 0, 0.06); }
 .rt-iconbtn:disabled { opacity: 0.4; cursor: default; }
+/* Active state for the summary/JSON switch, so the current view is evident. */
+.rt-iconbtn--on { color: #212529; background-color: rgba(0, 0, 0, 0.1); }
 
 .rt-card__body { padding: 0.5rem; }
 .rt-note { font-size: 0.8rem; color: #6c757d; }

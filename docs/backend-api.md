@@ -461,12 +461,15 @@ Executes a network research tool against a validated target and returns its `Too
     "tool": "dig",
     "target": "example.com",
     "output": "...",
+    "raw": null,
     "truncated": false,
     "exitError": false,
     "reason": null
   }
 }
 ```
+
+For the tools whose upstream is a JSON API (`geoip`, `asn`, `rdap`, `reputation`), `ResearchFormatter` replaces `output` with a human-readable summary and returns the pretty-printed JSON it was derived from in `raw`, so a client can offer a summary/JSON switch without a second request. `raw` is `null` whenever there is no distinct JSON view to show — for text tools such as `dig`, for output that is not valid JSON (a curl error is passed through untouched), and for JSON that has no summary renderer and is therefore already displayed as pretty JSON. It is capped at 256 KiB, since a pretty-printed OTX report with hundreds of pulses travels in the same response.
 
 `nsmx` returns a combined `ToolResult`. `website_preview` returns `{ "image": <base64 PNG|null>, "reason": <string|null> }`; it is gated behind the `RESEARCH_WEBSITE_PREVIEW` feature flag, which defaults to whether a headless browser (`chromium`/`chrome`) is present on the host, so previews work out of the box on the RpiDNS web image and report `"website preview is disabled: no headless browser installed"` elsewhere. Define the constant in `rpisettings.php` to force it on or off. The screenshot file is the source of truth for success, since chromium writes unrelated diagnostics to stderr and may exit non-zero after producing a usable image.
 

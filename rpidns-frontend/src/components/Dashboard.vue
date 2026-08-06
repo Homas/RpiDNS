@@ -71,6 +71,7 @@
                       <BPopover :target="'tip-good_requests-' + index" triggers="hover" :title="item.fname" class="dashboard-popover">
                         <div class="popover-section-label"><i class="fas fa-mouse-pointer fa-sm"></i>&nbsp;Actions</div>
                         <a href="javascript:void(0)" class="popover-item" @click.stop="onAllowedRequestClick(item)">Show queries</a>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="analyzeDomain(item.fname)"><i class="fas fa-toolbox"></i>&nbsp;Analyze</a>
                         <a href="javascript:void(0)" class="popover-item" @click.stop="blockDomain(item.fname)"><i class="fas fa-ban"></i>&nbsp;Block</a>
                         <div class="popover-divider"></div>
                         <div class="popover-section-label"><i class="fas fa-search fa-sm"></i>&nbsp;Research</div>
@@ -175,6 +176,7 @@
                         <div class="popover-section-label"><i class="fas fa-mouse-pointer fa-sm"></i>&nbsp;Actions</div>
                         <a href="javascript:void(0)" class="popover-item" @click.stop="showQueries('fqdn=' + item.fname)">Show queries</a>
                         <a href="javascript:void(0)" class="popover-item" @click.stop="onBlockedRequestClick(item)">Show hits</a>
+                        <a href="javascript:void(0)" class="popover-item" @click.stop="analyzeDomain(item.fname)"><i class="fas fa-toolbox"></i>&nbsp;Analyze</a>
                         <a href="javascript:void(0)" class="popover-item" @click.stop="allowDomain(item.fname)"><i class="fas fa-check-circle"></i>&nbsp;Allow</a>
                         <div class="popover-divider"></div>
                         <div class="popover-section-label"><i class="fas fa-search fa-sm"></i>&nbsp;Research</div>
@@ -478,6 +480,18 @@ export default {
     const onFeedClick = (item) => { showHits('feed=' + item.fname) }
     const onServerClick = (item) => { showQueries('server=' + item.fname) }
 
+    // Analyze: open the shared Research tools modal for this FQDN and run every
+    // applicable tool. The same global `open-research-tools` event the log-page
+    // ContextMenu dispatches is used, so the dashboard needs no modal of its own
+    // (ToolsModal is mounted once in App.vue) and behaves identically. An empty
+    // `tool` means "run the full applicable set".
+    const analyzeDomain = (domain) => {
+      if (!domain) return
+      window.dispatchEvent(new CustomEvent('open-research-tools', {
+        detail: { target: domain, tool: '' }
+      }))
+    }
+
     // Block/Allow actions
     const { smartBlock, smartAllow } = useSmartActions()
 
@@ -535,7 +549,7 @@ export default {
       refreshDash, refreshDashQPS, onPeriodChange, selectPeriod, showQueries, showHits,
       showQueriesForClient, showHitsForClient, onAllowedRequestClick, onAllowedClientClick,
       onRequestTypeClick, onBlockedRequestClick, onBlockedClientClick, onFeedClick,
-      onServerClick, blockDomain, allowDomain, onCustomPeriodApply, onCustomPeriodCancel
+      onServerClick, analyzeDomain, blockDomain, allowDomain, onCustomPeriodApply, onCustomPeriodCancel
     }
   }
 }

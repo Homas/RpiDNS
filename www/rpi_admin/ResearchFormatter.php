@@ -5,9 +5,17 @@
  *
  * Several enrichment tools call external HTTP APIs that return JSON (geoip,
  * asn, rdap, reputation). Raw JSON is hard to read in the UI, so this component
- * turns it into a human-readable form:
+ * turns each of them into a human-readable summary:
  *   - geoip / asn: a concise key/value summary of the useful fields.
- *   - rdap / reputation / any other JSON: pretty-printed JSON.
+ *   - rdap: registration data (RFC 9083) for a domain or IP network - name,
+ *     status, registrar/organization, abuse contact, key dates, nameservers.
+ *   - reputation: an AlienVault OTX indicator report - pulse count, the pulses
+ *     themselves, and the aggregated adversary/malware/industry context.
+ *   - any other JSON: pretty-printed JSON.
+ *
+ * `render()` returns the summary together with the pretty-printed JSON it was
+ * derived from, so the UI can offer a summary/JSON toggle without a second
+ * request. The JSON form is omitted when it would be identical to the summary.
  *
  * It is deliberately conservative: output that is NOT valid JSON (plain-text
  * tool output such as dig/ping/traceroute, or a curl error like
@@ -25,6 +33,19 @@ class ResearchFormatter {
     const JSON_TOOLS = ['geoip', 'asn', 'rdap', 'reputation'];
 
     /**
+     * Maximum size of the JSON view handed back to the client. The summary is
+     * always small, but a pretty-printed OTX report with hundreds of pulses is
+     * not, and it travels in the same response.
+     */
+    const MAX_RAW_BYTES = 262144; // 256 KiB
+
+    /** Maximum number of list entries (pulses, nameservers, ...) rendered. */
+    const MAX_LIST_ITEMS = 15;
+
+    /** Widest label column used by the "Label: value" blocks. */
+    const MAX_LABEL_COL = 16;
+
+    /**
      * Format a tool's raw output for display.
      *
      * @param string $tool   The tool name (e.g. 'geoip', 'asn', 'dig').
@@ -33,30 +54,73 @@ class ResearchFormatter {
      *                is not JSON / not a JSON-producing tool.
      */
     public static function format($tool, $output) {
+        $rendered = self::render($tool, $output);
+        return $rendered['output'];
+    }
+
+    /**
+     * Format a tool's raw output for display AND provide the JSON it came from.
+     *
+     * @param string $tool   The tool name (e.g. 'rdap', 'reputation', 'dig').
+     * @param string $output The raw utility output captured by ToolRunner.
+     * @return array{output: string, raw: string|null} `output` is what to show
+     *         by default; `raw` is the pretty-printed JSON behind it, or null
+     *         when there is no separate JSON view to offer.
+     */
+    public static function render($tool, $output) {
+        $result = array('output' => is_string($output) ? $output : (string)$output, 'raw' => null);
+
         if (!is_string($output) || $output === '') {
-            return (string)$output;
+            return $result;
         }
 
         // Only attempt to reformat tools that are expected to emit JSON.
         if (!in_array($tool, self::JSON_TOOLS, true)) {
-            return $output;
+            return $result;
         }
 
         $decoded = json_decode($output, true);
         // Not valid JSON (e.g. a curl connection error, or truncated body):
         // leave it exactly as-is so the message is preserved.
         if ($decoded === null && trim($output) !== 'null') {
-            return $output;
+            return $result;
         }
 
+        $summary = self::summarize($tool, $decoded, $output);
+        $pretty = self::prettyJson($decoded, $output);
+
+        $result['output'] = $summary;
+        // Only offer a JSON view when it differs from what is already shown,
+        // so tools that fall back to pretty JSON get no pointless toggle.
+        if ($summary !== $pretty) {
+            $result['raw'] = (strlen($pretty) > self::MAX_RAW_BYTES)
+                ? substr($pretty, 0, self::MAX_RAW_BYTES) . "\n\n... JSON truncated for display."
+                : $pretty;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Dispatch to the per-tool summary renderer.
+     *
+     * @param string $tool
+     * @param mixed  $decoded Decoded JSON.
+     * @param string $raw     Original output (fallback).
+     * @return string
+     */
+    private static function summarize($tool, $decoded, $raw) {
         switch ($tool) {
             case 'geoip':
-                return self::formatGeoip($decoded, $output);
+                return self::formatGeoip($decoded, $raw);
             case 'asn':
-                return self::formatAsn($decoded, $output);
+                return self::formatAsn($decoded, $raw);
+            case 'rdap':
+                return self::formatRdap($decoded, $raw);
+            case 'reputation':
+                return self::formatReputation($decoded, $raw);
             default:
-                // rdap, reputation, and any other JSON: pretty-print.
-                return self::prettyJson($decoded, $output);
+                return self::prettyJson($decoded, $raw);
         }
     }
 
@@ -154,6 +218,401 @@ class ResearchFormatter {
     }
 
     /**
+     * Render an RDAP response (RFC 9083) as a readable registration summary.
+     *
+     * Handles both object classes the tool can return: `domain` (registrar,
+     * registration dates, nameservers, DNSSEC) and `ip network` (allocation
+     * range, holder, country). RDAP error objects are reported as one line.
+     *
+     * @param mixed  $d   Decoded JSON.
+     * @param string $raw Original output (fallback).
+     * @return string
+     */
+    private static function formatRdap($d, $raw) {
+        if (!is_array($d)) {
+            return $raw;
+        }
+
+        // RDAP error response: {"errorCode":404,"title":"...","description":[...]}
+        if (isset($d['errorCode'])) {
+            $line = 'RDAP lookup failed (' . self::val($d, 'errorCode') . ')';
+            $title = self::val($d, 'title');
+            if ($title !== '') { $line .= ': ' . $title; }
+            $desc = self::firstString($d, 'description');
+            if ($desc !== '') { $line .= "\n" . $desc; }
+            return $line;
+        }
+
+        $class = self::val($d, 'objectClassName');
+        $out = array();
+
+        if ($class === 'ip network') {
+            $range = trim(self::val($d, 'startAddress') . ' - ' . self::val($d, 'endAddress'), ' -');
+            $out[] = self::kv(array(
+                'Object'  => 'IP network',
+                'Range'   => $range,
+                'CIDR'    => self::rdapCidrs($d),
+                'Name'    => self::val($d, 'name'),
+                'Type'    => self::val($d, 'type'),
+                'Country' => self::val($d, 'country'),
+                'Handle'  => self::val($d, 'handle'),
+                'Parent'  => self::val($d, 'parentHandle'),
+                'Status'  => self::joinList($d, 'status'),
+            ));
+        } else {
+            $name = self::val($d, 'unicodeName');
+            if ($name === '') { $name = self::val($d, 'ldhName'); }
+            $dnssec = '';
+            if (isset($d['secureDNS']) && is_array($d['secureDNS'])) {
+                $signed = self::val($d['secureDNS'], 'delegationSigned');
+                if ($signed !== '') { $dnssec = ($signed === 'true') ? 'signed' : 'unsigned'; }
+            }
+            $out[] = self::kv(array(
+                'Object' => ($class !== '' ? $class : 'domain'),
+                'Name'   => $name,
+                'Handle' => self::val($d, 'handle'),
+                'Status' => self::joinList($d, 'status'),
+                'DNSSEC' => $dnssec,
+            ));
+        }
+
+        // Registrar / holder and the abuse contact, wherever they are nested.
+        $roles = array(
+            'Registrar'  => 'registrar',
+            'Registrant' => 'registrant',
+            'Org'        => 'administrative',
+        );
+        $contacts = array();
+        foreach ($roles as $label => $role) {
+            $entity = self::findEntityByRole($d, $role);
+            if ($entity === null) { continue; }
+            $who = self::vcard($entity, 'org');
+            if ($who === '') { $who = self::vcard($entity, 'fn'); }
+            if ($who === '') { continue; }
+            // One entity commonly holds several roles (registrant AND
+            // administrative), so the same name would be printed twice.
+            if (in_array($who, $contacts, true)) { continue; }
+            $contacts[$label] = $who;
+        }
+        $abuse = self::findEntityByRole($d, 'abuse');
+        if ($abuse !== null) {
+            $email = self::vcard($abuse, 'email');
+            if ($email !== '') { $contacts['Abuse'] = $email; }
+        }
+        $contactBlock = self::kv($contacts);
+        if ($contactBlock !== '') { $out[] = $contactBlock; }
+
+        // Key lifecycle dates, in RDAP's own wording.
+        $events = array();
+        if (isset($d['events']) && is_array($d['events'])) {
+            foreach ($d['events'] as $ev) {
+                if (!is_array($ev)) { continue; }
+                $action = self::val($ev, 'eventAction');
+                $date = self::val($ev, 'eventDate');
+                if ($action === '' || $date === '') { continue; }
+                $events[ucfirst($action)] = $date;
+            }
+        }
+        $eventBlock = self::kv($events);
+        if ($eventBlock !== '') { $out[] = $eventBlock; }
+
+        // Nameservers (domain objects only).
+        if (isset($d['nameservers']) && is_array($d['nameservers'])) {
+            $ns = array();
+            foreach ($d['nameservers'] as $server) {
+                if (!is_array($server)) { continue; }
+                $host = self::val($server, 'ldhName');
+                if ($host !== '') { $ns[] = strtolower($host); }
+            }
+            if (count($ns) > 0) {
+                $out[] = self::listBlock('Nameservers', $ns);
+            }
+        }
+
+        $port43 = self::val($d, 'port43');
+        if ($port43 !== '') {
+            $out[] = self::kv(array('WHOIS' => $port43));
+        }
+
+        $out = array_values(array_filter($out, function ($block) { return $block !== ''; }));
+        return count($out) > 0 ? implode("\n\n", $out) : self::prettyJson($d, $raw);
+    }
+
+    /**
+     * Render an AlienVault OTX indicator report as a readable summary.
+     *
+     * The headline is the pulse count: zero pulses means no OTX contributor has
+     * flagged the indicator, which is the common case for benign domains and is
+     * stated explicitly rather than left as an empty section.
+     *
+     * @param mixed  $d   Decoded JSON.
+     * @param string $raw Original output (fallback).
+     * @return string
+     */
+    private static function formatReputation($d, $raw) {
+        if (!is_array($d)) {
+            return $raw;
+        }
+
+        // OTX reports a failed/unsupported request as {"detail": "..."} or
+        // {"error": "..."} with no pulse_info at all.
+        if (!isset($d['pulse_info'])) {
+            $detail = self::val($d, 'detail');
+            if ($detail === '') { $detail = self::val($d, 'error'); }
+            if ($detail !== '') {
+                return 'Reputation lookup failed: ' . $detail;
+            }
+        }
+
+        $info = (isset($d['pulse_info']) && is_array($d['pulse_info'])) ? $d['pulse_info'] : array();
+        $pulses = (isset($info['pulses']) && is_array($info['pulses'])) ? $info['pulses'] : array();
+        $count = self::val($info, 'count');
+        if ($count === '') { $count = (string)count($pulses); }
+
+        $out = array();
+        $out[] = self::kv(array(
+            'Indicator' => self::val($d, 'indicator'),
+            'Type'      => self::val($d, 'type_title'),
+            'Pulses'    => $count . ($count === '1' ? ' report' : ' reports'),
+        ));
+
+        // Whitelist / false-positive notes carry more weight than pulse count.
+        $notes = array();
+        if (isset($d['validation']) && is_array($d['validation'])) {
+            foreach ($d['validation'] as $v) {
+                if (!is_array($v)) { continue; }
+                $note = self::val($v, 'message');
+                if ($note === '') { $note = self::val($v, 'name'); }
+                if ($note !== '') { $notes[] = $note; }
+            }
+        }
+        if (isset($d['false_positive']) && is_array($d['false_positive']) && count($d['false_positive']) > 0) {
+            $notes[] = 'Reported as a false positive by ' . count($d['false_positive']) . ' source(s).';
+        }
+        if (count($notes) > 0) {
+            $out[] = self::listBlock('Whitelisted', $notes);
+        }
+
+        if ((int)$count === 0 && count($pulses) === 0) {
+            $out[] = 'No threat-intelligence pulses reference this indicator.';
+        } else {
+            // The pulses themselves: what they are called, when they last moved,
+            // and how they are tagged.
+            $lines = array();
+            $shown = 0;
+            foreach ($pulses as $pulse) {
+                if (!is_array($pulse)) { continue; }
+                if ($shown >= self::MAX_LIST_ITEMS) { break; }
+                $name = self::val($pulse, 'name');
+                if ($name === '') { $name = self::val($pulse, 'id'); }
+                $when = self::val($pulse, 'modified');
+                if ($when === '') { $when = self::val($pulse, 'created'); }
+                $line = $name;
+                if ($when !== '') { $line .= '  [' . substr($when, 0, 10) . ']'; }
+                $tags = self::joinList($pulse, 'tags');
+                if ($tags !== '') { $line .= "\n" . str_repeat(' ', 4) . 'tags: ' . $tags; }
+                $lines[] = $line;
+                $shown++;
+            }
+            $remaining = count($pulses) - $shown;
+            if ($remaining > 0) {
+                $lines[] = '... and ' . $remaining . ' more (see JSON).';
+            }
+            if (count($lines) > 0) {
+                $out[] = self::listBlock('Reported in', $lines);
+            }
+        }
+
+        // Aggregated context OTX derives across all pulses.
+        $related = array();
+        if (isset($info['related']) && is_array($info['related'])) {
+            foreach ($info['related'] as $source) {
+                if (!is_array($source)) { continue; }
+                foreach (array('adversary', 'malware_families', 'industries') as $key) {
+                    if (!isset($source[$key]) || !is_array($source[$key])) { continue; }
+                    foreach ($source[$key] as $value) {
+                        // OTX returns these either as plain strings or as objects
+                        // carrying a display name, depending on the field.
+                        $name = self::nameOf($value);
+                        if ($name !== '') { $related[$key][$name] = true; }
+                    }
+                }
+            }
+        }
+        $context = array();
+        $labels = array(
+            'adversary'        => 'Adversaries',
+            'malware_families' => 'Malware',
+            'industries'       => 'Industries',
+        );
+        foreach ($labels as $key => $label) {
+            if (isset($related[$key]) && count($related[$key]) > 0) {
+                $context[$label] = implode(', ', array_keys($related[$key]));
+            }
+        }
+        $contextBlock = self::kv($context);
+        if ($contextBlock !== '') { $out[] = $contextBlock; }
+
+        $out = array_values(array_filter($out, function ($block) { return $block !== ''; }));
+        return count($out) > 0 ? implode("\n\n", $out) : self::prettyJson($d, $raw);
+    }
+
+    /**
+     * Render CIDR prefixes from an RDAP ip network object's cidr0_cidrs.
+     *
+     * @param array $d Decoded ip network object.
+     * @return string Comma-separated prefixes, or ''.
+     */
+    private static function rdapCidrs($d) {
+        if (!isset($d['cidr0_cidrs']) || !is_array($d['cidr0_cidrs'])) { return ''; }
+        $out = array();
+        foreach ($d['cidr0_cidrs'] as $cidr) {
+            if (!is_array($cidr)) { continue; }
+            $prefix = self::val($cidr, 'v4prefix');
+            if ($prefix === '') { $prefix = self::val($cidr, 'v6prefix'); }
+            $length = self::val($cidr, 'length');
+            if ($prefix !== '' && $length !== '') { $out[] = $prefix . '/' . $length; }
+        }
+        return implode(', ', $out);
+    }
+
+    /**
+     * Find the first RDAP entity holding a given role, searching nested
+     * entities as well: the abuse contact is normally nested inside the
+     * registrar entity rather than listed at the top level.
+     *
+     * @param array  $node Decoded RDAP object (or entity).
+     * @param string $role Role to look for, e.g. 'registrar' or 'abuse'.
+     * @param int    $depth Recursion guard.
+     * @return array|null The matching entity, or null.
+     */
+    private static function findEntityByRole($node, $role, $depth = 0) {
+        if (!is_array($node) || $depth > 4) { return null; }
+        if (!isset($node['entities']) || !is_array($node['entities'])) { return null; }
+
+        foreach ($node['entities'] as $entity) {
+            if (!is_array($entity)) { continue; }
+            if (isset($entity['roles']) && is_array($entity['roles'])) {
+                foreach ($entity['roles'] as $r) {
+                    if (is_string($r) && stripos($r, $role) !== false) { return $entity; }
+                }
+            }
+        }
+        // Not at this level: descend into each entity's own entities.
+        foreach ($node['entities'] as $entity) {
+            $found = self::findEntityByRole($entity, $role, $depth + 1);
+            if ($found !== null) { return $found; }
+        }
+        return null;
+    }
+
+    /**
+     * Read a property from an RDAP entity's jCard (RFC 7095), whose shape is
+     * ["vcard", [[name, params, type, value], ...]].
+     *
+     * @param array  $entity Decoded RDAP entity.
+     * @param string $name   jCard property name, e.g. 'fn', 'org', 'email'.
+     * @return string The first matching scalar value, or ''.
+     */
+    private static function vcard($entity, $name) {
+        if (!is_array($entity) || !isset($entity['vcardArray']) || !is_array($entity['vcardArray'])) {
+            return '';
+        }
+        $props = isset($entity['vcardArray'][1]) ? $entity['vcardArray'][1] : null;
+        if (!is_array($props)) { return ''; }
+
+        foreach ($props as $prop) {
+            if (!is_array($prop) || count($prop) < 4) { continue; }
+            if (!is_string($prop[0]) || strcasecmp($prop[0], $name) !== 0) { continue; }
+            $value = $prop[3];
+            // Structured values (e.g. org as ["Name","Unit"]) keep the first part.
+            if (is_array($value)) {
+                foreach ($value as $part) {
+                    if (is_string($part) && trim($part) !== '') { return trim($part); }
+                }
+                continue;
+            }
+            if (is_scalar($value) && trim((string)$value) !== '') { return trim((string)$value); }
+        }
+        return '';
+    }
+
+    /**
+     * Read a display name from a value that may be a plain string or an object
+     * carrying one (OTX is inconsistent between fields).
+     *
+     * @param mixed $value
+     * @return string
+     */
+    private static function nameOf($value) {
+        if (is_string($value)) { return trim($value); }
+        if (is_array($value)) {
+            foreach (array('display_name', 'name', 'id') as $key) {
+                $name = self::val($value, $key);
+                if ($name !== '') { return $name; }
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Join a list-valued field into a comma-separated string.
+     *
+     * @param array  $arr
+     * @param string $key
+     * @return string
+     */
+    private static function joinList($arr, $key) {
+        if (!is_array($arr) || !isset($arr[$key]) || !is_array($arr[$key])) { return ''; }
+        $out = array();
+        foreach ($arr[$key] as $v) {
+            if (is_scalar($v) && trim((string)$v) !== '') { $out[] = trim((string)$v); }
+        }
+        return implode(', ', $out);
+    }
+
+    /**
+     * First string element of a list-valued field.
+     *
+     * @param array  $arr
+     * @param string $key
+     * @return string
+     */
+    private static function firstString($arr, $key) {
+        if (!is_array($arr) || !isset($arr[$key])) { return ''; }
+        if (is_string($arr[$key])) { return trim($arr[$key]); }
+        if (is_array($arr[$key])) {
+            foreach ($arr[$key] as $v) {
+                if (is_string($v) && trim($v) !== '') { return trim($v); }
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Render a labeled block of list entries, one per line and indented under
+     * the label, capped at MAX_LIST_ITEMS.
+     *
+     * @param string $label
+     * @param array  $items
+     * @return string
+     */
+    private static function listBlock($label, array $items) {
+        if (count($items) === 0) { return ''; }
+        $lines = array($label . ':');
+        $shown = 0;
+        foreach ($items as $item) {
+            if ($shown >= self::MAX_LIST_ITEMS) {
+                $lines[] = '  ... and ' . (count($items) - $shown) . ' more (see JSON).';
+                break;
+            }
+            $lines[] = '  ' . str_replace("\n", "\n  ", (string)$item);
+            $shown++;
+        }
+        return implode("\n", $lines);
+    }
+
+    /**
      * Pretty-print decoded JSON, falling back to the raw string on failure.
      *
      * @param mixed  $decoded
@@ -175,10 +634,25 @@ class ResearchFormatter {
      * @return string
      */
     private static function kv(array $pairs) {
+        // Column width is derived from the labels actually present in this
+        // block, so long labels ("Last changed:") never collide with their
+        // value while short blocks stay compact. It is capped so that one
+        // unusually long label (RDAP's "Last update of RDAP database") cannot
+        // push every value in the block far to the right; such a label simply
+        // overflows its column.
+        $width = 12;
+        foreach ($pairs as $label => $value) {
+            if ($value === '' || $value === null) { continue; }
+            $needed = strlen($label) + 2; // ':' plus at least one space
+            if ($needed > $width) { $width = min($needed, self::MAX_LABEL_COL); }
+        }
+
         $lines = [];
         foreach ($pairs as $label => $value) {
             if ($value === '' || $value === null) { continue; }
-            $lines[] = self::pad($label) . $value;
+            // The separating space is part of the padded string, so a label that
+            // overflows the column still keeps one space before its value.
+            $lines[] = str_pad($label . ': ', $width, ' ', STR_PAD_RIGHT) . $value;
         }
         return implode("\n", $lines);
     }

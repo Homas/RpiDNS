@@ -912,7 +912,12 @@
 					$rtl_result = $rtl_runner->run($rtl_tool, $rtl_target, $rtl_cmds[0]);
 					// Render JSON-producing tools (geoip, asn, rdap, reputation)
 					// in a human-readable form; text tools/errors pass through.
-					$rtl_result['output'] = ResearchFormatter::format($rtl_tool, $rtl_result['output']);
+					// `raw` carries the pretty-printed JSON the summary came
+					// from (null when there is nothing extra to show), so the
+					// UI can toggle between the two without a second request.
+					$rtl_rendered = ResearchFormatter::render($rtl_tool, $rtl_result['output']);
+					$rtl_result['output'] = $rtl_rendered['output'];
+					$rtl_result['raw'] = $rtl_rendered['raw'];
 					$response='{"status":"ok","data":'.json_encode($rtl_result).'}';
 				}
 			} catch (Exception $e) {
