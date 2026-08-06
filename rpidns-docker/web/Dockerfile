@@ -67,18 +67,39 @@ RUN apk add --no-cache \
 # whois: OPTIONAL port-43 WHOIS fallback. RDAP-over-HTTPS (via the already
 #   installed curl / php84-curl) is the PRIMARY WHOIS mechanism, so this is
 #   only needed when the port-43 fallback path is desired.
-# chromium-swiftshader: headless browser used by the website-preview feature.
-#   This is the heaviest new dependency and is gated behind the website-preview
-#   feature flag. When the flag is off (or this package is not present), the
-#   backend returns "no preview available" (Req 8.7) and the control is disabled.
-#   swiftshader provides software GL so rendering works without a GPU.
-# NOTE: To keep the base image lean these are installed as a separate layer.
-#   Remove chromium-swiftshader here if the website-preview feature is never
-#   enabled in your deployment to significantly reduce image size.
+# chromium: the headless browser used by the website-preview feature. This
+#   package provides the actual /usr/bin/chromium binary and MUST be installed
+#   for previews to work; chromium-swiftshader only adds the software GL
+#   libraries so rendering works without a GPU (it does not pull in the
+#   browser itself). When the binary is absent the backend reports that the
+#   preview is disabled (Req 8.7) instead of failing.
+# nss, freetype, harfbuzz, ca-certificates: chromium runtime libraries. Without
+#   nss the browser refuses to start at all, and without freetype/harfbuzz it
+#   starts but cannot shape or rasterize text.
+# font-freefont, font-noto: chromium ships no fonts of its own, so a font-less
+#   image renders every page as empty boxes. FreeFont covers Latin/Greek/
+#   Cyrillic; Noto fills in the rest. (These are the current names of the
+#   packages Alpine used to ship as ttf-freefont / ttf-noto.)
+# The final `test -x` makes a missing browser a build failure instead of an
+#   image whose preview silently reports "no headless browser installed". The
+#   binary is only tested for, never executed: the arm64 image is built under
+#   QEMU emulation, where launching chromium is unreliable.
+# NOTE: chromium is by far the heaviest dependency in this image. To keep the
+#   image lean, drop this whole layer if the website-preview feature is never
+#   used in your deployment - everything else keeps working.
 RUN apk add --no-cache \
     whois \
+    chromium \
     chromium-swiftshader \
-    && rm -rf /var/cache/apk/*
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    font-freefont \
+    font-noto \
+    && update-ca-certificates \
+    && rm -rf /var/cache/apk/* \
+    && test -x /usr/bin/chromium
 
 # Create www-data user/group (matching common web server conventions)
 RUN addgroup -g 82 -S www-data 2>/dev/null || true \

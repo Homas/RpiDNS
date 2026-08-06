@@ -14,9 +14,10 @@
       the same time instead of scrolling a tall single column. Each card keeps a
       quiet icon-only re-run/copy affordance in its header.
     - Targets are classified client-side (domain vs IP) exactly as the backend
-      validators do, so only the tools the server will accept are run; the rest
-      are shown dimmed with the reason instead of failing with a validation
-      error.
+      validators do, and only the tools the server will accept are rendered.
+      Tools that cannot apply (PTR/GeoIP/ASN for a domain, TLS/NS-MX/preview for
+      an IP) are omitted entirely rather than shown as cards reporting an error,
+      with a single footnote naming what was left out.
 -->
 <template>
   <div class="research-tools">
@@ -84,7 +85,7 @@
           </div>
           <div class="rt-chips">
             <BFormCheckbox
-              v-for="tool in tools"
+              v-for="tool in optionTools"
               :key="tool.name"
               v-model="selected[tool.name]"
               inline
@@ -121,13 +122,13 @@
       "{{ target }}" is neither a valid domain name nor a valid IP address.
     </BAlert>
 
-    <!-- Result grid: all tools visible at once -->
+    <!-- Result grid: every tool that applies to this target, all visible at once -->
     <div v-else class="rt-grid">
       <section
-        v-for="tool in tools"
+        v-for="tool in visibleTools"
         :key="tool.name"
         class="rt-card"
-        :class="{ 'rt-card--na': !applicable(tool), 'rt-card--wide': isWide(tool) }"
+        :class="{ 'rt-card--wide': isWide(tool) }"
       >
         <header class="rt-card__head">
           <span class="rt-card__title">
@@ -164,7 +165,7 @@
               :title="`Run ${tool.label}`"
               type="button"
               class="rt-iconbtn"
-              :disabled="!applicable(tool) || results[tool.name].loading"
+              :disabled="results[tool.name].loading"
               @click="runTool(tool.name)"
             >
               <i class="fas fa-rotate-right"></i>
@@ -173,13 +174,8 @@
         </header>
 
         <div class="rt-card__body">
-          <!-- Not applicable to this target class -->
-          <p v-if="!applicable(tool)" class="rt-note mb-0">
-            <i class="fas fa-minus"></i>&nbsp;{{ naReason(tool) }}
-          </p>
-
           <!-- Running -->
-          <p v-else-if="results[tool.name].loading" class="rt-note mb-0">
+          <p v-if="results[tool.name].loading" class="rt-note mb-0">
             <BSpinner small></BSpinner>&nbsp;&nbsp;Running...
           </p>
 
@@ -213,6 +209,13 @@
           <p v-else class="rt-note mb-0">Not run yet.</p>
         </div>
       </section>
+
+      <!-- Tools that do not apply to this target class are not rendered at all;
+           this one-line note explains the gap so a missing card never looks
+           like a bug. -->
+      <p v-if="hiddenTools.length > 0" class="rt-hidden">
+        Hidden for a {{ kindLabel }} target: {{ hiddenTools.map(t => t.label).join(', ') }}.
+      </p>
     </div>
   </div>
 </template>
@@ -228,8 +231,7 @@ import {
   toolsForTarget,
   TARGET_DOMAIN,
   TARGET_IP,
-  TARGET_EMPTY,
-  ACCEPTS_DOMAIN
+  TARGET_EMPTY
 } from '../../composables/useNetworkTools'
 
 // How many tools may be in flight at once. Each request occupies one PHP-FPM
@@ -286,10 +288,20 @@ export default {
 
     const isWide = (tool) => WIDE_TOOLS.includes(tool.name)
 
-    // Why a card is inactive for the current target, phrased for the user.
-    const naReason = (tool) => (tool.accepts === ACCEPTS_DOMAIN
-      ? 'Needs a domain name.'
-      : 'Needs an IP address.')
+    // Only tools the backend will accept for this target class get a card. A
+    // domain hides the IP-only tools (reverse DNS, GeoIP, ASN) and an IP hides
+    // the domain-only ones, so no card ever renders just to say it cannot run.
+    const visibleTools = computed(() => toolsForTarget(targetKind.value))
+
+    // Counterpart of visibleTools, used for the one-line explanation of what is
+    // not shown for the current target class.
+    const hiddenTools = computed(() => tools.filter(tool => !applicable(tool)))
+
+    // The Options drawer offers the same set that will actually run. With no
+    // usable target yet it lists everything, so selections can be made upfront.
+    const optionTools = computed(() =>
+      (visibleTools.value.length > 0 ? visibleTools.value : tools)
+    )
 
     const hasResult = (tool) => results[tool.name].ran
 
@@ -412,9 +424,10 @@ export default {
       selected,
       targetKind,
       kindLabel,
-      applicable,
+      visibleTools,
+      hiddenTools,
+      optionTools,
       isWide,
-      naReason,
       hasResult,
       anyRunning,
       canRun,
@@ -501,7 +514,13 @@ export default {
 @media (min-width: 992px) {
   .rt-card--wide { grid-column: 1 / -1; }
 }
-.rt-card--na { opacity: 0.55; }
+/* Footnote listing the tools that do not apply to the current target class. */
+.rt-hidden {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.75rem;
+  color: #8a9199;
+}
 
 .rt-card__head {
   display: flex;
