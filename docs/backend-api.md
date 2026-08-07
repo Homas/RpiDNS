@@ -232,7 +232,7 @@ All write operations (POST, PUT, DELETE) create a backup of the BIND config befo
 | Method | Request Name | Parameters | Description |
 |--------|-------------|------------|-------------|
 | `GET` | `RPIsettings` | — | Get current settings and table statistics |
-| `PUT` | `RPIsettings` | `assets_by`, `assets_autocreate`, `hits_raw`, `hits_5m`, `hits_1h`, `hits_1d`, `queries_raw`, `queries_5m`, `queries_1h`, `queries_1d`, `dash_topx` | Update settings |
+| `PUT` | `RPIsettings` | `assets_by`, `assets_autocreate`, `hits_raw`, `hits_5m`, `hits_1h`, `hits_1d`, `queries_raw`, `queries_5m`, `queries_1h`, `queries_1d`, `dash_topx`, `research_dns_server` | Update settings |
 
 GET response includes per-table record counts, date ranges, sizes, and retention settings:
 
@@ -244,11 +244,14 @@ GET response includes per-table record counts, date ranges, sizes, and retention
   ],
   "assets_by": "mac",
   "assets_autocreate": true,
-  "dashboard_topx": 100
+  "dashboard_topx": 100,
+  "research_dns_server": "1.1.1.1"
 }
 ```
 
 PUT writes the settings to `www/rpisettings.php` as a PHP file. Retention values are integers (days). See [configuration-files.md](./configuration-files.md) for details on the settings file format.
+
+`research_dns_server` is the appliance-wide DNS resolver the Research tools inherit; an empty string means the appliance resolver. Because the settings file is generated PHP source, this value — the only free-text setting written to it — is validated as an IP address or hostname and then reduced to the characters those may contain. An invalid value is rejected with `{"status":"error","reason":"invalid DNS resolver: must be a valid IP address or hostname"}` and nothing is written.
 
 ### Server Stats
 
@@ -316,6 +319,7 @@ The Research API serves the Research page (see [frontend.md](./frontend.md)). It
 | Method | Request Name | Description |
 |--------|-------------|-------------|
 | `GET` | `research_unique` | First-seen allowed (non-blocked) FQDNs over a time range |
+| `GET` | `research_config` | Appliance-wide tool defaults the Tools panel inherits |
 | `GET` | `research_tables` | List available database table names |
 | `POST` | `research_sql` | Execute an administrator-supplied read-only SELECT statement |
 | `POST` | `research_tool` | Execute a network research tool against a validated target |
@@ -364,6 +368,19 @@ Returns the **newly seen** allowed FQDNs for the selected period, each with its 
 
 - `401` — authentication required (no valid session).
 - `{"status":"error","reason":"failed to retrieve unique allowed queries"}` — retrieval failed; no partial data is returned.
+
+### GET research_config
+
+Returns the appliance-wide Research tool defaults, so the Tools panel can prefill (and offer a reset to) the configured resolver rather than hardcoding its own default. Requires an authenticated session like every other research endpoint; touches neither the database nor system state.
+
+```json
+{
+  "status": "ok",
+  "data": { "dns_server": "1.1.1.1" }
+}
+```
+
+`dns_server` is `$research_dns_server` from `rpisettings.php`, or `""` when unset (meaning the appliance resolver). A value that fails IP/hostname validation is reported as `""` rather than handed to the client, so a hand-edited settings file cannot inject one. The setting is read with an `isset()` guard because installs upgraded from an earlier release keep their existing settings file.
 
 ### GET research_tables
 
@@ -442,13 +459,15 @@ Executes a network research tool against a validated target and returns its `Too
 |-----------|------|-------------|
 | `tool` | string | Tool name — must be in the allowlist |
 | `target` | string | Domain or IP target (at most 253 characters) |
-| `dns_server` | string | Optional custom DNS server for the `dig`-based tools (IP or hostname) |
+| `dns_server` | string | DNS resolver for the resolver-aware tools (IP or hostname). Omit to inherit the configured default; send `""` to force the appliance resolver |
 
 **Validation behavior (Req 6.5, 6.6, 8.10, 8.12):**
 
 - **Tool allowlist:** an unknown or unsupported `tool` is rejected before any command is built.
 - **Per-tool input class:** IP-only tools (`reverse_dns`, `geoip`, `asn`) require a valid IP address; domain-only tools (`nsmx`, `tls_cert`, `reputation`, `website_preview`) require a valid domain; core tools (`rdap`, `dig`, `ping`, `traceroute`) accept a valid domain or IP. Validation uses `InputValidator`. The frontend classifies the target the same way and only submits applicable tools.
-- **`dig` DNS server:** when supplied, `dns_server` is validated as an IP address or hostname (Req 6.4).
+- **DNS server:** when supplied, `dns_server` is validated as an IP address or hostname (Req 6.4). Resolver-aware tools are `dig`, `nsmx`, `reverse_dns`, and `website_preview`; all others ignore the parameter.
+- **Resolver selection:** a request that omits `dns_server` inherits `$research_dns_server` from `rpisettings.php`; a request that sends it wins, including when it sends `""`, which selects the appliance resolver explicitly. An empty effective value means no `@server` argument (Req 6.3). A configured default that fails validation is discarded rather than used.
+- **Preview resolution:** chromium has no "use this DNS server" switch, so when a resolver is in effect `website_preview` first resolves the target with it (via `dig`) and pins the browser to the answer with `--host-resolver-rules`. This is what lets a domain blocked by this appliance's RPZ render as the real site instead of the block page; SNI and the `Host` header still carry the original hostname. If the name does not resolve to an IPv4 address through that resolver, the response reports it rather than silently falling back to the appliance resolver.
 - **Command injection prevention (Req 6.6):** `CommandBuilder` passes every input as a discrete argv slot (no shell), so inputs cannot alter command structure.
 - **Bounded execution (Req 6.7, 6.8):** `ToolRunner` enforces a 30-second wall-clock bound and terminates the child process group on timeout; `ping`/`traceroute` are constrained to a fixed maximum number of probes. Output is captured and truncated to a maximum size (1 MiB), with a `truncated` flag.
 

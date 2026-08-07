@@ -175,6 +175,7 @@ class CommandBuilder {
      *                       - 'record_type' ?string dig record type (fixed, caller-chosen)
      *                       - 'output_path' ?string website-preview screenshot destination
      *                       - 'profile_dir' ?string website-preview chromium profile dir
+     *                       - 'resolve_ip'  ?string website-preview address to pin the domain to
      * @return array<int, array<int, string>> List of argv arrays.
      * @throws InvalidArgumentException When the tool is unknown.
      */
@@ -209,7 +210,8 @@ class CommandBuilder {
             case 'website_preview':
                 $outputPath = isset($params['output_path']) ? (string)$params['output_path'] : '';
                 $profileDir = isset($params['profile_dir']) ? (string)$params['profile_dir'] : '';
-                return [$this->buildWebsitePreview($target, $outputPath, $profileDir)];
+                $resolveIp = isset($params['resolve_ip']) ? (string)$params['resolve_ip'] : '';
+                return [$this->buildWebsitePreview($target, $outputPath, $profileDir, $resolveIp)];
             default:
                 throw new InvalidArgumentException("Unknown research tool: {$tool}");
         }
@@ -464,12 +466,27 @@ class CommandBuilder {
      * budget bounds how long the page is given to render before the screenshot
      * is taken.
      *
+     * When `$resolveIp` is supplied the browser is pinned to that address for
+     * this domain via `--host-resolver-rules`. Chromium has no "use this DNS
+     * server" switch, so the caller resolves the name with the Research
+     * resolver and passes the answer here. That is what lets a domain the
+     * appliance blocks by RPZ still render: without it chromium would ask the
+     * system resolver and get the block response. The request still carries the
+     * original hostname in SNI and the Host header, so TLS and vhosts behave as
+     * they would for a normal visitor.
+     *
      * @param string $domain     Domain (validated by caller).
      * @param string $outputPath Server-generated destination PNG path.
      * @param string $profileDir Server-generated throwaway profile directory.
+     * @param string $resolveIp  Optional address to pin the domain to.
      * @return array<int, string> argv.
      */
-    public function buildWebsitePreview(string $domain, string $outputPath, string $profileDir = ''): array {
+    public function buildWebsitePreview(
+        string $domain,
+        string $outputPath,
+        string $profileDir = '',
+        string $resolveIp = ''
+    ): array {
         $url = 'https://' . $domain;
         $argv = [
             self::findChromium() ?? self::BIN_CHROMIUM,
@@ -489,6 +506,11 @@ class CommandBuilder {
             // Writable profile location: the web server user has no usable HOME.
             $argv[] = '--user-data-dir=' . $profileDir;
             $argv[] = '--crash-dumps-dir=' . $profileDir;
+        }
+        if ($resolveIp !== '' && $this->isIp($resolveIp)) {
+            // Fixed-form rule in a single argv slot; the address is only ever a
+            // validated IP, and the domain is already validated by the caller.
+            $argv[] = '--host-resolver-rules=MAP ' . $domain . ' ' . $resolveIp;
         }
         $argv[] = '--screenshot=' . $outputPath;
         $argv[] = $url; // domain confined to a single URL argument

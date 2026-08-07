@@ -523,6 +523,23 @@
 			}
       break;
 
+    case "GET research_config":
+			// Research: the appliance-wide tool defaults the panel inherits, so the
+			// UI can prefill (and offer a reset to) the configured resolver instead
+			// of hardcoding its own idea of a default. Auth guard runs first, like
+			// every other research endpoint (Requirements 1.7, 9.1). Read-only: no
+			// DB access and no system state touched.
+			require_once "/opt/rpidns/www/rpi_admin/ResearchAuth.php";
+			require_once "/opt/rpidns/www/rpi_admin/InputValidator.php";
+			requireResearchSession();
+
+			// isset() guard: installs upgraded from an earlier release keep their
+			// existing rpisettings.php, which does not define this setting yet.
+			$rc_dns = isset($research_dns_server) ? trim((string)$research_dns_server) : '';
+			if ($rc_dns !== '' and !InputValidator::isValidDnsServer($rc_dns)) { $rc_dns = ''; }
+			$response='{"status":"ok","data":'.json_encode(array('dns_server'=>$rc_dns)).'}';
+      break;
+
     case "GET research_tables":
 			// Research: list available table names so the SQL tool can build queries
 			// against the schema (Requirement 4.9). Auth guard runs first, before any
@@ -743,8 +760,20 @@
 			// Inputs are merged into $REQUEST from the JSON body by getRequest().
 			$rtl_tool   = array_key_exists("tool",$REQUEST)   ? (string)$REQUEST["tool"]   : '';
 			$rtl_target = array_key_exists("target",$REQUEST) ? (string)$REQUEST["target"] : '';
-			$rtl_dns    = (array_key_exists("dns_server",$REQUEST) and $REQUEST["dns_server"] !== null and $REQUEST["dns_server"] !== '')
-				? (string)$REQUEST["dns_server"] : null;
+			// Resolver selection. The configured default (Admin > Settings) is
+			// inherited whenever the request says nothing about a resolver; a
+			// request that DOES carry dns_server wins, including when it is empty,
+			// which is how a caller asks for the appliance resolver explicitly.
+			// Empty in either case means "no @server argument" (Req 6.3).
+			$rtl_dns_default = isset($research_dns_server) ? trim((string)$research_dns_server) : '';
+			if ($rtl_dns_default !== '' and !InputValidator::isValidDnsServer($rtl_dns_default)) {
+				// A hand-edited rpisettings.php cannot smuggle an invalid value
+				// into a command; fall back to the appliance resolver.
+				$rtl_dns_default = '';
+			}
+			$rtl_dns_given = (array_key_exists("dns_server",$REQUEST) and $REQUEST["dns_server"] !== null);
+			$rtl_dns = $rtl_dns_given ? trim((string)$REQUEST["dns_server"]) : $rtl_dns_default;
+			if ($rtl_dns === '') { $rtl_dns = null; }
 
 			// Feature flag for the website-preview tool (Req 8.7). It requires a
 			// headless chromium binary; when one is installed (as in the RpiDNS
@@ -808,10 +837,11 @@
 			}
 
 			// For dig with a user-supplied DNS server, validate it as an IP or
-			// hostname before execution (Requirement 6.4). Only the dig-based
-			// tools (dig, nsmx, reverse_dns) honor a custom DNS server; the other
-			// tools ignore dns_server.
-			$rtl_dns_aware = array('dig','nsmx','reverse_dns');
+			// hostname before execution (Requirement 6.4). The dig-based tools
+			// (dig, nsmx, reverse_dns) pass it straight through; website_preview
+			// uses it to resolve the target before handing the address to the
+			// browser. Every other tool ignores dns_server.
+			$rtl_dns_aware = array('dig','nsmx','reverse_dns','website_preview');
 			if (in_array($rtl_tool, $rtl_dns_aware, true) and $rtl_dns !== null and !InputValidator::isValidDnsServer($rtl_dns)) {
 				RejectionAudit::record($rtl_sid, 'invalid_dns_server', 'research_tool');
 				$response='{"status":"error","reason":"invalid dns_server: must be a valid IP address or hostname"}';
@@ -850,10 +880,45 @@
 						$rtl_reason = null;
 						try {
 							@mkdir($rtl_profile, 0700, true);
+
+							// Chromium always asks the system resolver, which on this
+							// appliance answers blocked domains with the RPZ response,
+							// so the preview of anything blocked would be the block
+							// page. When a Research resolver is in effect the address
+							// is looked up there first and the browser is pinned to it.
+							$rtl_map_ip = '';
+							if ($rtl_dns !== null) {
+								$rtl_dig_cmds = $rtl_builder->build('dig', array(
+									'target'      => $rtl_target,
+									'dns_server'  => $rtl_dns,
+									'record_type' => 'A'
+								));
+								$rtl_dig_run = new ToolRunner();
+								$rtl_dig_res = $rtl_dig_run->run('dig', $rtl_target, $rtl_dig_cmds[0]);
+								// Only the ANSWER section is considered: an A record in
+								// AUTHORITY/ADDITIONAL glue belongs to a nameserver, not
+								// to the target, and must never be browsed to.
+								$rtl_answer = '';
+								if (preg_match('/;; ANSWER SECTION:\s*\n(.*?)(\n\s*\n|$)/s', (string)$rtl_dig_res['output'], $rtl_sec)) {
+									$rtl_answer = $rtl_sec[1];
+								}
+								if ($rtl_answer !== '' and preg_match('/^\S+\.?\s+\d+\s+IN\s+A\s+(\d{1,3}(?:\.\d{1,3}){3})\s*$/m', $rtl_answer, $rtl_m)) {
+									if (filter_var($rtl_m[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
+										$rtl_map_ip = $rtl_m[1];
+									}
+								}
+								if ($rtl_map_ip === '') {
+									// Say so rather than silently falling back to the
+									// appliance resolver and rendering the block page.
+									throw new Exception('unresolved');
+								}
+							}
+
 							$rtl_cmds = $rtl_builder->build('website_preview', array(
 								'target'      => $rtl_target,
 								'output_path' => $rtl_png,
-								'profile_dir' => $rtl_profile
+								'profile_dir' => $rtl_profile,
+								'resolve_ip'  => $rtl_map_ip
 							));
 							$rtl_runner = new ToolRunner();
 							$rtl_result = $rtl_runner->run('website_preview', $rtl_target, $rtl_cmds[0]);
@@ -878,7 +943,9 @@
 									: 'no preview available';
 							}
 						} catch (Exception $e) {
-							$rtl_reason = 'no preview available';
+							$rtl_reason = ($e->getMessage() === 'unresolved')
+								? 'no preview available: "' . $rtl_target . '" did not resolve to an IPv4 address via ' . $rtl_dns
+								: 'no preview available';
 						}
 						// Always clean up the server-side temp files/profile.
 						if (is_file($rtl_png)) { @unlink($rtl_png); }
@@ -1202,9 +1269,27 @@
 			foreach(DB_selectArray($db,$sql) as $rec){
 				$stats[]=[$rec['tbl'],$rec['size'],$cnts[$rec['tbl']][0],$cnts[$rec['tbl']][1],$cnts[$rec['tbl']][2],$retention[$rec['tbl']]];
 			};
-			$response='{"status":"success","retention":'.json_encode($stats).',"assets_by":"'.$assets_by.'","assets_autocreate":"'.$assets_autocreate.'","dashboard_topx":'.$dash_topx.'}';
+			// Research resolver: guarded with isset() because upgraded installs
+			// keep their existing (bind-mounted) rpisettings.php, which predates
+			// this setting.
+			$rdns_cfg = isset($research_dns_server) ? trim((string)$research_dns_server) : '';
+			$response='{"status":"success","retention":'.json_encode($stats).',"assets_by":"'.$assets_by.'","assets_autocreate":"'.$assets_autocreate.'","dashboard_topx":'.$dash_topx.',"research_dns_server":'.json_encode($rdns_cfg).'}';
 			break;
 		case "PUT RPIsettings":
+			// The Research resolver is the only free-text setting written to this
+			// file, and the file is generated PHP source, so it is validated as
+			// an IP/hostname and then reduced to the characters those can legally
+			// contain. Anything else is rejected rather than escaped, so no input
+			// can terminate the string literal it is embedded in.
+			require_once "/opt/rpidns/www/rpi_admin/InputValidator.php";
+			$set_rdns = array_key_exists('research_dns_server',$REQUEST) && $REQUEST['research_dns_server'] !== null
+				? trim((string)$REQUEST['research_dns_server']) : '';
+			if ($set_rdns !== '' && !InputValidator::isValidDnsServer($set_rdns)) {
+				$response='{"status":"error","reason":"invalid DNS resolver: must be a valid IP address or hostname"}';
+				break;
+			}
+			$set_rdns = preg_replace('/[^A-Za-z0-9.:_-]/', '', $set_rdns);
+
 			$settings='
 <?php
 /*
@@ -1222,6 +1307,7 @@ RpiDNS powered by https://ioc2rpz.net
 	$retention["queries_1h"]='.(intval($REQUEST['queries_1h'])>0?intval($REQUEST['queries_1h']):90).'; //retention in days
 	$retention["queries_1d"]='.(intval($REQUEST['queries_1d'])>0?intval($REQUEST['queries_1d']):365).'; //retention in days
 	$dash_topx='.(intval($REQUEST['dash_topx'])>0?intval($REQUEST['dash_topx']):100).';
+	$research_dns_server="'.$set_rdns.'"; //DNS resolver for the Research tools; empty = appliance resolver
 ?>
 			';
 			if (file_put_contents("/opt/rpidns/www/rpisettings.php",$settings,LOCK_EX) === false) $response='{"status":"error", "reason","can not save settings"}'; else $response='{"status":"success"}';

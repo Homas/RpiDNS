@@ -49,11 +49,13 @@ export const RESEARCH_TOOLS = [
 ]
 
 /**
- * Tools whose backend implementation runs through `dig` and therefore honor the
- * optional custom DNS server. Every other tool ignores it.
+ * Tools that honor the selected DNS resolver. The dig-based ones query it
+ * directly; website_preview uses it to resolve the target before handing the
+ * address to the headless browser, which is what lets a domain this appliance
+ * blocks still render. Every other tool ignores the resolver.
  * @type {string[]}
  */
-export const DNS_AWARE_TOOLS = ['dig', 'nsmx', 'reverse_dns']
+export const DNS_AWARE_TOOLS = ['dig', 'nsmx', 'reverse_dns', 'website_preview']
 
 /** Target classification results. */
 export const TARGET_EMPTY = 'empty'

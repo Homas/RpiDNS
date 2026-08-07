@@ -60,6 +60,27 @@
           <label for="dashboard_topx">Dashboard show Top &nbsp;&nbsp;&nbsp;</label>
           <BFormInput id="dashboard_topx" min="1" max="200" type="number" size="sm" v-model="dashboard_topx"></BFormInput>
         </BForm>
+
+        <!-- Research tools resolver: the default the Research > Tools panel
+             inherits for dig/NS-MX/PTR and for resolving website previews. -->
+        <div class="v-spacer"></div>
+        <BForm inline class="mw350">
+          <label for="research_dns_server">Research tools DNS resolver&nbsp;&nbsp;&nbsp;</label>
+          <BFormInput
+            id="research_dns_server"
+            v-model="research_dns_server"
+            size="sm"
+            maxlength="253"
+            autocomplete="off"
+            placeholder="e.g. 1.1.1.1 - blank uses the appliance resolver"
+          ></BFormInput>
+        </BForm>
+        <small class="text-muted">
+          Used by the Research tools so lookups and website previews can bypass this
+          appliance's own blocking. Leave blank to resolve through the appliance,
+          which makes blocked domains resolve to the block page. Individual tool
+          runs can override this.
+        </small>
         
         <!-- Account Security Section -->
         <h4 class="mt-4">Account Security</h4>
@@ -104,6 +125,8 @@ export default {
     const assets_by = ref('mac')
     const assets_autocreate = ref(true)
     const dashboard_topx = ref(100)
+    // Default DNS resolver for the Research tools; '' = appliance resolver.
+    const research_dns_server = ref('')
     const db_stats_busy = ref(false)
     const passwordChangeModal = ref(null)
 
@@ -129,6 +152,7 @@ export default {
         assets_autocreate.value = data.assets_autocreate === '1'
         assets_by.value = data.assets_by || 'mac'
         dashboard_topx.value = parseInt(data.dashboard_topx) || 100
+        research_dns_server.value = data.research_dns_server || ''
         // Initialize retention values
         retention.value.forEach(item => {
           retentionValues[item[0]] = item[5]
@@ -142,6 +166,7 @@ export default {
     const setSettings = async () => {
       const data = {
         dash_topx: dashboard_topx.value,
+        research_dns_server: (research_dns_server.value || '').trim(),
         assets_by: assets_by.value,
         assets_autocreate: assets_autocreate.value,
         queries_raw: retentionValues['queries_raw'] || 30,
@@ -183,7 +208,8 @@ export default {
     onMounted(() => { getSettings() })
 
     return {
-      retention, retentionValues, assets_by, assets_autocreate, dashboard_topx, db_stats_busy,
+      retention, retentionValues, assets_by, assets_autocreate, dashboard_topx,
+      research_dns_server, db_stats_busy,
       passwordChangeModal,
       formatSize, formatDate, setSettings, showPasswordChange, handleShowInfo, onPasswordChanged
     }

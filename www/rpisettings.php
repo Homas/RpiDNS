@@ -14,4 +14,5 @@ RpiDNS powered by https://ioc2rpz.net
 	$retention['queries_1h']=60; //retention in days
 	$retention['queries_1d']=180; //retention in days
 	$dash_topx=50;
+	$research_dns_server=""; //DNS resolver for the Research tools; empty = appliance resolver
 ?>

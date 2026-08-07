@@ -98,17 +98,33 @@
           </div>
         </BCol>
         <BCol cols="12" lg="4">
-          <div class="rt-options__label">DNS server <span class="text-muted">(dig, NS/MX, PTR)</span></div>
+          <div class="rt-options__label">
+            DNS resolver <span class="text-muted">(dig, NS/MX, PTR, preview)</span>
+          </div>
           <BInputGroup size="sm">
             <template #prepend>
               <BInputGroupText><i class="fas fa-server fa-fw"></i></BInputGroupText>
             </template>
             <BFormInput
               v-model="dnsServer"
-              placeholder="default: appliance resolver"
-              aria-label="Custom DNS server"
+              :placeholder="dnsPlaceholder"
+              maxlength="253"
+              autocomplete="off"
+              aria-label="DNS resolver for this run"
             ></BFormInput>
+            <template #append>
+              <BButton
+                v-b-tooltip.hover
+                :title="`Restore the configured default (${defaultDnsLabel})`"
+                variant="outline-secondary"
+                :disabled="dnsIsDefault"
+                @click="resetDnsServer"
+              >
+                <i class="fas fa-rotate-left"></i>
+              </BButton>
+            </template>
           </BInputGroup>
+          <div class="rt-options__hint">{{ dnsHint }}</div>
         </BCol>
       </BRow>
     </div>
@@ -278,10 +294,13 @@ const freshState = () => ({
 export default {
   name: 'ResearchTools',
   setup(props, { expose }) {
-    const { post } = useApi()
+    const { get, post } = useApi()
 
     const target = ref('')
     const dnsServer = ref('')
+    // Appliance-wide default from Admin > Settings. The field above starts out
+    // holding it, and the reset control puts it back after an override.
+    const defaultDnsServer = ref('')
     const showOptions = ref(false)
     const copied = ref(null)
 
@@ -297,7 +316,47 @@ export default {
       selected[tool.name] = true
     }
 
+    // Load the appliance defaults once and seed the resolver field with the
+    // configured value. Runs are gated on this promise so a tool launched
+    // straight from a context menu still inherits the default instead of
+    // racing the request and silently using the appliance resolver.
+    const configReady = (async () => {
+      try {
+        const resp = await get({ req: 'research_config' })
+        if (resp && resp.status === 'ok' && resp.data) {
+          defaultDnsServer.value = resp.data.dns_server || ''
+          // Only seed an untouched field, so a value typed while this was in
+          // flight is never overwritten.
+          if (dnsServer.value === '') dnsServer.value = defaultDnsServer.value
+        }
+      } catch (e) {
+        // No defaults available: the field stays empty, which means the
+        // appliance resolver, exactly as before this setting existed.
+      }
+    })()
+
     const targetKind = computed(() => classifyTarget(target.value))
+
+    const defaultDnsLabel = computed(() => defaultDnsServer.value || 'appliance resolver')
+
+    const dnsPlaceholder = computed(() =>
+      defaultDnsServer.value
+        ? `default: ${defaultDnsServer.value}`
+        : 'default: appliance resolver'
+    )
+
+    const dnsIsDefault = computed(() => dnsServer.value.trim() === defaultDnsServer.value)
+
+    const dnsHint = computed(() => {
+      if (dnsServer.value.trim() === '') {
+        return 'Appliance resolver: domains blocked here stay blocked.'
+      }
+      return dnsIsDefault.value
+        ? 'Inherited from Admin > Settings.'
+        : `Overrides the configured default (${defaultDnsLabel.value}) for this panel.`
+    })
+
+    const resetDnsServer = () => { dnsServer.value = defaultDnsServer.value }
 
     const kindLabel = computed(() => {
       if (targetKind.value === TARGET_DOMAIN) return 'domain'
@@ -369,14 +428,19 @@ export default {
       const state = results[toolName]
       if (!tool || !state || state.loading) return
       if (!applicable(tool)) return
+      // The configured resolver must be known before the first request goes out.
+      await configReady
 
       // A re-run keeps the card's chosen view (summary vs JSON); it falls back
       // to the summary on its own if the new result carries no JSON.
       Object.assign(state, freshState(), { loading: true, showRaw: state.showRaw })
 
       const body = { tool: toolName, target: target.value.trim() }
-      if (DNS_AWARE_TOOLS.includes(toolName) && dnsServer.value) {
-        body.dns_server = dnsServer.value
+      if (DNS_AWARE_TOOLS.includes(toolName)) {
+        // Always sent for these tools, empty included: an empty value is how the
+        // panel says "use the appliance resolver" rather than "fall back to the
+        // configured default".
+        body.dns_server = dnsServer.value.trim()
       }
 
       try {
@@ -458,6 +522,12 @@ export default {
     return {
       target,
       dnsServer,
+      defaultDnsServer,
+      defaultDnsLabel,
+      dnsPlaceholder,
+      dnsIsDefault,
+      dnsHint,
+      resetDnsServer,
       showOptions,
       copied,
       tools,
@@ -530,6 +600,7 @@ export default {
   margin-bottom: 0.25rem;
 }
 .rt-chips { display: flex; flex-wrap: wrap; gap: 0.15rem 0.75rem; }
+.rt-options__hint { font-size: 0.72rem; color: #6c757d; margin-top: 0.2rem; }
 .rt-linkbtn { padding: 0 0.15rem; font-size: 0.75rem; vertical-align: baseline; }
 
 /* --- Empty / invalid states --- */

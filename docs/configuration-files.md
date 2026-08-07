@@ -88,6 +88,7 @@ The file is bind-mounted into the Web container at `/opt/rpidns/www/rpisettings.
 | `$retention['queries_1h']` | int | `60` | Days to retain 1-hour aggregated query data |
 | `$retention['queries_1d']` | int | `180` | Days to retain 1-day aggregated query data |
 | `$dash_topx` | int | `50` | Maximum number of entries shown in dashboard "Top X" widgets (top clients, top domains, top blocked, etc.) |
+| `$research_dns_server` | string | `''` (empty) | DNS resolver the Research tools inherit, for `dig`, NS/MX, reverse DNS, and resolving website previews. Empty means the appliance's own resolver, which answers blocked domains with the RPZ response — so previews of blocked domains show the block page and `dig` shows the block answer. Point it at an external resolver (e.g. `1.1.1.1`) to investigate blocked domains as they appear from outside. A single tool run can override it from the Tools panel. Validated as an IP address or hostname when written through the API. |
 
 ### Retention Policy
 
