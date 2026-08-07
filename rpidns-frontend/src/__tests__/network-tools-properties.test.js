@@ -101,9 +101,13 @@ describe('Feature: research-tools, Property 13: Applicable tools come from a sin
     expect(ipTools).not.toContain('nsmx')
     expect(ipTools).not.toContain('tls_cert')
     expect(ipTools).not.toContain('website_preview')
+    // dig is domain-only: A/AAAA/HTTPS/TXT for an address is meaningless, and
+    // reverse_dns is the tool for an address.
+    expect(ipTools).not.toContain('dig')
+    expect(domainTools).toContain('dig')
 
     // Domain-or-IP tools appear for both.
-    for (const name of ['rdap', 'dig', 'ping', 'traceroute']) {
+    for (const name of ['rdap', 'ping', 'traceroute']) {
       expect(domainTools).toContain(name)
       expect(ipTools).toContain(name)
     }

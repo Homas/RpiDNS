@@ -13,10 +13,12 @@
     - Results render as a responsive card grid so several tools can be read at
       the same time instead of scrolling a tall single column. Each card keeps a
       quiet icon-only re-run/copy affordance in its header.
-    - Tools backed by JSON APIs (RDAP/WHOIS, reputation) are shown as the
-      readable summary the backend derives, with a per-card switch to the raw
-      JSON it came from. Both forms arrive in the same response, so toggling
-      costs no extra request, and the switch only appears where both exist.
+    - Tools with a structured upstream are shown in a readable form with a
+      per-card switch to the original: the JSON APIs (RDAP/WHOIS, reputation,
+      GeoIP, ASN) as a summary over their raw JSON, and the dig-based tools (DNS
+      records, NS/MX, PTR) as a record list over dig's full output. Both forms
+      arrive in the same response, so toggling costs no extra request, and the
+      switch only appears where both exist.
     - Targets are classified client-side (domain vs IP) exactly as the backend
       validators do, and only the tools the server will accept are rendered.
       Tools that cannot apply (PTR/GeoIP/ASN for a domain, TLS/NS-MX/preview for
@@ -170,11 +172,11 @@
             ></i>
             <i v-else-if="hasResult(tool)" class="fas fa-circle-check text-success"></i>
 
-            <!-- Summary / JSON switch, only for results that have both forms -->
+            <!-- Parsed / raw switch, only for results that have both forms -->
             <button
               v-if="results[tool.name].raw"
               v-b-tooltip.hover
-              :title="results[tool.name].showRaw ? 'Show readable summary' : 'Show raw JSON'"
+              :title="results[tool.name].showRaw ? 'Show parsed view' : `Show ${tool.rawLabel || 'raw output'}`"
               type="button"
               class="rt-iconbtn"
               :class="{ 'rt-iconbtn--on': results[tool.name].showRaw }"

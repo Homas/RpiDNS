@@ -85,6 +85,23 @@ class CommandBuilder {
     /** Hard per-run timeout (ms) passed to chromium as a safety net. */
     const PREVIEW_TIMEOUT_MS = 20000;
 
+    /**
+     * Record types the `dig` tool queries when the caller names none. A alone
+     * does not characterize a name: AAAA shows IPv6 reachability, the HTTPS RR
+     * (RFC 9460) is how modern clients are steered and can point somewhere else
+     * entirely, and TXT carries the SPF and verification records that matter when
+     * judging a domain. One dig per type, so the target stays in a single argv
+     * slot per command.
+     *
+     * TYPE65 is the HTTPS RR asked for by number on purpose. dig only understands
+     * the `HTTPS` mnemonic from BIND 9.16 onward; older builds parse it as a
+     * HOSTNAME instead, quietly turning the query into an A lookup for a name
+     * called "HTTPS" and reporting its NXDOMAIN as if it were the target's. The
+     * numeric form is queried correctly by every version, and a dig that knows
+     * the type still prints the answer as `HTTPS` in presentation format.
+     */
+    const DIG_DEFAULT_TYPES = ['A', 'AAAA', 'TYPE65', 'TXT'];
+
     /** Tools that CommandBuilder knows how to build. */
     const SUPPORTED_TOOLS = [
         'rdap', 'dig', 'ping', 'traceroute',
@@ -196,8 +213,17 @@ class CommandBuilder {
             case 'rdap':
                 return [$this->buildRdap($target, $resolveIp)];
             case 'dig':
-                $recordType = isset($params['record_type']) ? (string)$params['record_type'] : 'A';
-                return [$this->buildDig($target, $recordType, $dnsServer)];
+                // An explicit record_type keeps this a single-command tool, which
+                // is what internal callers such as ResearchResolver rely on.
+                // Without one, the full default set is queried, one dig per type.
+                if (array_key_exists('record_type', $params) && $params['record_type'] !== null && $params['record_type'] !== '') {
+                    return [$this->buildDig($target, (string)$params['record_type'], $dnsServer)];
+                }
+                $digCmds = [];
+                foreach (self::DIG_DEFAULT_TYPES as $digType) {
+                    $digCmds[] = $this->buildDig($target, $digType, $dnsServer);
+                }
+                return $digCmds;
             case 'ping':
                 return [$this->buildPing($target, $resolveIp)];
             case 'traceroute':

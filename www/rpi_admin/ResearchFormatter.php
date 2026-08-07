@@ -33,6 +33,13 @@ class ResearchFormatter {
     const JSON_TOOLS = ['geoip', 'asn', 'rdap', 'reputation'];
 
     /**
+     * Tools whose output is dig text. Their readable form is the record list;
+     * the raw view keeps dig's full output (header, flags, authority section)
+     * for when the details of the response matter.
+     */
+    const DNS_TOOLS = ['dig', 'nsmx', 'reverse_dns'];
+
+    /**
      * Maximum size of the JSON view handed back to the client. The summary is
      * always small, but a pretty-printed OTX report with hundreds of pulses is
      * not, and it travels in the same response.
@@ -74,6 +81,17 @@ class ResearchFormatter {
             return $result;
         }
 
+        // dig-based tools: the parsed record list becomes the default view and
+        // dig's own output is kept as the raw view.
+        if (in_array($tool, self::DNS_TOOLS, true)) {
+            $records = self::formatDns($output);
+            if ($records !== null && $records !== $output) {
+                $result['output'] = $records;
+                $result['raw'] = self::capRaw($output);
+            }
+            return $result;
+        }
+
         // Only attempt to reformat tools that are expected to emit JSON.
         if (!in_array($tool, self::JSON_TOOLS, true)) {
             return $result;
@@ -93,12 +111,22 @@ class ResearchFormatter {
         // Only offer a JSON view when it differs from what is already shown,
         // so tools that fall back to pretty JSON get no pointless toggle.
         if ($summary !== $pretty) {
-            $result['raw'] = (strlen($pretty) > self::MAX_RAW_BYTES)
-                ? substr($pretty, 0, self::MAX_RAW_BYTES) . "\n\n... JSON truncated for display."
-                : $pretty;
+            $result['raw'] = self::capRaw($pretty);
         }
 
         return $result;
+    }
+
+    /**
+     * Bound the raw view: it travels in the same response as the summary.
+     *
+     * @param string $raw
+     * @return string
+     */
+    private static function capRaw($raw) {
+        return (strlen($raw) > self::MAX_RAW_BYTES)
+            ? substr($raw, 0, self::MAX_RAW_BYTES) . "\n\n... truncated for display."
+            : $raw;
     }
 
     /**
@@ -215,6 +243,189 @@ class ResearchFormatter {
         }
 
         return count($out) > 0 ? implode("\n", $out) : self::prettyJson($d, $raw);
+    }
+
+    /**
+     * Render dig output as a plain record list.
+     *
+     * Handles output from one dig or several concatenated (the dig tool queries
+     * A/AAAA/HTTPS/TXT, NS/MX runs two queries), and both verbose output and the
+     * `+noall +answer` form used by the reverse lookup.
+     *
+     * Every answer record is listed in the order dig returned it, so a CNAME
+     * chain reads top to bottom. Types that were asked for and answered nothing
+     * are named explicitly, since "no AAAA" is itself a finding, and a response
+     * code other than NOERROR is reported rather than looking like an empty
+     * answer.
+     *
+     * @param string $output Raw dig output.
+     * @return string|null The record list, or null when the text holds no dig
+     *         response at all (an error message, or a tool that failed to start).
+     */
+    private static function formatDns($output) {
+        $sawDig = false;
+        $lines = array();
+        $empty = array();
+
+        // Per query, not per output: the tools issue several digs, and a status or
+        // an empty answer belongs to the one query it came from. Reporting them
+        // globally would put "NXDOMAIN" under a result that plainly resolved.
+        foreach (self::digBlocks($output) as $block) {
+            $status = self::digStatus($block);
+            $answers = self::digBlockAnswers($block);
+            $hasQuestion = strpos($block, ';; QUESTION SECTION:') !== false;
+
+            // A fragment counts as a query only with a response code, a question,
+            // or an answer. This skips dig's leading banner fragment, which would
+            // otherwise be read as a second, answerless query.
+            if ($status === null && !$hasQuestion && count($answers) === 0) {
+                continue;
+            }
+            $sawDig = true;
+            $type = self::digQuestionType($block);
+
+            foreach ($answers as $record) {
+                $lines[] = str_pad(self::dnsTypeName($record['type']), 8, ' ', STR_PAD_RIGHT)
+                    . str_pad($record['ttl'], 7, ' ', STR_PAD_RIGHT)
+                    . $record['value'];
+            }
+
+            if (count($answers) === 0) {
+                // Anything other than NOERROR is worth naming: NXDOMAIN means the
+                // name does not exist, SERVFAIL/REFUSED point at the resolver, and
+                // an RPZ-blocked name commonly shows up here as NXDOMAIN.
+                $label = ($type !== null) ? self::dnsTypeName($type) : 'query';
+                if ($status !== null && $status !== 'NOERROR') {
+                    $label .= ' (' . $status . ')';
+                }
+                if (!in_array($label, $empty, true)) { $empty[] = $label; }
+            }
+        }
+
+        // Nothing that looks like a dig response: let the caller pass the original
+        // text through untouched (a failure to start, a curl-style error).
+        if (!$sawDig) {
+            return null;
+        }
+
+        $out = implode("\n", $lines);
+        if (count($empty) > 0) {
+            $note = (count($lines) > 0 ? 'No records: ' : 'No records returned for: ')
+                . implode(', ', $empty);
+            $out .= (($out !== '') ? "\n\n" : '') . $note;
+        }
+
+        return ($out !== '') ? $out : null;
+    }
+
+    /**
+     * Split concatenated dig output into one block per invocation.
+     *
+     * dig opens every run with its own `; <<>> DiG ...` banner, which is what the
+     * multi-query tools (dig, nsmx) are separated on. The response header is also
+     * treated as a boundary so output with the banner suppressed still splits per
+     * query; that yields a leading banner-only fragment for verbose output, which
+     * the caller's gate discards. Output with neither marker is one block, which
+     * is the `+noall +answer` case.
+     *
+     * @param string $output
+     * @return array<int, string>
+     */
+    private static function digBlocks($output) {
+        $blocks = preg_split('/(?=^; <<>> DiG )|(?=^;; ->>HEADER<<-)/m', $output);
+        if ($blocks === false || count($blocks) === 0) {
+            return array($output);
+        }
+        // A leading empty fragment appears when the text starts with the banner.
+        $blocks = array_values(array_filter($blocks, function ($b) { return trim($b) !== ''; }));
+
+        return (count($blocks) > 0) ? $blocks : array($output);
+    }
+
+    /**
+     * Answer records of a single dig block.
+     *
+     * Verbose output is read from its ANSWER section only, so authority and
+     * additional records are never mistaken for answers. Without that marker the
+     * block came from `+noall +answer` (the reverse lookup), where every
+     * non-comment line already IS an answer record.
+     *
+     * @param string $block
+     * @return array<int, array{name: string, ttl: string, type: string, value: string}>
+     */
+    private static function digBlockAnswers($block) {
+        $source = null;
+        if (preg_match('/;; ANSWER SECTION:\s*\n(.*?)(?:\n\s*\n|$)/s', $block, $m)) {
+            $source = $m[1];
+        } elseif (strpos($block, ';; QUESTION SECTION:') === false) {
+            // No sections at all: `+noall +answer` output, comments and records
+            // mixed. The record pattern below is what separates them.
+            $source = $block;
+        }
+        if ($source === null) {
+            return array();
+        }
+
+        $records = array();
+        foreach (preg_split('/\r\n|\r|\n/', $source) as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === ';') {
+                continue;
+            }
+            // owner TTL [class] TYPE value...
+            if (!preg_match('/^(\S+)\s+(\d+)\s+(?:IN|CH|HS)\s+([A-Z0-9-]+)\s+(.+)$/i', $line, $m)) {
+                continue;
+            }
+            $records[] = array(
+                'name'  => $m[1],
+                'ttl'   => $m[2],
+                'type'  => strtoupper($m[3]),
+                'value' => trim($m[4]),
+            );
+        }
+
+        return $records;
+    }
+
+    /**
+     * The record type a dig block asked for, from its QUESTION section or, when
+     * that is suppressed, from the banner echoing the command line.
+     *
+     * @param string $block
+     * @return string|null
+     */
+    private static function digQuestionType($block) {
+        if (preg_match('/;; QUESTION SECTION:\s*\n;\S+\s+(?:IN|CH|HS)\s+([A-Z0-9-]+)/i', $block, $m)) {
+            return strtoupper($m[1]);
+        }
+        // `dig -x <ip>` asks for PTR without naming the type anywhere else.
+        if (preg_match('/^; <<>> DiG [^\n]*\s-x\s/m', $block)) {
+            return 'PTR';
+        }
+        return null;
+    }
+
+    /**
+     * The response code of a dig block.
+     *
+     * @param string $block
+     * @return string|null
+     */
+    private static function digStatus($block) {
+        return preg_match('/status:\s*([A-Z]+)/', $block, $m) ? $m[1] : null;
+    }
+
+    /**
+     * Display name for a record type. The HTTPS RR is queried as TYPE65 for
+     * compatibility with older dig builds (see CommandBuilder::DIG_DEFAULT_TYPES),
+     * so the numeric form is mapped back for display; a dig that knows the type
+     * already prints the mnemonic itself.
+     *
+     * @param string $type
+     * @return string
+     */
+    private static function dnsTypeName($type) {
+        return ($type === 'TYPE65') ? 'HTTPS' : $type;
     }
 
     /**

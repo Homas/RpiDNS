@@ -799,8 +799,10 @@
 			// Tool input-shape classes used for per-tool validation below.
 			// IP-only tools reject anything that is not a valid IPv4/IPv6 address;
 			// domain-only tools reject anything that is not a valid hostname.
+			// `dig` is domain-only: querying A/AAAA/HTTPS/TXT for an address is
+			// never meaningful (reverse_dns is the tool for an address).
 			$rtl_ip_tools     = array('reverse_dns','geoip','asn');
-			$rtl_domain_tools = array('nsmx','tls_cert','reputation','website_preview');
+			$rtl_domain_tools = array('dig','nsmx','tls_cert','reputation','website_preview');
 
 			if (!in_array($rtl_tool, $rtl_allowlist, true)) {
 				// Unknown/unsupported tool: audit and reject before any execution
@@ -822,8 +824,8 @@
 					break;
 				}
 			} elseif (in_array($rtl_tool, $rtl_domain_tools, true)) {
-				// nsmx, tls_cert, reputation, website_preview require a valid domain
-				// (Req 8.2, 8.5, 8.6, 8.7).
+				// dig, nsmx, tls_cert, reputation, website_preview require a valid
+				// domain (Req 6.3, 8.2, 8.5, 8.6, 8.7).
 				if (!InputValidator::isValidDomain($rtl_target)) {
 					RejectionAudit::record($rtl_sid, 'invalid_domain', 'research_tool');
 					$response='{"status":"error","reason":"invalid target: must be a domain name"}';
@@ -991,24 +993,23 @@
 						}
 						$response='{"status":"ok","data":'.json_encode(array('image'=>$rtl_image,'reason'=>$rtl_reason)).'}';
 					}
-				} elseif ($rtl_tool === 'nsmx') {
-					// NS/MX enumeration builds two dig commands; run them under one
-					// shared budget and return the combined ToolResult (Req 8.2).
-					$rtl_cmds = $rtl_builder->build('nsmx', $rtl_params);
-					$rtl_runner = new ToolRunner();
-					$rtl_result = $rtl_runner->runMany('nsmx', $rtl_target, $rtl_cmds);
-					$response='{"status":"ok","data":'.json_encode($rtl_result).'}';
 				} else {
-					// Single-command tools: rdap, dig, ping, traceroute, reverse_dns,
-					// geoip, asn, tls_cert, reputation. Build then run the first argv.
+					// Everything else: build the command(s) and run them under one
+					// shared budget. Multi-command tools are those that query more
+					// than one record type - dig (A/AAAA/HTTPS/TXT) and nsmx (NS/MX)
+					// - each keeping the target in a single argv slot per command
+					// (Req 8.2).
 					$rtl_cmds = $rtl_builder->build($rtl_tool, $rtl_params);
 					$rtl_runner = new ToolRunner();
-					$rtl_result = $rtl_runner->run($rtl_tool, $rtl_target, $rtl_cmds[0]);
-					// Render JSON-producing tools (geoip, asn, rdap, reputation)
-					// in a human-readable form; text tools/errors pass through.
-					// `raw` carries the pretty-printed JSON the summary came
-					// from (null when there is nothing extra to show), so the
-					// UI can toggle between the two without a second request.
+					$rtl_result = (count($rtl_cmds) > 1)
+						? $rtl_runner->runMany($rtl_tool, $rtl_target, $rtl_cmds)
+						: $rtl_runner->run($rtl_tool, $rtl_target, $rtl_cmds[0]);
+					// Render the tools with a structured upstream in a readable
+					// form: JSON APIs (geoip, asn, rdap, reputation) as a summary,
+					// dig-based tools (dig, nsmx, reverse_dns) as a record list.
+					// `raw` carries the original - pretty JSON or dig's full output
+					// - so the UI can toggle between the two views without a second
+					// request, and is null when there is nothing extra to show.
 					$rtl_rendered = ResearchFormatter::render($rtl_tool, $rtl_result['output']);
 					$rtl_result['output'] = $rtl_rendered['output'];
 					$rtl_result['raw'] = $rtl_rendered['raw'];

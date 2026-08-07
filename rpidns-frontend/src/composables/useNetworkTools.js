@@ -28,6 +28,10 @@ export const RENDER_IMAGE = 'image'
  *  - `render`   how the result is displayed (text output or image)
  *  - `slow`     true for tools that routinely take several seconds, so the UI
  *               can run them last and let the fast ones paint first
+ *  - `rawLabel` what the card's second view holds, for tools where the backend
+ *               returns both a readable form and the original ('raw JSON' for
+ *               the JSON APIs, 'raw dig output' for the DNS tools). Absent for
+ *               tools that have only one view.
  *
  * Order is the display order: identification first, then DNS, then reachability,
  * then transport/reputation, with the visual preview last.
@@ -35,16 +39,18 @@ export const RENDER_IMAGE = 'image'
  * @type {Array<{name: string, label: string, icon: string, accepts: string, render: string, slow?: boolean}>}
  */
 export const RESEARCH_TOOLS = [
-  { name: 'rdap', label: 'RDAP / WHOIS', icon: 'fa-id-card', accepts: ACCEPTS_BOTH, render: RENDER_TEXT },
-  { name: 'dig', label: 'DNS records (dig)', icon: 'fa-magnifying-glass', accepts: ACCEPTS_BOTH, render: RENDER_TEXT },
-  { name: 'nsmx', label: 'NS / MX records', icon: 'fa-envelope', accepts: ACCEPTS_DOMAIN, render: RENDER_TEXT },
-  { name: 'reverse_dns', label: 'Reverse DNS (PTR)', icon: 'fa-arrows-rotate', accepts: ACCEPTS_IP, render: RENDER_TEXT },
-  { name: 'geoip', label: 'GeoIP', icon: 'fa-globe', accepts: ACCEPTS_IP, render: RENDER_TEXT },
-  { name: 'asn', label: 'ASN', icon: 'fa-network-wired', accepts: ACCEPTS_IP, render: RENDER_TEXT },
+  { name: 'rdap', label: 'RDAP / WHOIS', icon: 'fa-id-card', accepts: ACCEPTS_BOTH, render: RENDER_TEXT, rawLabel: 'raw JSON' },
+  // Domain-only: querying A/AAAA/HTTPS/TXT for an address is never meaningful,
+  // and reverse DNS is the tool that answers "what is this address called".
+  { name: 'dig', label: 'DNS records (dig)', icon: 'fa-magnifying-glass', accepts: ACCEPTS_DOMAIN, render: RENDER_TEXT, rawLabel: 'raw dig output' },
+  { name: 'nsmx', label: 'NS / MX records', icon: 'fa-envelope', accepts: ACCEPTS_DOMAIN, render: RENDER_TEXT, rawLabel: 'raw dig output' },
+  { name: 'reverse_dns', label: 'Reverse DNS (PTR)', icon: 'fa-arrows-rotate', accepts: ACCEPTS_IP, render: RENDER_TEXT, rawLabel: 'raw dig output' },
+  { name: 'geoip', label: 'GeoIP', icon: 'fa-globe', accepts: ACCEPTS_IP, render: RENDER_TEXT, rawLabel: 'raw JSON' },
+  { name: 'asn', label: 'ASN', icon: 'fa-network-wired', accepts: ACCEPTS_IP, render: RENDER_TEXT, rawLabel: 'raw JSON' },
   { name: 'ping', label: 'ping', icon: 'fa-satellite-dish', accepts: ACCEPTS_BOTH, render: RENDER_TEXT },
   { name: 'traceroute', label: 'traceroute', icon: 'fa-route', accepts: ACCEPTS_BOTH, render: RENDER_TEXT, slow: true },
   { name: 'tls_cert', label: 'TLS certificate', icon: 'fa-lock', accepts: ACCEPTS_DOMAIN, render: RENDER_TEXT },
-  { name: 'reputation', label: 'Reputation / threat intel', icon: 'fa-shield-halved', accepts: ACCEPTS_DOMAIN, render: RENDER_TEXT },
+  { name: 'reputation', label: 'Reputation / threat intel', icon: 'fa-shield-halved', accepts: ACCEPTS_DOMAIN, render: RENDER_TEXT, rawLabel: 'raw JSON' },
   { name: 'website_preview', label: 'Website preview', icon: 'fa-image', accepts: ACCEPTS_DOMAIN, render: RENDER_IMAGE, slow: true }
 ]
 
