@@ -234,8 +234,15 @@ export default {
     }
 
     const insertTableName = (name) => {
-      // Append the table name to the editor for convenience.
-      sql.value = sql.value ? `${sql.value} ${name}` : name
+      // An empty editor gets a complete, runnable statement so a single click
+      // is enough to look at a table. Once there is something to build on, only
+      // the name is appended, since the click is then part of a statement the
+      // user is composing.
+      if (sql.value.trim() === '') {
+        sql.value = `select * from ${name}`
+        return
+      }
+      sql.value = `${sql.value} ${name}`
     }
 
     // Clear the current result set (used before a run and on error, so prior
