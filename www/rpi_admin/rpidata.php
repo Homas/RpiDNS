@@ -753,6 +753,7 @@
 			require_once "/opt/rpidns/www/rpi_admin/CommandBuilder.php";
 			require_once "/opt/rpidns/www/rpi_admin/ToolRunner.php";
 			require_once "/opt/rpidns/www/rpi_admin/ResearchResolver.php";
+			require_once "/opt/rpidns/www/rpi_admin/PublicSuffix.php";
 			require_once "/opt/rpidns/www/rpi_admin/RejectionAudit.php";
 			require_once "/opt/rpidns/www/rpi_admin/ResearchFormatter.php";
 			$rtl_user = requireResearchSession();
@@ -862,6 +863,23 @@
 			// traceroute probes, truncates output, and surfaces tool_start_failed,
 			// non-zero exit, and timeout in the ToolResult. Neither modifies DB or
 			// system state (Requirements 6.2, 6.6, 6.7, 6.8, 6.9, 8.11, 8.12, 9.3).
+			// RDAP/WHOIS is published per registered domain, so a hostname is
+			// reduced to its registrable domain before the lookup: a registry has
+			// nothing to say about test.example.com, but example.com is a
+			// registration. The boundary comes from the Public Suffix List, since
+			// it cannot be derived by counting labels - bbc.co.uk is a
+			// registration while co.uk is effectively a TLD. An IP target, a name
+			// that is itself a public suffix, and anything unrecognized are passed
+			// through untouched.
+			$rtl_rdap_note = '';
+			if ($rtl_tool === 'rdap') {
+				$rtl_registrable = PublicSuffix::registrableDomain($rtl_target);
+				if ($rtl_registrable !== null and strcasecmp($rtl_registrable, $rtl_target) !== 0) {
+					$rtl_rdap_note = 'Queried ' . $rtl_registrable . ' - RDAP is published for the registrable domain, not for ' . $rtl_target . '.';
+					$rtl_target = $rtl_registrable;
+				}
+			}
+
 			$rtl_params = array('target' => $rtl_target);
 			if (in_array($rtl_tool, $rtl_dns_aware, true) and $rtl_dns !== null) {
 				$rtl_params['dns_server'] = $rtl_dns;
@@ -994,6 +1012,12 @@
 					$rtl_rendered = ResearchFormatter::render($rtl_tool, $rtl_result['output']);
 					$rtl_result['output'] = $rtl_rendered['output'];
 					$rtl_result['raw'] = $rtl_rendered['raw'];
+					// State the substitution when RDAP was asked about a different
+					// name than the user typed, so the result is never mistaken for
+					// the hostname itself.
+					if ($rtl_rdap_note !== '') {
+						$rtl_result['output'] = $rtl_rdap_note . "\n\n" . $rtl_result['output'];
+					}
 					$response='{"status":"ok","data":'.json_encode($rtl_result).'}';
 				}
 			} catch (Exception $e) {

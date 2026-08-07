@@ -152,6 +152,10 @@ COPY www/rpi_admin/InputValidator.php /opt/rpidns/www/rpi_admin/InputValidator.p
 COPY www/rpi_admin/CommandBuilder.php /opt/rpidns/www/rpi_admin/CommandBuilder.php
 COPY www/rpi_admin/ToolRunner.php /opt/rpidns/www/rpi_admin/ToolRunner.php
 COPY www/rpi_admin/ResearchResolver.php /opt/rpidns/www/rpi_admin/ResearchResolver.php
+# Public Suffix List support: reduces an RDAP target to its registrable domain.
+# The bundled list is data, refreshed with scripts/update_psl.php.
+COPY www/rpi_admin/PublicSuffix.php /opt/rpidns/www/rpi_admin/PublicSuffix.php
+COPY www/rpi_admin/data/public_suffix_list.dat /opt/rpidns/www/rpi_admin/data/public_suffix_list.dat
 COPY www/rpi_admin/RejectionAudit.php /opt/rpidns/www/rpi_admin/RejectionAudit.php
 COPY www/rpi_admin/ResearchFormatter.php /opt/rpidns/www/rpi_admin/ResearchFormatter.php
 COPY www/blocked /opt/rpidns/www/blocked

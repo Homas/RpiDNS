@@ -396,6 +396,7 @@ Access Research tools by hovering over domains in Dashboard widgets or reports.
 | `expire_iocs.php` | Crontab script that auto-disables expired local indicators |
 | `parse_bind_logs.php` | Parse bind logs, save to DB, aggregate data |
 | `import_db.php` | Database import with schema upgrade and RPZ provisioning |
+| `update_psl.php` | Refresh the bundled Public Suffix List used by the Research RDAP tool |
 
 ## ISC Bind Configuration
 

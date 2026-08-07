@@ -341,6 +341,42 @@ The `importSQLiteDB()` function accepts a comma-separated list of object identif
 
 ---
 
+## update_psl.php
+
+**File:** `scripts/update_psl.php`
+
+### Purpose
+
+Refreshes the bundled Public Suffix List that the Research RDAP tool uses to reduce a hostname to the domain that is actually registered. Run it from a checkout and commit the result; it is not a cron job.
+
+### Usage
+
+```bash
+php scripts/update_psl.php            # writes www/rpi_admin/data/public_suffix_list.dat
+php scripts/update_psl.php --dry-run  # report only
+```
+
+### Prerequisites
+
+- PHP with the `intl` extension (`idn_to_ascii`), needed to convert IDN rules to punycode. This is required only on the machine running the script — deliberately not in the appliance image, since `intl` pulls in ICU. Running it inside the web container therefore fails with a clear error.
+- Outbound HTTPS to `publicsuffix.org`.
+
+### What it writes
+
+The output is a normalized copy of [the list](https://publicsuffix.org/list/public_suffix_list.dat):
+
+- **ICANN section only.** The PRIVATE section describes namespaces delegated below a registration (`github.io`, `blogspot.com`, `s3.amazonaws.com`). Applying it would treat `someproject.github.io` as registrable and send RDAP a name no registry knows, when the registration is `github.io`.
+- Rules only — comments and blank lines stripped.
+- All labels converted to punycode, so `PublicSuffix.php` needs no `intl` at runtime.
+
+The script refuses to write if the ICANN section markers are missing, if fewer than 5000 rules parse, or if any rule cannot be converted to ASCII — a partial list would silently yield the wrong registrable domain for every name under a missing suffix.
+
+### Maintenance
+
+The list changes as registries are added and removed. A stale copy only misreduces names under suffixes that changed since the last refresh; everything else keeps working, and an unrecognized suffix falls back to treating the last label as the public suffix.
+
+---
+
 ## Related Documentation
 
 - [Database Schema](./database.md) — Table definitions, indexes, aggregation tiers, and retention configuration
