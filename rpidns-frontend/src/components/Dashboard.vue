@@ -63,7 +63,7 @@
         <div class="col-12 col-md-6 col-lg-3">
           <BCard class="widget-card">
             <template #header><small>TopX Allowed Requests</small></template>
-            <div class="widget-body">
+            <div class="widget-body" :style="{ height: widgetBodyHeight + 'px' }">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
                   <BTr v-for="(item, index) in topXReq" :key="'req-' + index" class="mouseoverpointer">
@@ -94,7 +94,7 @@
         <div class="col-12 col-md-6 col-lg-3">
           <BCard class="widget-card">
             <template #header><small>TopX Allowed Clients</small></template>
-            <div class="widget-body">
+            <div class="widget-body" :style="{ height: widgetBodyHeight + 'px' }">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
                   <BTr v-for="(item, index) in topXClient" :key="'client-' + index" class="mouseoverpointer">
@@ -121,7 +121,7 @@
         <div class="col-12 col-md-6 col-lg-3">
           <BCard class="widget-card">
             <template #header><small>TopX Allowed Request Types</small></template>
-            <div class="widget-body">
+            <div class="widget-body" :style="{ height: widgetBodyHeight + 'px' }">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
                   <BTr v-for="(item, index) in topXReqType" :key="'reqtype-' + index" class="mouseoverpointer">
@@ -141,7 +141,7 @@
         <div class="col-12 col-md-6 col-lg-3">
           <BCard class="widget-card">
             <template #header><small>RpiDNS</small></template>
-            <div class="widget-body">
+            <div class="widget-body" :style="{ height: widgetBodyHeight + 'px' }">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
                   <BTr v-for="item in serverStats" :key="item.fname">
@@ -167,7 +167,7 @@
         <div class="col-12 col-md-6 col-lg-3">
           <BCard class="widget-card">
             <template #header><small>TopX Blocked Requests</small></template>
-            <div class="widget-body">
+            <div class="widget-body" :style="{ height: widgetBodyHeight + 'px' }">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
                   <BTr v-for="(item, index) in topXBreq" :key="'breq-' + index" class="mouseoverpointer">
@@ -199,7 +199,7 @@
         <div class="col-12 col-md-6 col-lg-3">
           <BCard class="widget-card">
             <template #header><small>TopX Blocked Clients</small></template>
-            <div class="widget-body">
+            <div class="widget-body" :style="{ height: widgetBodyHeight + 'px' }">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
                   <BTr v-for="(item, index) in topXBclient" :key="'bclient-' + index" class="mouseoverpointer">
@@ -226,7 +226,7 @@
         <div class="col-12 col-md-6 col-lg-3">
           <BCard class="widget-card">
             <template #header><small>TopX Feeds</small></template>
-            <div class="widget-body">
+            <div class="widget-body" :style="{ height: widgetBodyHeight + 'px' }">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
                   <BTr v-for="(item, index) in topXFeeds" :key="'feed-' + index" class="mouseoverpointer">
@@ -246,7 +246,7 @@
         <div class="col-12 col-md-6 col-lg-3">
           <BCard class="widget-card">
             <template #header><small>TopX Servers</small></template>
-            <div class="widget-body">
+            <div class="widget-body" :style="{ height: widgetBodyHeight + 'px' }">
               <BTableSimple striped hover small class="mb-0">
                 <BTbody>
                   <BTr v-for="(item, index) in topXServer" :key="'server-' + index" class="mouseoverpointer">
@@ -266,7 +266,7 @@
       <!-- QPS Chart Row -->
       <BCard class="flex-grow-1">
         <template #header><small>Queries per Minute</small></template>
-        <apexchart type="area" height="200" width="99%" :options="qps_options" :series="qps_series"></apexchart>
+        <apexchart type="area" :height="chartHeight" width="99%" :options="qps_options" :series="qps_series"></apexchart>
       </BCard>
     </BCard>
   </div>
@@ -292,6 +292,9 @@ export default {
   emits: ['navigate', 'add-ioc', 'custom-period-change', 'show-info'],
   props: {
     isActive: { type: Boolean, default: false },
+    // Same viewport-derived content height the log tables use, so the widgets
+    // and the chart grow with the window instead of staying at a fixed size.
+    logs_height: { type: Number, default: 150 },
     customStart: { type: Number, default: null },
     customEnd: { type: Number, default: null }
   },
@@ -492,6 +495,32 @@ export default {
       }))
     }
 
+    // --- Vertical layout budget -------------------------------------------
+    // The page holds two widget rows and the chart. Their heights are derived
+    // from the viewport rather than fixed, so a tall window shows more rows
+    // instead of clipping a list at five and a half entries while leaving the
+    // area below the chart empty.
+    //
+    // CHROME is the non-content height the three cards spend on headers, body
+    // padding and row gaps. What is left is split between the two widget rows
+    // and the chart, with floors that keep the small-window layout exactly as
+    // it was and ceilings so a very tall window does not stretch either part
+    // out of proportion.
+    const CHROME = 170
+    const WIDGET_SHARE = 0.55
+
+    const availableHeight = computed(() => Math.max(0, props.logs_height - CHROME))
+
+    const widgetBodyHeight = computed(() => {
+      const perRow = Math.floor((availableHeight.value * WIDGET_SHARE) / 2)
+      return Math.max(150, Math.min(perRow, 520))
+    })
+
+    const chartHeight = computed(() => {
+      const forChart = Math.floor(availableHeight.value * (1 - WIDGET_SHARE))
+      return Math.max(200, Math.min(forChart, 700))
+    })
+
     // Block/Allow actions
     const { smartBlock, smartAllow } = useSmartActions()
 
@@ -546,6 +575,7 @@ export default {
       topXBreq, topXBclient, topXFeeds, topXServer, loading, qps_series, qps_options,
       autoRefreshEnabled, showCustomPicker, customPeriodStart, customPeriodEnd,
       customPeriodStartDate, customPeriodEndDate, lastRefreshFormatted,
+      widgetBodyHeight, chartHeight,
       refreshDash, refreshDashQPS, onPeriodChange, selectPeriod, showQueries, showHits,
       showQueriesForClient, showHitsForClient, onAllowedRequestClick, onAllowedClientClick,
       onRequestTypeClick, onBlockedRequestClick, onBlockedClientClick, onFeedClick,
@@ -559,7 +589,8 @@ export default {
 .mw350 { max-width: 350px; }
 .mouseoverpointer { cursor: pointer; }
 
-/* Widget cards with fixed height */
+/* Widget cards. height:100% keeps every card in a row the same height; the
+   scrollable body inside is sized from the viewport (see widgetBodyHeight). */
 .widget-card {
   height: 100%;
 }
@@ -573,6 +604,8 @@ export default {
   padding: 0.25rem 0.5rem;
 }
 .widget-body {
+  /* Height is set inline from the viewport; this is the fallback for a
+     window measurement that has not arrived yet. */
   height: 150px;
   overflow-y: auto;
   overflow-x: hidden;

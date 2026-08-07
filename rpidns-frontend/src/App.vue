@@ -88,6 +88,7 @@
           </template>
           <Dashboard 
             :is-active="cfgTab === 0"
+            :logs_height="logs_height"
             :custom-start="customPeriodStart"
             :custom-end="customPeriodEnd"
             @navigate="handleNavigate"

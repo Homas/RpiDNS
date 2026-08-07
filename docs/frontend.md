@@ -71,6 +71,7 @@ The main landing page after login. Displays eight statistical widget cards in tw
 | Props | Type | Description |
 |-------|------|-------------|
 | `isActive` | `Boolean` | Whether this tab is currently visible |
+| `logs_height` | `Number` | Viewport-derived content height in pixels; the widget lists and the chart are sized from it |
 | `customStart` | `Number` | Custom period start (Unix timestamp) |
 | `customEnd` | `Number` | Custom period end (Unix timestamp) |
 
@@ -85,6 +86,8 @@ The main landing page after login. Displays eight statistical widget cards in tw
 **Widgets (bottom row — blocked traffic):** TopX Blocked Requests, TopX Blocked Clients, TopX Feeds, TopX Servers.
 
 In the two FQDN widgets (TopX Allowed Requests and TopX Blocked Requests) the hover popover carries an **Analyze** action alongside the navigation and block/allow items. It dispatches the same global `open-research-tools` event as the log pages' `ContextMenu`, so the shared `ToolsModal` opens with the FQDN prefilled and runs every applicable tool. The client, request-type, feed, and server widgets have no Analyze action: their values are not research targets the tools accept.
+
+**Layout:** widget list heights and the chart height are derived from the `logs_height` prop (the same viewport measurement the log tables use) rather than fixed, so a tall window shows more rows instead of clipping every list at five entries and leaving the area below the chart empty. The remaining height after card chrome is split 55/45 between the two widget rows and the chart, with floors that preserve the previous layout on short windows and ceilings so a very tall window does not stretch either part out of proportion.
 
 **Period options:** 30m, 1h, 1d, 1w, 30d, custom. Auto-refresh via `useAutoRefresh` composable (60s interval, stored in `localStorage` key `rpidns_autorefresh_dashboard`).
 
