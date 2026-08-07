@@ -101,6 +101,41 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/* \
     && test -x /usr/bin/chromium
 
+# --- traceroute for the unprivileged web user (Req 6.7, 8.7) ---
+# Without this package Alpine serves traceroute as a BUSYBOX APPLET, which probes
+# with a raw ICMP socket and therefore needs CAP_NET_RAW. PHP-FPM runs the
+# research tools as www-data, and `cap_add: NET_RAW` in the compose file only
+# fills the container's BOUNDING set - root picks the capability up from there
+# automatically, an unprivileged process does not. Hence the symptom of
+#   traceroute: socket(AF_INET,3,1): Operation not permitted
+# from the UI while the very same command succeeds in a root shell in the
+# container.
+#
+# The standalone traceroute is the fix: its default UDP mode needs no privileges
+# at all on Linux, because the ICMP replies come back on the error queue of an
+# ordinary UDP socket instead of a raw socket. Only its -I (ICMP) and -T (TCP)
+# modes are privileged, and the research tool does not use them.
+#
+# The file capability below covers those privileged modes and any raw-socket
+# fallback, and is set on a DEDICATED binary on purpose: a capability on a
+# busybox applet has to be set on the busybox binary itself, which would hand
+# CAP_NET_RAW to every applet for every user. It only takes effect while the
+# container also has NET_RAW in its bounding set, since a file capability can
+# never exceed it. (setuid root would work too; a file capability is narrower.)
+#
+# The `test ! -L` guard catches the package losing to a busybox symlink, and
+# `setcap -v` fails the build if the capability did not actually land (some build
+# filesystems silently drop extended attributes) rather than shipping an image
+# whose traceroute is quietly degraded.
+RUN apk add --no-cache \
+    traceroute \
+    libcap-setcap \
+    && rm -rf /var/cache/apk/* \
+    && test -f /usr/bin/traceroute \
+    && test ! -L /usr/bin/traceroute \
+    && setcap cap_net_raw+ep /usr/bin/traceroute \
+    && setcap -v cap_net_raw+ep /usr/bin/traceroute
+
 # Create www-data user/group (matching common web server conventions)
 RUN addgroup -g 82 -S www-data 2>/dev/null || true \
     && adduser -u 82 -D -S -G www-data www-data 2>/dev/null || true

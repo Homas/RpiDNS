@@ -84,6 +84,17 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
+    # NET_RAW alone does NOT make traceroute work for the web UI: cap_add only
+    # fills the container's BOUNDING set, which root inherits automatically but
+    # an unprivileged process does not - and PHP-FPM runs the tools as www-data.
+    # That is why traceroute can succeed in a root shell here and still fail in
+    # the UI. The web image is what fixes it, by installing the standalone
+    # traceroute (its default UDP mode needs no privileges) instead of relying on
+    # the busybox applet, which probes with a raw socket. NET_RAW remains listed
+    # because the image also file-capability-marks that binary for the privileged
+    # -I/-T modes, and a file capability cannot exceed the bounding set.
+    # If traceroute still reports "Operation not permitted", REBUILD the web image.
+    #
     # Note: the net.ipv4.ping_group_range sysctl is NOT an alternative here.
     # It only permits unprivileged *datagram* ICMP sockets (SOCK_DGRAM), which
     # busybox ping can use, but traceroute still needs a raw socket to receive
