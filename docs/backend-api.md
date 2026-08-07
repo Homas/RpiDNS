@@ -465,9 +465,19 @@ Executes a network research tool against a validated target and returns its `Too
 
 - **Tool allowlist:** an unknown or unsupported `tool` is rejected before any command is built.
 - **Per-tool input class:** IP-only tools (`reverse_dns`, `geoip`, `asn`) require a valid IP address; domain-only tools (`nsmx`, `tls_cert`, `reputation`, `website_preview`) require a valid domain; core tools (`rdap`, `dig`, `ping`, `traceroute`) accept a valid domain or IP. Validation uses `InputValidator`. The frontend classifies the target the same way and only submits applicable tools.
-- **DNS server:** when supplied, `dns_server` is validated as an IP address or hostname (Req 6.4). Resolver-aware tools are `dig`, `nsmx`, `reverse_dns`, and `website_preview`; all others ignore the parameter.
-- **Resolver selection:** a request that omits `dns_server` inherits `$research_dns_server` from `rpisettings.php`; a request that sends it wins, including when it sends `""`, which selects the appliance resolver explicitly. An empty effective value means no `@server` argument (Req 6.3). A configured default that fails validation is discarded rather than used.
-- **Preview resolution:** chromium has no "use this DNS server" switch, so when a resolver is in effect `website_preview` first resolves the target with it (via `dig`) and pins the browser to the answer with `--host-resolver-rules`. This is what lets a domain blocked by this appliance's RPZ render as the real site instead of the block page; SNI and the `Host` header still carry the original hostname. If the name does not resolve to an IPv4 address through that resolver, the response reports it rather than silently falling back to the appliance resolver.
+- **DNS server:** when supplied, `dns_server` is validated as an IP address or hostname (Req 6.4).
+- **Resolver selection:** a request that omits `dns_server` inherits `$research_dns_server` from `rpisettings.php`; a request that sends it wins, including when it sends `""`, which selects the appliance resolver explicitly. An empty effective value means the system resolver, i.e. the appliance (Req 6.3). A configured default that fails validation is discarded rather than used.
+- **Every tool honors the resolver**, in one of three ways, because only `dig` can be told which server to query:
+
+| Tools | Mechanism |
+|---|---|
+| `dig`, `nsmx`, `reverse_dns` | Query the resolver directly (`@server`) |
+| `ping`, `traceroute`, `tls_cert`, `website_preview` | `ResearchResolver` resolves the target through it and the address is given to the utility: `ping`/`traceroute` probe the address, `openssl s_client` connects to it while `-servername` keeps the real name for SNI, and chromium is pinned with `--host-resolver-rules` (it has no DNS-server switch) |
+| `rdap`, `geoip`, `asn`, `reputation` | Never resolve the target at all — it travels inside the URL — so their external API host is pinned with curl `--resolve`, keeping them working if the appliance's own feeds block that host. Alpine's curl has no c-ares, so `--dns-servers` is unavailable |
+
+  Without this, a domain blocked by the appliance's RPZ would be pinged, TLS-negotiated, and screenshotted at the block address rather than at the real host. Only A records are used: a single address is what these utilities take, and the appliance is not guaranteed to have IPv6, so an AAAA-only name counts as unresolved. Resolution is memoized per host and resolver for the request.
+
+- **Unresolvable targets:** for the target-connecting tools an unresolved name is reported (`{"status":"error","reason":"\"<target>\" did not resolve to an IPv4 address via <resolver>"}`, or a `reason` in the `website_preview` payload) instead of falling back to the system resolver and reporting on the block page. For the endpoint tools an unresolved API host is best-effort: the pin is skipped and curl resolves normally, so a tool that would otherwise have worked is never failed. A redirect to another host (rdap.org bootstrapping to a registry server) resolves normally too, since its name is not known until the redirect arrives.
 - **Command injection prevention (Req 6.6):** `CommandBuilder` passes every input as a discrete argv slot (no shell), so inputs cannot alter command structure.
 - **Bounded execution (Req 6.7, 6.8):** `ToolRunner` enforces a 30-second wall-clock bound and terminates the child process group on timeout; `ping`/`traceroute` are constrained to a fixed maximum number of probes. Output is captured and truncated to a maximum size (1 MiB), with a `truncated` flag.
 

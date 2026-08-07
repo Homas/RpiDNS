@@ -151,6 +151,7 @@ COPY www/rpi_admin/SqlQueryValidator.php /opt/rpidns/www/rpi_admin/SqlQueryValid
 COPY www/rpi_admin/InputValidator.php /opt/rpidns/www/rpi_admin/InputValidator.php
 COPY www/rpi_admin/CommandBuilder.php /opt/rpidns/www/rpi_admin/CommandBuilder.php
 COPY www/rpi_admin/ToolRunner.php /opt/rpidns/www/rpi_admin/ToolRunner.php
+COPY www/rpi_admin/ResearchResolver.php /opt/rpidns/www/rpi_admin/ResearchResolver.php
 COPY www/rpi_admin/RejectionAudit.php /opt/rpidns/www/rpi_admin/RejectionAudit.php
 COPY www/rpi_admin/ResearchFormatter.php /opt/rpidns/www/rpi_admin/ResearchFormatter.php
 COPY www/blocked /opt/rpidns/www/blocked

@@ -175,7 +175,13 @@ class CommandBuilder {
      *                       - 'record_type' ?string dig record type (fixed, caller-chosen)
      *                       - 'output_path' ?string website-preview screenshot destination
      *                       - 'profile_dir' ?string website-preview chromium profile dir
-     *                       - 'resolve_ip'  ?string website-preview address to pin the domain to
+     *                       - 'resolve_ip'  ?string pre-resolved address to pin the
+     *                         tool to, from ResearchResolver. For target-connecting
+     *                         tools (ping, traceroute, tls_cert, website_preview)
+     *                         this is the target's address; for endpoint tools
+     *                         (rdap, geoip, asn, reputation) it is the API host's.
+     *                         Ignored by the dig-based tools, which take a server
+     *                         directly, and ignored when not a valid address.
      * @return array<int, array<int, string>> List of argv arrays.
      * @throws InvalidArgumentException When the tool is unknown.
      */
@@ -184,33 +190,33 @@ class CommandBuilder {
         $dnsServer = array_key_exists('dns_server', $params) && $params['dns_server'] !== null && $params['dns_server'] !== ''
             ? (string)$params['dns_server']
             : null;
+        $resolveIp = isset($params['resolve_ip']) ? (string)$params['resolve_ip'] : '';
 
         switch ($tool) {
             case 'rdap':
-                return [$this->buildRdap($target)];
+                return [$this->buildRdap($target, $resolveIp)];
             case 'dig':
                 $recordType = isset($params['record_type']) ? (string)$params['record_type'] : 'A';
                 return [$this->buildDig($target, $recordType, $dnsServer)];
             case 'ping':
-                return [$this->buildPing($target)];
+                return [$this->buildPing($target, $resolveIp)];
             case 'traceroute':
-                return [$this->buildTraceroute($target)];
+                return [$this->buildTraceroute($target, $resolveIp)];
             case 'reverse_dns':
                 return [$this->buildReverseDns($target, $dnsServer)];
             case 'nsmx':
                 return $this->buildNsMx($target, $dnsServer);
             case 'geoip':
-                return [$this->buildGeoIp($target)];
+                return [$this->buildGeoIp($target, $resolveIp)];
             case 'asn':
-                return [$this->buildAsn($target)];
+                return [$this->buildAsn($target, $resolveIp)];
             case 'tls_cert':
-                return [$this->buildTlsCert($target)];
+                return [$this->buildTlsCert($target, $resolveIp)];
             case 'reputation':
-                return [$this->buildReputation($target)];
+                return [$this->buildReputation($target, $resolveIp)];
             case 'website_preview':
                 $outputPath = isset($params['output_path']) ? (string)$params['output_path'] : '';
                 $profileDir = isset($params['profile_dir']) ? (string)$params['profile_dir'] : '';
-                $resolveIp = isset($params['resolve_ip']) ? (string)$params['resolve_ip'] : '';
                 return [$this->buildWebsitePreview($target, $outputPath, $profileDir, $resolveIp)];
             default:
                 throw new InvalidArgumentException("Unknown research tool: {$tool}");
@@ -226,12 +232,12 @@ class CommandBuilder {
      * @param string $target Domain or IP address (already validated by caller).
      * @return array<int, string> argv.
      */
-    public function buildRdap(string $target): array {
+    public function buildRdap(string $target, string $resolveIp = ''): array {
         $resource = $this->isIp($target) ? 'ip' : 'domain';
         // Target embedded in exactly one argv element (the URL). It cannot spawn
         // additional arguments or shell syntax because it is a single arg.
         $url = $this->rdapBase . '/' . $resource . '/' . $target;
-        return [
+        $argv = [
             self::BIN_CURL,
             '-sSL',
             '-4',                                                  // avoid IPv6 black-hole stalls
@@ -240,8 +246,15 @@ class CommandBuilder {
             '--max-redirs', (string)self::CURL_MAX_REDIRS,         // bootstrap -> registry hop(s)
             '-A', self::CURL_USER_AGENT,                           // avoid Cloudflare stalls
             '-H', 'Accept: application/rdap+json',
-            $url,
         ];
+        // Pins the bootstrap host only; the registry it redirects to is not known
+        // until the redirect arrives and resolves through the system resolver.
+        foreach ($this->resolveArgs($url, $resolveIp) as $arg) {
+            $argv[] = $arg;
+        }
+        $argv[] = $url;
+
+        return $argv;
     }
 
     /**
@@ -284,12 +297,17 @@ class CommandBuilder {
      * @param string $target Domain or IP (validated by caller).
      * @return array<int, string> argv.
      */
-    public function buildPing(string $target): array {
+    public function buildPing(string $target, string $connectIp = ''): array {
+        // ping has no way to be told which resolver to use, so when the caller
+        // has already resolved the name through the Research resolver the address
+        // is probed directly. Otherwise ping resolves via the system resolver,
+        // which answers blocked domains with the RPZ response.
+        $host = ($connectIp !== '' && $this->isIp($connectIp)) ? $connectIp : $target;
         return [
             self::BIN_PING,
             '-c', (string)$this->maxProbes, // bounded probe count
             '-w', (string)($this->maxProbes * 2), // hard deadline as a safety net
-            $target, // user input: exactly one verbatim slot
+            $host, // user input (or its resolved address): exactly one verbatim slot
         ];
     }
 
@@ -301,13 +319,16 @@ class CommandBuilder {
      * @param string $target Domain or IP (validated by caller).
      * @return array<int, string> argv.
      */
-    public function buildTraceroute(string $target): array {
+    public function buildTraceroute(string $target, string $connectIp = ''): array {
+        // Same resolver limitation as ping: trace to the pre-resolved address
+        // when one is available.
+        $host = ($connectIp !== '' && $this->isIp($connectIp)) ? $connectIp : $target;
         return [
             self::BIN_TRACEROUTE,
             '-q', (string)$this->maxProbes, // bounded probes per hop
             '-m', (string)$this->maxHops,   // bounded max hops
             '-w', '2',                      // per-probe wait
-            $target, // user input: exactly one verbatim slot
+            $host, // user input (or its resolved address): exactly one verbatim slot
         ];
     }
 
@@ -360,9 +381,9 @@ class CommandBuilder {
      * @param string $ip IP address (validated by caller).
      * @return array<int, string> argv.
      */
-    public function buildGeoIp(string $ip): array {
+    public function buildGeoIp(string $ip, string $resolveIp = ''): array {
         $url = $this->geoipBase . '/' . $ip . '/json/';
-        return $this->curlGet($url);
+        return $this->curlGet($url, $resolveIp);
     }
 
     /**
@@ -372,11 +393,11 @@ class CommandBuilder {
      * @param string $ip IP address (validated by caller).
      * @return array<int, string> argv.
      */
-    public function buildAsn(string $ip): array {
+    public function buildAsn(string $ip, string $resolveIp = ''): array {
         // The IP (already validated as a discrete IPv4/IPv6 by the caller) is
         // confined to a single URL argument via the `resource` query parameter.
         $url = $this->asnBase . '?resource=' . $ip;
-        return $this->curlGet($url);
+        return $this->curlGet($url, $resolveIp);
     }
 
     /**
@@ -386,14 +407,22 @@ class CommandBuilder {
      * target and the `-servername` SNI value - each a single argument that
      * cannot alter the command structure. `-connect`/`-servername` are fixed.
      *
-     * @param string $domain Domain (validated by caller).
+     * When `$connectIp` is supplied the connection goes to that address while
+     * SNI keeps the original domain, so the server still returns the certificate
+     * for the name asked about. Without it openssl resolves through the system
+     * resolver and, for a blocked domain, would report the block page's
+     * certificate instead of the real one.
+     *
+     * @param string $domain    Domain (validated by caller).
+     * @param string $connectIp Optional pre-resolved address to connect to.
      * @return array<int, string> argv.
      */
-    public function buildTlsCert(string $domain): array {
+    public function buildTlsCert(string $domain, string $connectIp = ''): array {
+        $host = ($connectIp !== '' && $this->isIp($connectIp)) ? $connectIp : $domain;
         return [
             self::BIN_OPENSSL, 's_client',
-            '-connect', $domain . ':443', // single discrete argument
-            '-servername', $domain,       // single discrete argument
+            '-connect', $host . ':443',   // single discrete argument
+            '-servername', $domain,       // SNI always carries the real name
             '-verify_return_error',
         ];
     }
@@ -405,9 +434,9 @@ class CommandBuilder {
      * @param string $domain Domain (validated by caller).
      * @return array<int, string> argv.
      */
-    public function buildReputation(string $domain): array {
+    public function buildReputation(string $domain, string $resolveIp = ''): array {
         $url = $this->reputationBase . '/' . $domain . '/general';
-        return $this->curlGet($url);
+        return $this->curlGet($url, $resolveIp);
     }
 
     /**
@@ -521,11 +550,19 @@ class CommandBuilder {
     /**
      * Shared curl GET argv for endpoint-style tools.
      *
-     * @param string $url Fully-formed URL (target already embedded in one slot).
+     * These tools never resolve the research target - it travels inside the URL
+     * path or query - so the only name resolved is the API endpoint's own. When
+     * `$resolveIp` is supplied that endpoint is pinned to the address with
+     * `--resolve`, which keeps the tool working when the appliance's own RPZ
+     * feeds happen to block the API host. Alpine's curl has no c-ares, so
+     * `--dns-servers` is unavailable and `--resolve` is the portable equivalent.
+     *
+     * @param string $url       Fully-formed URL (target already embedded in one slot).
+     * @param string $resolveIp Optional address to pin the URL's host to.
      * @return array<int, string> argv.
      */
-    private function curlGet(string $url): array {
-        return [
+    private function curlGet(string $url, string $resolveIp = ''): array {
+        $argv = [
             self::BIN_CURL,
             '-sSL',
             '-4',                                                  // avoid IPv6 black-hole stalls
@@ -533,8 +570,72 @@ class CommandBuilder {
             '--max-time', (string)$this->curlMaxTime,
             '--max-redirs', (string)self::CURL_MAX_REDIRS,
             '-A', self::CURL_USER_AGENT,
-            $url,
         ];
+        foreach ($this->resolveArgs($url, $resolveIp) as $arg) {
+            $argv[] = $arg;
+        }
+        $argv[] = $url;
+
+        return $argv;
+    }
+
+    /**
+     * Build the `--resolve host:port:address` pair for a URL, or nothing when no
+     * usable address was supplied.
+     *
+     * Only the URL's own host is pinned. A redirect to another host (rdap.org
+     * bootstrapping to a registry server, for instance) resolves normally,
+     * because its name is not known until the redirect arrives.
+     *
+     * @param string $url       Fully-formed URL.
+     * @param string $resolveIp Candidate address.
+     * @return array<int, string> Zero or two argv elements.
+     */
+    private function resolveArgs(string $url, string $resolveIp): array {
+        if ($resolveIp === '' || !$this->isIp($resolveIp)) {
+            return [];
+        }
+        $host = self::urlHost($url);
+        if ($host === null) {
+            return [];
+        }
+        $port = (strtolower((string)parse_url($url, PHP_URL_SCHEME)) === 'http') ? '80' : '443';
+
+        return ['--resolve', $host . ':' . $port . ':' . $resolveIp];
+    }
+
+    /**
+     * Host component of a URL, or null when it cannot be determined.
+     *
+     * @param string $url
+     * @return string|null
+     */
+    public static function urlHost(string $url): ?string {
+        $host = parse_url($url, PHP_URL_HOST);
+        return (is_string($host) && $host !== '') ? $host : null;
+    }
+
+    /**
+     * The API host a curl-based tool contacts, so a caller can resolve it through
+     * the Research resolver before the request is built. Returns null for tools
+     * that contact no fixed endpoint.
+     *
+     * @param string $tool Tool name.
+     * @return string|null Hostname, or null.
+     */
+    public function apiHost(string $tool): ?string {
+        switch ($tool) {
+            case 'rdap':
+                return self::urlHost($this->rdapBase);
+            case 'geoip':
+                return self::urlHost($this->geoipBase);
+            case 'asn':
+                return self::urlHost($this->asnBase);
+            case 'reputation':
+                return self::urlHost($this->reputationBase);
+            default:
+                return null;
+        }
     }
 
     /**

@@ -49,13 +49,23 @@ export const RESEARCH_TOOLS = [
 ]
 
 /**
- * Tools that honor the selected DNS resolver. The dig-based ones query it
- * directly; website_preview uses it to resolve the target before handing the
- * address to the headless browser, which is what lets a domain this appliance
- * blocks still render. Every other tool ignores the resolver.
+ * Every tool honors the selected DNS resolver, in one of three ways depending on
+ * what the underlying utility supports:
+ *
+ *  - `dig`, `nsmx`, `reverse_dns` query the resolver directly (`@server`).
+ *  - `ping`, `traceroute`, `tls_cert`, `website_preview` cannot be told which
+ *    resolver to use, so the backend resolves the target through it and hands the
+ *    address to the utility. Without this they would probe, negotiate TLS with,
+ *    or screenshot whatever the appliance answers for a blocked domain — its
+ *    block page — instead of the real host.
+ *  - `rdap`, `geoip`, `asn`, `reputation` never resolve the target at all (it
+ *    travels inside a URL); their external API host is pinned through the
+ *    resolver so they keep working if the appliance's own feeds block it.
+ *
+ * Derived from RESEARCH_TOOLS so a newly added tool is covered automatically.
  * @type {string[]}
  */
-export const DNS_AWARE_TOOLS = ['dig', 'nsmx', 'reverse_dns', 'website_preview']
+export const DNS_AWARE_TOOLS = RESEARCH_TOOLS.map(tool => tool.name)
 
 /** Target classification results. */
 export const TARGET_EMPTY = 'empty'

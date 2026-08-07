@@ -99,7 +99,7 @@
         </BCol>
         <BCol cols="12" lg="4">
           <div class="rt-options__label">
-            DNS resolver <span class="text-muted">(dig, NS/MX, PTR, preview)</span>
+            DNS resolver <span class="text-muted">(all tools)</span>
           </div>
           <BInputGroup size="sm">
             <template #prepend>
@@ -437,9 +437,9 @@ export default {
 
       const body = { tool: toolName, target: target.value.trim() }
       if (DNS_AWARE_TOOLS.includes(toolName)) {
-        // Always sent for these tools, empty included: an empty value is how the
-        // panel says "use the appliance resolver" rather than "fall back to the
-        // configured default".
+        // Always sent, empty included: an empty value is how the panel says "use
+        // the appliance resolver" rather than "fall back to the configured
+        // default". Every tool honors it, so this covers the whole set.
         body.dns_server = dnsServer.value.trim()
       }
 

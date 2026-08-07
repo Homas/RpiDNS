@@ -752,6 +752,7 @@
 			require_once "/opt/rpidns/www/rpi_admin/InputValidator.php";
 			require_once "/opt/rpidns/www/rpi_admin/CommandBuilder.php";
 			require_once "/opt/rpidns/www/rpi_admin/ToolRunner.php";
+			require_once "/opt/rpidns/www/rpi_admin/ResearchResolver.php";
 			require_once "/opt/rpidns/www/rpi_admin/RejectionAudit.php";
 			require_once "/opt/rpidns/www/rpi_admin/ResearchFormatter.php";
 			$rtl_user = requireResearchSession();
@@ -836,13 +837,20 @@
 				}
 			}
 
-			// For dig with a user-supplied DNS server, validate it as an IP or
-			// hostname before execution (Requirement 6.4). The dig-based tools
-			// (dig, nsmx, reverse_dns) pass it straight through; website_preview
-			// uses it to resolve the target before handing the address to the
-			// browser. Every other tool ignores dns_server.
-			$rtl_dns_aware = array('dig','nsmx','reverse_dns','website_preview');
-			if (in_array($rtl_tool, $rtl_dns_aware, true) and $rtl_dns !== null and !InputValidator::isValidDnsServer($rtl_dns)) {
+			// Validate a supplied DNS server as an IP or hostname before execution
+			// (Requirement 6.4). Every tool honors the resolver, in one of three
+			// ways:
+			//  - dig, nsmx, reverse_dns   query it directly (@server)
+			//  - ping, traceroute,        cannot be told a resolver, so the target
+			//    tls_cert, website_preview  is resolved here and the address is
+			//                             handed to the utility
+			//  - rdap, geoip, asn,        never resolve the target at all (it sits
+			//    reputation                 in a URL); their API host is pinned so
+			//                             they keep working if RPZ blocks it
+			$rtl_dns_aware = array('dig','nsmx','reverse_dns');
+			$rtl_target_connect = array('ping','traceroute','tls_cert','website_preview');
+			$rtl_endpoint_tools = array('rdap','geoip','asn','reputation');
+			if ($rtl_dns !== null and !InputValidator::isValidDnsServer($rtl_dns)) {
 				RejectionAudit::record($rtl_sid, 'invalid_dns_server', 'research_tool');
 				$response='{"status":"error","reason":"invalid dns_server: must be a valid IP address or hostname"}';
 				break;
@@ -861,6 +869,40 @@
 
 			try {
 				$rtl_builder = new CommandBuilder();
+				$rtl_resolver = new ResearchResolver($rtl_builder);
+
+				// Resolve whatever this tool is about to connect to, through the
+				// selected resolver, so the utility is pointed at the real host
+				// rather than at whatever the appliance answers for it.
+				if (in_array($rtl_tool, $rtl_target_connect, true)) {
+					// An IP target needs no lookup; resolveA() returns it unchanged.
+					$rtl_ip = $rtl_resolver->resolveA($rtl_target, $rtl_dns);
+					if ($rtl_ip === null) {
+						// Falling back to the system resolver here would report on
+						// the block page instead of the target, so say so instead
+						// (Req 8.11).
+						$rtl_via = ($rtl_dns !== null) ? $rtl_dns : 'the appliance resolver';
+						$rtl_msg = '"' . $rtl_target . '" did not resolve to an IPv4 address via ' . $rtl_via;
+						if ($rtl_tool === 'website_preview') {
+							$response='{"status":"ok","data":'.json_encode(array('image'=>null,'reason'=>'no preview available: '.$rtl_msg)).'}';
+						} else {
+							$response='{"status":"error","reason":'.json_encode($rtl_msg).'}';
+						}
+						break;
+					}
+					$rtl_params['resolve_ip'] = $rtl_ip;
+				} elseif (in_array($rtl_tool, $rtl_endpoint_tools, true) and $rtl_dns !== null) {
+					// Best-effort only: an API host that does not resolve through
+					// the chosen resolver is left to the system resolver rather
+					// than failing a tool that would otherwise have worked.
+					$rtl_api_host = $rtl_builder->apiHost($rtl_tool);
+					if ($rtl_api_host !== null) {
+						$rtl_api_ip = $rtl_resolver->resolveA($rtl_api_host, $rtl_dns);
+						if ($rtl_api_ip !== null) {
+							$rtl_params['resolve_ip'] = $rtl_api_ip;
+						}
+					}
+				}
 
 				if ($rtl_tool === 'website_preview') {
 					// Website preview is gated behind a feature flag (Req 8.7).
@@ -881,45 +923,14 @@
 						try {
 							@mkdir($rtl_profile, 0700, true);
 
-							// Chromium always asks the system resolver, which on this
-							// appliance answers blocked domains with the RPZ response,
-							// so the preview of anything blocked would be the block
-							// page. When a Research resolver is in effect the address
-							// is looked up there first and the browser is pinned to it.
-							$rtl_map_ip = '';
-							if ($rtl_dns !== null) {
-								$rtl_dig_cmds = $rtl_builder->build('dig', array(
-									'target'      => $rtl_target,
-									'dns_server'  => $rtl_dns,
-									'record_type' => 'A'
-								));
-								$rtl_dig_run = new ToolRunner();
-								$rtl_dig_res = $rtl_dig_run->run('dig', $rtl_target, $rtl_dig_cmds[0]);
-								// Only the ANSWER section is considered: an A record in
-								// AUTHORITY/ADDITIONAL glue belongs to a nameserver, not
-								// to the target, and must never be browsed to.
-								$rtl_answer = '';
-								if (preg_match('/;; ANSWER SECTION:\s*\n(.*?)(\n\s*\n|$)/s', (string)$rtl_dig_res['output'], $rtl_sec)) {
-									$rtl_answer = $rtl_sec[1];
-								}
-								if ($rtl_answer !== '' and preg_match('/^\S+\.?\s+\d+\s+IN\s+A\s+(\d{1,3}(?:\.\d{1,3}){3})\s*$/m', $rtl_answer, $rtl_m)) {
-									if (filter_var($rtl_m[1], FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false) {
-										$rtl_map_ip = $rtl_m[1];
-									}
-								}
-								if ($rtl_map_ip === '') {
-									// Say so rather than silently falling back to the
-									// appliance resolver and rendering the block page.
-									throw new Exception('unresolved');
-								}
-							}
-
-							$rtl_cmds = $rtl_builder->build('website_preview', array(
-								'target'      => $rtl_target,
+							// $rtl_params already carries resolve_ip: chromium has no
+							// "use this DNS server" switch, so the address resolved
+							// above is what pins it to the real host instead of
+							// whatever the appliance answers for a blocked domain.
+							$rtl_cmds = $rtl_builder->build('website_preview', array_merge($rtl_params, array(
 								'output_path' => $rtl_png,
-								'profile_dir' => $rtl_profile,
-								'resolve_ip'  => $rtl_map_ip
-							));
+								'profile_dir' => $rtl_profile
+							)));
 							$rtl_runner = new ToolRunner();
 							$rtl_result = $rtl_runner->run('website_preview', $rtl_target, $rtl_cmds[0]);
 							// Chromium writes progress/warnings to stderr and can
@@ -943,9 +954,7 @@
 									: 'no preview available';
 							}
 						} catch (Exception $e) {
-							$rtl_reason = ($e->getMessage() === 'unresolved')
-								? 'no preview available: "' . $rtl_target . '" did not resolve to an IPv4 address via ' . $rtl_dns
-								: 'no preview available';
+							$rtl_reason = 'no preview available';
 						}
 						// Always clean up the server-side temp files/profile.
 						if (is_file($rtl_png)) { @unlink($rtl_png); }
