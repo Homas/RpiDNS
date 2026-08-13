@@ -118,7 +118,29 @@ Installed packages:
 | `docker-cli` | Docker CLI for `rndc reload` via `docker exec` |
 | `openssl` | SSL certificate generation |
 | `apache2-utils` | htpasswd utility |
-| `bind-tools` | DNS utilities |
+| `bind-tools` | DNS utilities (`dig`, used by the Research DNS tools and by preview name resolution) |
+
+Research tool dependencies are installed as separate layers so they can be dropped from a deployment that does not need them:
+
+| Package | Purpose |
+|---------|---------|
+| `whois` | Optional port-43 WHOIS fallback; RDAP-over-HTTPS is the primary mechanism |
+| `chromium`, `chromium-swiftshader` | Headless browser for the website preview. `chromium` provides the binary; swiftshader adds software GL so it renders without a GPU |
+| `nss`, `freetype`, `harfbuzz`, `ca-certificates` | Chromium runtime libraries. Without `nss` it will not start; without freetype/harfbuzz it cannot shape text |
+| `font-freefont`, `font-noto` | Chromium ships no fonts of its own — a font-less image renders every page as empty boxes |
+| `traceroute` | Standalone traceroute. Alpine otherwise serves traceroute as a busybox applet, which probes with a raw ICMP socket and so cannot run as the unprivileged `www-data`; the standalone binary's default UDP mode needs no privileges |
+| `libcap-setcap` | Provides `setcap`, used to grant `cap_net_raw+ep` to `/usr/bin/traceroute` |
+
+Dropping the chromium layer leaves the rest working: the preview reports itself disabled through the `RESEARCH_WEBSITE_PREVIEW` feature flag, which auto-detects the binary.
+
+### Required Capabilities
+
+The web container needs `NET_ADMIN` and `NET_RAW` (`cap_add` in the Compose file). Two points are easy to get wrong:
+
+- `cap_add` only fills the container's **bounding** set. root inherits capabilities from it automatically, an unprivileged process does not — and PHP-FPM runs the research tools as `www-data`. This is why traceroute can succeed in a root shell inside the container and still fail in the UI with `socket(AF_INET,3,1): Operation not permitted`.
+- The image therefore also sets a file capability on the traceroute binary. A file capability can never exceed the bounding set, so both halves are required. The build fails if the capability does not land, rather than shipping a silently degraded image.
+
+The `net.ipv4.ping_group_range` sysctl is not a substitute: it permits unprivileged *datagram* ICMP sockets, which busybox `ping` can use, but not the raw socket traceroute's ICMP mode needs.
 
 PHP configuration overrides:
 - `upload_max_filesize`: 512M
@@ -129,8 +151,9 @@ PHP configuration overrides:
 The image copies:
 - Built frontend assets from Stage 1 → `/opt/rpidns/www/rpi_admin/dist`
 - PHP application files (`blocked.php`, `rpidns_vars.php`, `rpisettings.php`, `rpidata.php`, `auth.php`, `db_migrate.php`, `BindConfigManager.php`, `index.php`)
+- Research page backend (`ResearchAuth.php`, `SqlQueryValidator.php`, `InputValidator.php`, `CommandBuilder.php`, `ToolRunner.php`, `ResearchResolver.php`, `RejectionAudit.php`, `ResearchFormatter.php`, `PublicSuffix.php`) and the bundled Public Suffix List (`data/public_suffix_list.dat`)
 - Blocked content placeholder files (`www/blocked/`)
-- Maintenance scripts (`scripts/`)
+- Maintenance scripts, twice: `scripts/` (the working copy, normally bind-mounted) and `scripts.dist/` (a pristine copy kept outside the mount so the entrypoint can refresh the mounted directory on startup)
 - Configuration files (`nginx.conf.template` → `/etc/nginx/nginx.conf`, `rsyslog.conf` → `/etc/rsyslog.conf`, `crontab` → `/etc/crontabs/root`)
 
 Exposed ports: `80` (HTTP), `443` (HTTPS), `10514` (syslog).
@@ -150,11 +173,12 @@ The entrypoint performs the following initialization sequence:
    - Intermediate certificate (`ioc2rpzInt.pkey`, `ioc2rpzInt.crt`) — signed by CA, 5-year validity
    - Fallback certificate (`ioc2rpz.fallback.pkey`, `ioc2rpz.fallback.crt`) — used to start Nginx before dynamic certs are generated
    - Symlinks CA cert to `/opt/rpidns/www/ioc2rpzCA.crt` for download
-4. **Database initialization** — Checks `PRAGMA user_version`; if 0 or missing, runs `init_db.php` to create the schema and default admin user
-5. **Rsyslog configuration** — Configures based on `RPIDNS_LOGGING` mode:
+4. **Database initialization or migration** — Checks `PRAGMA user_version`; if 0 or missing, runs `init_db.php` to create the schema and default admin user. On an already-initialized database it runs `db_migrate.php` instead, so a schema upgrade (for example v2 → v3 adding `localzone.expires_dt`) is applied automatically on start
+5. **Script sync** — Unless `RPIDNS_SYNC_SCRIPTS=false`, refreshes the bind-mounted `/opt/rpidns/scripts` from the image's pristine `scripts.dist` copy, so an upgraded image ships updated maintenance scripts to an existing deployment
+6. **Rsyslog configuration** — Configures based on `RPIDNS_LOGGING` mode:
    - `local` mode: Receives TCP syslog on port 10514, routes BIND logs to per-source-IP files (`bind_<IP>_queries.log`)
    - `forward` mode: Forwards `local4` logs to `RPIDNS_LOGGING_HOST:10514`
-6. **Service startup** (in order):
+7. **Service startup** (in order):
    - `rsyslogd` — syslog daemon
    - `crond` — cron daemon (background)
    - `php-fpm84` — PHP FastCGI (daemon mode)
@@ -208,6 +232,7 @@ Scheduled tasks running inside the Web container:
 | Schedule | Command | Purpose |
 |----------|---------|---------|
 | `* * * * *` | `php parse_bind_logs.php` | Parse BIND query logs every minute |
+| `* * * * *` | `php expire_iocs.php` | Disable expired time-limited block/allow entries and withdraw them from the RPZ zones |
 | `42 2 * * *` | `php clean_db.php` (after 25s delay) | Retention-based database cleanup daily at 2:42 AM |
 | `42 3 * * *` | `sqlite3 rpidns.sqlite 'VACUUM;'` (after 25s delay) | Database compaction daily at 3:42 AM |
 | `0 2 * * *` | `find ... -mtime +30 -delete` | Remove SSL cache certificates older than 30 days |
@@ -252,6 +277,7 @@ For details on the PHP scripts, see [Scripts](./scripts.md).
 | Restart policy | `unless-stopped` |
 | Ports | `80:80`, `443:443`, `10514:10514` |
 | Networks | `rpidns-net` |
+| Capabilities | `cap_add: NET_ADMIN, NET_RAW` (see [Required Capabilities](#required-capabilities)) |
 | Depends on | `bind` (condition: `service_healthy`) |
 
 The Web container waits for the Bind container's health check to pass before starting, ensuring DNS is available when the web UI comes online.

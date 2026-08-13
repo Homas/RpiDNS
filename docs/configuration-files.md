@@ -19,7 +19,7 @@ This file is included by all PHP backend scripts and defines global constants, d
 | `DBFile` | const | `rpidns.sqlite` | SQLite database filename (relative to `www/db/`) |
 | `DB` | const | `sqlite` | Database engine identifier (only `sqlite` is implemented) |
 | `TMPDir` | const | `/tmp/rpidns` | Temporary directory for file operations |
-| `DBVersion` | const | `2` | Expected database schema version; compared against `PRAGMA user_version` during migrations |
+| `DBVersion` | const | `3` | Expected database schema version; compared against `PRAGMA user_version` during migrations |
 | `$bind_host` | string | `bind` | Hostname of the Bind container on the Docker bridge network (`rpidns-net`) |
 
 ### Filter Field Definitions
@@ -88,6 +88,7 @@ The file is bind-mounted into the Web container at `/opt/rpidns/www/rpisettings.
 | `$retention['queries_1h']` | int | `60` | Days to retain 1-hour aggregated query data |
 | `$retention['queries_1d']` | int | `180` | Days to retain 1-day aggregated query data |
 | `$dash_topx` | int | `50` | Maximum number of entries shown in dashboard "Top X" widgets (top clients, top domains, top blocked, etc.) |
+| `RESEARCH_WEBSITE_PREVIEW` | const | *(auto-detected)* | Optional. Not written by the Settings page — define it here to force the Research website-preview tool on or off. By default it is derived from whether a headless chromium binary is present, so the tool enables itself on images that bundle one and reports itself disabled elsewhere. |
 | `$research_dns_server` | string | `''` (empty) | DNS resolver the Research tools inherit. Every tool honors it: the dig-based ones query it directly, `ping`/`traceroute`/`tls_cert`/`website_preview` have their target resolved through it first, and the API-based ones (`rdap`, `geoip`, `asn`, `reputation`) pin their endpoint host to it. Empty means the appliance's own resolver, which answers blocked domains with the RPZ response — so previews of blocked domains show the block page and `dig` shows the block answer. Point it at an external resolver (e.g. `1.1.1.1`) to investigate blocked domains as they appear from outside. A single tool run can override it from the Tools panel. Validated as an IP address or hostname when written through the API. |
 
 ### Retention Policy

@@ -35,7 +35,9 @@ The deployment consists of two containers:
 ### Web Container
 - **Base Image**: Alpine Linux 3.24
 - **Purpose**: Web UI for RpiDNS management, log collection
-- **Packages**: openresty, php84-fpm, php84-sqlite3, rsyslog, dcron, git, openssl
+- **Packages**: openresty, php84-fpm, php84-sqlite3, rsyslog, dcron, git, openssl, bind-tools, docker-cli, sqlite, apache2-utils
+- **Research tool packages**: traceroute, whois, chromium (+ chromium-swiftshader, nss, freetype, harfbuzz, font-freefont, font-noto). These are the bulk of the image size and can be dropped from the Dockerfile if the Research tools are not needed
+- **Capabilities**: requires `cap_add: [NET_ADMIN, NET_RAW]`. `NET_RAW` is what allows the file capability on `/usr/bin/traceroute` to take effect — a file capability cannot exceed the container's bounding set. Note that a bounding-set entry alone does nothing for an unprivileged process, so traceroute can work in a root shell and still fail in the UI if the image was not rebuilt
 
 ## Quick Start
 
@@ -102,7 +104,9 @@ open http://localhost
 | `RPIDNS_LOGGING` | `local` | Logging mode: `local` or `forward` |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Remote syslog host (when `RPIDNS_LOGGING=forward`) |
 | `PHP_FPM_VERSION` | `84` | PHP-FPM version (default: PHP 8.4) |
-| `RPIDNS_ADMIN_PASSWORD` | *(auto-generated)* | Admin password for web UI |
+| `RPIDNS_SYNC_SCRIPTS` | `true` | Refresh the bind-mounted scripts directory from the image on startup; set to `false` to keep customized host scripts |
+
+The initial administrator password is generated on first start and written to `/opt/rpidns/conf/default_credentials.txt` (`./config/nginx/default_credentials.txt` on the host). Change it after the first login.
 
 
 ## Volume Mounts
@@ -120,10 +124,15 @@ open http://localhost
 | Container Path | Host Path | Description |
 |----------------|-----------|-------------|
 | `/opt/rpidns/conf` | `./config/nginx` | Nginx/OpenResty configuration, SSL certificates |
-| `/opt/rpidns/www` | `./www` | Web application files |
+| `/opt/rpidns/www/rpisettings.php` | `./www/rpisettings.php` | Application settings, persisted across upgrades |
 | `/opt/rpidns/www/db` | `./www/db` | SQLite database (persistent) |
 | `/opt/rpidns/logs` | `./logs` | Application and DNS logs |
 | `/opt/rpidns/scripts` | `./scripts` | Maintenance scripts |
+| `/var/cache/bind` | `./bind-cache` (read-only) | TSIG keys for `nsupdate` |
+| `/etc/bind` | `./config/bind` | BIND config, read and written by BindConfigManager |
+| `/var/run/docker.sock` | `/var/run/docker.sock` | Lets the web container run `rndc reload` in the bind container |
+
+Only the settings file and the database directory are mounted from `./www`, not the whole application tree — the PHP and frontend assets come from the image, so an image upgrade cannot be shadowed by stale host files.
 
 ## Exposed Ports
 
@@ -181,14 +190,16 @@ dig @127.0.0.1 localhost +short +time=2 +tries=1
 - Interval: 30s
 - Timeout: 10s
 - Retries: 3
+- Start period: 10s
 
 ### Web Container
 ```bash
-wget -q --spider http://127.0.0.1/blocked.php
+wget -q --spider --timeout=5 http://127.0.0.1/blocked.php
 ```
-- Interval: 30s
-- Timeout: 10s
-- Retries: 3
+- Interval: 60s
+- Timeout: 15s
+- Retries: 5
+- Start period: 30s (allows for SSL certificate generation on first start)
 
 ## Maintenance
 
@@ -198,8 +209,14 @@ The web container runs scheduled maintenance tasks:
 
 | Schedule | Task |
 |----------|------|
-| Daily | Clean SSL certificate cache (remove certs older than 30 days) |
-| Daily | Clean unused SSL certificates (remove after 7 days of inactivity) |
+| Every minute | Parse BIND logs into the database and aggregate (`parse_bind_logs.php`) |
+| Every minute | Retire expired time-limited block/allow entries (`expire_iocs.php`) |
+| Daily 2:42 AM | Retention-based database cleanup (`clean_db.php`) |
+| Daily 3:42 AM | SQLite `VACUUM` |
+| Daily 2:00 AM | Clean SSL certificate cache (remove certs older than 30 days) |
+| Daily 3:00 AM | Clean unused SSL certificates (remove after 7 days of inactivity) |
+| Daily 4:00 AM | Compress logs older than 1 day |
+| Daily 5:00 AM | Remove compressed logs older than 30 days |
 
 ### Log Rotation
 
@@ -256,12 +273,14 @@ docker inspect --format='{{.State.Health.Status}}' rpidns-web
 
 If you need to build the images locally instead of using pre-built images:
 
-```bash
-# Build Bind container
-docker build -t rpidns-bind:local ./bind
+Run these from the **repository root**. The web image is a multi-stage build that copies `rpidns-frontend/`, `www/` and `scripts/`, so its build context must be the repository root, not `rpidns-docker/web` — this is the same context the CI workflow uses:
 
-# Build Web container
-docker build -t rpidns-web:local ./web
+```bash
+# Build Bind container (self-contained context)
+docker build -t rpidns-bind:local ./rpidns-docker/bind
+
+# Build Web container (context = repo root, Dockerfile addressed with -f)
+docker build -t rpidns-web:local -f ./rpidns-docker/web/Dockerfile .
 ```
 
 Then update `docker-compose.yml` to use local images:

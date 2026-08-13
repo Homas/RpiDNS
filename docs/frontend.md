@@ -290,13 +290,13 @@ Manages RPZ feed configuration. Supports three feed source types: ioc2rpz.net, l
 
 ### BlockList (`Admin/BlockList.vue`)
 
-Manages custom domain/IP block rules. Each entry has an IOC (domain or IP), active toggle, subdomain wildcard toggle (`*.`), and optional comment. Inline toggles for active/subdomain status update immediately via PUT.
+Manages custom domain/IP block rules. Each entry has an IOC (domain or IP), active toggle, subdomain wildcard toggle (`*.`), an **Expires** column, and optional comment. Inline toggles for active/subdomain status update immediately via PUT. Expiry renders as `Permanent` when `expires_dt` is 0, otherwise as the local date/time; entries retired by `expire_iocs.php` appear as inactive with an `[Auto-disabled …]` note prefixed to their comment.
 
 **API endpoint:** `blacklist` (GET, POST, PUT, DELETE).
 
 ### AllowList (`Admin/AllowList.vue`)
 
-Manages custom domain/IP allow rules. Structurally identical to BlockList. Allow list entries override RPZ feed blocks.
+Manages custom domain/IP allow rules. Structurally identical to BlockList, expiry included. Allow list entries override RPZ feed blocks.
 
 **API endpoint:** `whitelist` (GET, POST, PUT, DELETE).
 
@@ -336,7 +336,9 @@ Add or edit a network asset. Fields: address (MAC or IP depending on `assetsBy` 
 
 ### AddIOC (`modals/AddIOC.vue`)
 
-Add or edit a block/allow list entry. Fields: IOC (domain/IP), include subdomains toggle, comment, active toggle. The `iocType` prop (`bl` or `wl`) determines which list is targeted.
+Add or edit a block/allow list entry. Fields: IOC (domain/IP), include subdomains toggle, comment, active toggle, and expiration. The `iocType` prop (`bl` or `wl`) determines which list is targeted.
+
+Expiration offers three modes, all resolved to the `expires_dt` Unix timestamp the API expects: **Permanent** (sends 0), **Expire after (seconds)** from now, or an **absolute** date/time via `datetime-local`. Editing an entry preserves its stored expiry unless the field is changed.
 
 ### AddIoc2rpzFeed (`modals/AddIoc2rpzFeed.vue`)
 

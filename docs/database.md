@@ -6,7 +6,7 @@ RpiDNS uses a single SQLite database file (`rpidns.sqlite`) stored at `/opt/rpid
 
 The database stores DNS query logs, RPZ hit logs, network assets, local block/allow list entries, user accounts, sessions, and schema version history. Query and hit data use a multi-tier aggregation strategy (raw → 5-minute → 1-hour → 1-day) to balance storage efficiency with query performance.
 
-Current schema version: **2** (defined as `DBVersion` in `www/rpidns_vars.php`).
+Current schema version: **3** (defined as `DBVersion` in `www/rpidns_vars.php`).
 
 ---
 
@@ -337,7 +337,7 @@ RpiDNS tracks database schema versions using a dual mechanism for compatibility.
 1. **`PRAGMA user_version`** — SQLite built-in integer metadata. Set during `init_db.php` and updated after each migration. Used as a fallback when the `schema_version` table doesn't exist.
 2. **`schema_version` table** — Stores a history of applied migrations with timestamps. The `DbMigration` class reads `MAX(version)` from this table as the authoritative version.
 
-The target version is defined by the `DBVersion` constant in `www/rpidns_vars.php` (currently `2`).
+The target version is defined by the `DBVersion` constant in `www/rpidns_vars.php` (currently `3`).
 
 ### Migration System
 
@@ -356,6 +356,7 @@ The migration process:
 | Migration | From → To | Description |
 |-----------|-----------|-------------|
 | `migrateV1ToV2` | v1 → v2 | Creates `users`, `sessions`, and `login_attempts` tables with indexes. Imports existing users from `.htpasswd` if present. Creates a default admin user if no users are imported. |
+| `migrateV2ToV3` | v2 → v3 | Adds the `expires_dt` column to `localzone` for time-limited (TTL) allow/block indicators. Guarded by a `PRAGMA table_info` check, so it is a no-op if the column already exists. |
 
 ### Running Migrations
 

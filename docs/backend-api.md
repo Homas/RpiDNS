@@ -159,14 +159,16 @@ Both block list and allow list share the same endpoint structure. The `req` valu
 |--------|-------------|------------|-------------|
 | `GET` | `blacklist` | — | List all block list entries |
 | `GET` | `whitelist` | — | List all allow list entries |
-| `POST` | `blacklist` | `ioc`, `active`, `subdomains`, `comment` | Add a block list entry |
-| `POST` | `whitelist` | `ioc`, `active`, `subdomains`, `comment` | Add an allow list entry |
-| `PUT` | `blacklist` | `id`, `ioc`, `active`, `subdomains`, `comment` | Update a block list entry |
-| `PUT` | `whitelist` | `id`, `ioc`, `active`, `subdomains`, `comment` | Update an allow list entry |
+| `POST` | `blacklist` | `ioc`, `active`, `subdomains`, `comment`, `expires_dt` | Add a block list entry |
+| `POST` | `whitelist` | `ioc`, `active`, `subdomains`, `comment`, `expires_dt` | Add an allow list entry |
+| `PUT` | `blacklist` | `id`, `ioc`, `active`, `subdomains`, `comment`, `expires_dt` | Update a block list entry |
+| `PUT` | `whitelist` | `id`, `ioc`, `active`, `subdomains`, `comment`, `expires_dt` | Update an allow list entry |
 | `DELETE` | `blacklist` | `id` | Delete a block list entry |
 | `DELETE` | `whitelist` | `id` | Delete an allow list entry |
 
 The `ioc` parameter is validated as a domain name using `FILTER_VALIDATE_DOMAIN`. When `active=true`, the IOC is pushed to the BIND DNS server via `nsupdate`. When `subdomains=true`, a wildcard entry (`*.domain`) is also added.
+
+`expires_dt` is a Unix timestamp at which the entry stops applying, or `0` for a permanent entry (the default when the parameter is omitted on `POST`). On `PUT` the stored value is preserved when the parameter is absent, so an edit cannot silently make a time-limited entry permanent. Expiry is enforced out of band by `scripts/expire_iocs.php`, which runs every minute, disables entries whose `expires_dt` has passed, and removes them from the BIND RPZ zone. Requires schema v3 (`localzone.expires_dt`).
 
 GET response:
 
@@ -181,7 +183,8 @@ GET response:
       "ioc": "malware.example.com",
       "comment": "Known malware domain",
       "subdomains": "1",
-      "active": "1"
+      "active": "1",
+      "expires_dt": 0
     }
   ]
 }
@@ -751,7 +754,7 @@ The current schema version is tracked in two places:
 - `PRAGMA user_version` — SQLite built-in version pragma
 - `schema_version` table — records each migration with a timestamp
 
-The target version is defined by the `DBVersion` constant in `www/rpidns_vars.php` (currently `2`).
+The target version is defined by the `DBVersion` constant in `www/rpidns_vars.php` (currently `3`).
 
 ### Migration Process
 
@@ -766,6 +769,7 @@ The target version is defined by the `DBVersion` constant in `www/rpidns_vars.ph
 | Migration | Description |
 |-----------|-------------|
 | `migrateV1ToV2` | Creates authentication tables (`users`, `sessions`, `login_attempts`) with indexes. Imports existing users from `.htpasswd` if present. Creates a default admin user if no users are imported. |
+| `migrateV2ToV3` | Adds `localzone.expires_dt` for time-limited (TTL) allow/block indicators, guarded by a `PRAGMA table_info` existence check. |
 
 ### htpasswd Import
 

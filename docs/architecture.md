@@ -172,6 +172,14 @@ The Web container runs three scheduled tasks that form the data processing and m
 - Insert raw records into `queries_raw` and `hits_raw` SQLite tables
 - Aggregate data into 5-minute, 1-hour, and 1-day summary tables
 
+### Indicator Expiry — Every Minute
+
+```
+* * * * *   /usr/bin/php /opt/rpidns/scripts/expire_iocs.php
+```
+
+`expire_iocs.php` enforces time-limited (TTL) block/allow entries: it disables `localzone` rows whose `expires_dt` has passed and withdraws them from the corresponding BIND RPZ zone via `nsupdate`.
+
 ### Database Cleanup — Daily at 2:42 AM
 
 ```
@@ -221,15 +229,17 @@ graph TB
 
             subgraph WebC["Web Container (rpidns-web)"]
                 Nginx["OpenResty<br/>(Nginx)"]
-                PHP["PHP-FPM 8.3"]
+                PHP["PHP-FPM 8.4"]
                 RSyslog["rsyslog<br/>(port 10514)"]
                 Cron["Cron Daemon"]
                 Parser["parse_bind_logs.php<br/>(every minute)"]
+                Expirer["expire_iocs.php<br/>(every minute)"]
                 Cleaner["clean_db.php<br/>(daily 2:42 AM)"]
                 Vacuum["SQLite VACUUM<br/>(daily 3:42 AM)"]
 
                 Nginx --> PHP
                 Cron --> Parser
+                Cron --> Expirer
                 Cron --> Cleaner
                 Cron --> Vacuum
             end
@@ -273,6 +283,7 @@ Both containers share a common set of environment variables configured via the `
 | `RPIDNS_LOGGING` | `local` | Bind, Web | Logging mode: `local` (receive logs) or `forward` (send to remote) |
 | `RPIDNS_LOGGING_HOST` | *(empty)* | Bind, Web | Remote syslog host for forward mode |
 | `PHP_FPM_VERSION` | `84` | Web | PHP-FPM version identifier |
+| `RPIDNS_SYNC_SCRIPTS` | `true` | Web | Refresh the bind-mounted scripts directory from the image on startup |
 
 ## Related Documentation
 

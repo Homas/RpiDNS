@@ -13,6 +13,7 @@ RpiDNS includes shell and PHP scripts in the `scripts/` directory for installati
 | `clean_db.php` | PHP | Retention-based data cleanup |
 | `expire_iocs.php` | PHP | Auto-disables expired local indicators and removes them from BIND RPZ zones |
 | `import_db.php` | PHP | Database import, schema upgrade, RPZ provisioning |
+| `update_psl.php` | PHP | Refresh the bundled Public Suffix List used by the Research RDAP tool |
 
 ---
 
@@ -281,6 +282,39 @@ Retention periods are defined in `www/rpisettings.php` as days:
 ### Cleanup Logic
 
 The `cleanDB()` function executes a single SQL batch that deletes rows from all eight tables where `dt < now - (retention_days × 86400)`. The deletion threshold is calculated using SQLite's `strftime('%s', 'now')` for the current Unix timestamp.
+
+---
+
+## expire_iocs.php
+
+**File:** `scripts/expire_iocs.php`
+
+### Purpose
+
+Enforces time-limited (TTL) block and allow entries. An entry given an expiry in the UI stays in effect until this script retires it, so the script is what makes the feature real rather than cosmetic.
+
+### Cron Schedule
+
+Runs every minute, alongside the log parser:
+
+```
+* * * * *   /usr/bin/php /opt/rpidns/scripts/expire_iocs.php
+```
+
+### Dependencies
+
+- `www/rpidns_vars.php` — database constants/helpers and `$bind_host`
+- `nsupdate` — to withdraw the record from the dynamic RPZ zone
+- Schema v3 (`localzone.expires_dt`)
+
+### Process
+
+`expireIOCs()` selects rows from `localzone` that are still active and whose `expires_dt` is greater than zero and not in the future, then for each one:
+
+1. **Withdraws it from BIND** — an `nsupdate` batch deletes both `<ioc>.<list>.ioc2rpz.rpidns` and the wildcard `*.<ioc>.<list>.ioc2rpz.rpidns` CNAME records, where `<list>` is `block` or `allow`.
+2. **Disables and annotates the row** — sets `active=0`, resets `expires_dt` to `0`, and prefixes the comment with `[Auto-disabled <UTC timestamp> UTC]`.
+
+Entries are deliberately **disabled rather than deleted**: the row stays visible in the Block/Allow list with a note explaining what happened, so an expiry is auditable and the entry can be re-enabled with one click. A permanent entry (`expires_dt = 0`) is never touched.
 
 ---
 
