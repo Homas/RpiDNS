@@ -1,5 +1,7 @@
 # RpiDNS change log
 [CB] - Changed Behaviour
+## 2026-09-11 v2.1.3
+- Fixed every API request returning HTTP 500 after upgrading to v2.1.1. The web image listed the backend PHP files to copy one by one, and the three files added by the v2.1.1 security work (`ApiAuth.php`, `NsUpdate.php`, `ImportFile.php`) were not on that list, so `rpidata.php` failed on `require_once` before reaching any endpoint. The image now copies all of `www/rpi_admin/*.php`, and the build fails if any absolute `require_once` target is missing from the image or any shipped PHP file does not parse. **Rebuild the web image** (or pull the updated one) to recover.
 ## 2026-09-10 v2.1.2
 - Frontend test tooling bumped: `vitest` and its `@vitest/*` packages from 4.1.9 to 4.1.11. Development dependencies only - nothing in the shipped bundle or the containers changes.
 ## 2026-08-29 v2.1.1

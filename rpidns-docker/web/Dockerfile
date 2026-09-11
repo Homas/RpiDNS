@@ -174,30 +174,43 @@ COPY --from=frontend-builder /build/dist /opt/rpidns/www/rpi_admin/dist
 COPY www/blocked.php /opt/rpidns/www/blocked.php
 COPY www/rpidns_vars.php /opt/rpidns/www/rpidns_vars.php
 COPY www/rpisettings.php /opt/rpidns/www/rpisettings.php
-COPY www/rpi_admin/index.php /opt/rpidns/www/rpi_admin/index.php
-COPY www/rpi_admin/rpidata.php /opt/rpidns/www/rpi_admin/rpidata.php
-COPY www/rpi_admin/auth.php /opt/rpidns/www/rpi_admin/auth.php
-COPY www/rpi_admin/db_migrate.php /opt/rpidns/www/rpi_admin/db_migrate.php
-COPY www/rpi_admin/BindConfigManager.php /opt/rpidns/www/rpi_admin/BindConfigManager.php
-# Research page backend: auth guard, validators, command builder/runner, and
-# rejection audit log required by the research_* endpoints in rpidata.php.
-COPY www/rpi_admin/ResearchAuth.php /opt/rpidns/www/rpi_admin/ResearchAuth.php
-COPY www/rpi_admin/SqlQueryValidator.php /opt/rpidns/www/rpi_admin/SqlQueryValidator.php
-COPY www/rpi_admin/InputValidator.php /opt/rpidns/www/rpi_admin/InputValidator.php
-COPY www/rpi_admin/CommandBuilder.php /opt/rpidns/www/rpi_admin/CommandBuilder.php
-COPY www/rpi_admin/ToolRunner.php /opt/rpidns/www/rpi_admin/ToolRunner.php
-COPY www/rpi_admin/ResearchResolver.php /opt/rpidns/www/rpi_admin/ResearchResolver.php
-# Public Suffix List support: reduces an RDAP target to its registrable domain.
-# The bundled list is data, refreshed with scripts/update_psl.php.
-COPY www/rpi_admin/PublicSuffix.php /opt/rpidns/www/rpi_admin/PublicSuffix.php
+# Every backend PHP file in www/rpi_admin, as one glob rather than a per-file
+# list. The files require_once each other by absolute path, so a file left out of
+# the image is a fatal error on EVERY request, not a degraded feature - which is
+# exactly what happened when the API auth guard was added and its new files were
+# not enumerated here. The glob matches only files directly in www/rpi_admin, so
+# the tests/ directory is still excluded from the image.
+COPY www/rpi_admin/*.php /opt/rpidns/www/rpi_admin/
+# Data files used by the above (the Public Suffix List that reduces an RDAP
+# target to its registrable domain; refreshed with scripts/update_psl.php).
 COPY www/rpi_admin/data/public_suffix_list.dat /opt/rpidns/www/rpi_admin/data/public_suffix_list.dat
-COPY www/rpi_admin/RejectionAudit.php /opt/rpidns/www/rpi_admin/RejectionAudit.php
-COPY www/rpi_admin/ResearchFormatter.php /opt/rpidns/www/rpi_admin/ResearchFormatter.php
 COPY www/blocked /opt/rpidns/www/blocked
 COPY scripts /opt/rpidns/scripts
 # Pristine copy of the scripts, kept outside the bind-mounted path so the
 # entrypoint can refresh the (possibly host-mounted) scripts dir on startup.
 COPY scripts /opt/rpidns/scripts.dist
+
+# Fail the BUILD if the image is internally inconsistent, rather than serving a
+# 500 on every request. Two checks:
+#  1. Every absolute `require_once "/opt/rpidns/..."` target actually exists in
+#     the image. A missing include is a fatal error at request time, so this is
+#     the cheapest possible place to catch it.
+#  2. Every shipped PHP file parses.
+RUN set -e; \
+    missing=0; \
+    for inc in $(grep -rhoE 'require_once[[:space:]]*"/opt/rpidns/[^"]+"' /opt/rpidns/www /opt/rpidns/scripts \
+                 | sed -E 's/.*"(.*)"/\1/' | sort -u); do \
+        if [ ! -f "$inc" ]; then echo "MISSING INCLUDE: $inc"; missing=1; fi; \
+    done; \
+    if [ "$missing" != "0" ]; then \
+        echo "Build failed: a required PHP include is not present in the image."; \
+        echo "Add the file to the COPY instructions above."; \
+        exit 1; \
+    fi; \
+    for php_file in $(find /opt/rpidns/www /opt/rpidns/scripts -name '*.php'); do \
+        php -l "$php_file" > /dev/null || { echo "Syntax error in $php_file"; exit 1; }; \
+    done; \
+    echo "PHP include and syntax checks passed."
 
 # Set ownership
 RUN chown -R www-data:www-data /opt/rpidns \
