@@ -2,6 +2,11 @@
 #(c) Vadim Pavlov 2020-2026
 #ioc2rpz DB import
 require_once "/opt/rpidns/www/rpidns_vars.php";
+// Indicators imported from a user-supplied database are provisioned into BIND.
+// They have NOT been through the API's validation, so they are re-validated and
+// sent to nsupdate without a shell (see NsUpdate.php). This runs from the root
+// crontab via parse_bind_logs.php, which is why it matters here most.
+require_once "/opt/rpidns/www/rpi_admin/NsUpdate.php";
 
 function upgrade_db($import_db_file){
   $db = new SQLite3($import_db_file);
@@ -68,8 +73,7 @@ function importSQLiteDB($master_db_file,$import_db_file, $objects){
         $sql="select * from localzone where ltype='block' and active='1';";
         DB_execute($db,$sql);
         foreach (DB_selectArray($db,$sql) as $RPZ) {
-          if ($RPZ['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
-              else exec('printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.block.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+          NsUpdate::add($bind_host,(string)$RPZ['ioc'],'block',$RPZ['subdomains']=='true');
         };
       break;
       case "wl":
@@ -79,11 +83,7 @@ function importSQLiteDB($master_db_file,$import_db_file, $objects){
         $sql="select * from localzone where ltype='allow' and active='1';";
         DB_execute($db,$sql);
         foreach (DB_selectArray($db,$sql) as $RPZ) {
-          $out = [];
-          if ($RPZ['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out);
-              else exec('printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
-#          fwrite(STDERR, 'printf "server '.$bind_host.'\nupdate add '.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$RPZ['ioc'].'.allow.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v'. PHP_EOL);
-#          fwrite(STDERR, implode(PHP_EOL, $out). PHP_EOL);
+          NsUpdate::add($bind_host,(string)$RPZ['ioc'],'allow',$RPZ['subdomains']=='true');
         };
       break;
 

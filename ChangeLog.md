@@ -1,5 +1,14 @@
 # RpiDNS change log
 [CB] - Changed Behaviour
+## 2026-09-10 v2.1.2
+- Frontend test tooling bumped: `vitest` and its `@vitest/*` packages from 4.1.9 to 4.1.11. Development dependencies only - nothing in the shipped bundle or the containers changes.
+## 2026-08-29 v2.1.1
+- [CB] **The whole data API now requires a session.** `rpidata.php` calls the new `requireApiSession()` guard before it parses the request, opens the database or builds any SQL, so every endpoint is protected - settings, database/CA/log downloads, assets, allow/block lists, RPZ feeds and database import included. Previously only the Research endpoints checked the session, which left the rest of the admin surface reachable without logging in. Unauthenticated calls get HTTP 401 and the UI returns to the login screen. Anything outside the UI that called `rpidata.php` directly must now send the `rpidns_session` cookie.
+- Fixed three SQL injection paths in the query/hits endpoints: the `fields` parameter is reduced to known columns, `pp` stores the validated integer instead of the raw request string, and filter values are placed in properly escaped single-quoted literals (the previous double-quoted form was not escaped by SQLite at all). Column choices, page sizes and searches behave as before.
+- `nsupdate` provisioning of the allow/block lists no longer goes through a shell. The new `NsUpdate` helper starts `nsupdate` with an argument vector and writes the update script to its stdin, and re-validates every indicator - including those read back out of the database by the expiry job and the database import, which is what previously allowed a crafted backup file to run commands as root.
+- Database import no longer shells out: the uploaded file's type is identified from its magic bytes, `gzip`/`unzip` are started with argument vectors writing straight to the destination, the extracted file is confirmed to be a SQLite database, and the requested object list is checked against the groups the importer understands.
+- TLS 1.0 and 1.1 are no longer offered by the web server (TLS 1.2/1.3 only).
+- The SNI value used to name dynamically generated block-page certificates is validated as a hostname before it becomes a filename, so a malformed value cannot write outside the certificate cache.
 ## 2026-08-06 v2.1.0
 - New **Research** page (tab between RPZ log and Admin, deep-linkable as `#i2r/3/{unique|sql|tools}`) with three sections:
  - **Newly seen queries** - allowed FQDNs requested for the first time in the selected period and never before it, with filtering, sorting, pagination and CSV export;

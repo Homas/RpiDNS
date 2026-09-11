@@ -647,6 +647,10 @@ export default {
     const handleLoginSuccess = (user) => {
       isAuthenticated.value = true
       currentUser.value = user
+      // The API requires a session, so the settings fetch on mount returns 401
+      // when the app loads at the login screen. Fetch them again now that there
+      // is a session, so `assets_by` is correct for the tables about to render.
+      getSettings()
     }
 
     const handleLogout = async () => {

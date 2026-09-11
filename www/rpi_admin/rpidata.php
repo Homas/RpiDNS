@@ -2,6 +2,19 @@
 // (c) Vadim Pavlov 2020 - 2026
 	require_once "/opt/rpidns/www/rpidns_vars.php";
 	require_once "/opt/rpidns/www/rpisettings.php";
+
+	// GLOBAL AUTH GATE. nginx hands /rpi_admin/*.php to php-fpm without any
+	// authentication of its own, so this file is the only gate in front of the
+	// whole API. It runs before the request is parsed, before the database is
+	// opened and before any SQL is built, so every endpoint below - and any
+	// endpoint added later - is protected by default. Unauthenticated callers get
+	// 401 + a JSON envelope, which the frontend turns into a login redirect.
+	require_once "/opt/rpidns/www/rpi_admin/ApiAuth.php";
+	requireApiSession();
+
+	// Shell-free nsupdate for the block/allow list handlers.
+	require_once "/opt/rpidns/www/rpi_admin/NsUpdate.php";
+
 	$join=$assets_by=="mac"?"mac":"client_ip";
 
 	$REQUEST=getRequest();
@@ -14,33 +27,69 @@
 	 $default_sortBy=(array_key_exists("ltype",$REQUEST) and $REQUEST["ltype"] == 'stats' )?'cnt':'dtz';
 	if (array_key_exists("sortDesc",$REQUEST)) $sort=$REQUEST["sortDesc"]=='true'?'desc':''; else $sort='';
 	if (array_key_exists("sortBy",$REQUEST)) $sortBy=(in_array($REQUEST["sortBy"], array('dtz', 'client_ip', 'mac', 'fqdn', 'action', 'rule_type', 'rule', 'feed', 'cnt','type', 'class', 'options', 'server'),true))?(($REQUEST["sortBy"]=='dtz' and $default_sortBy=='cnt')?$default_sortBy:$REQUEST["sortBy"]):$default_sortBy; else $sortBy=$default_sortBy;
-	if (array_key_exists("pp",$REQUEST)) $perPage=(intval($REQUEST["pp"])>1 and intval($REQUEST["pp"])<=500)?$REQUEST["pp"]:100; else $perPage=0;
+	// Page size is interpolated into "LIMIT ..." below, so the VALIDATED integer is
+	// what gets stored - not the raw request string, which would otherwise carry
+	// anything appended after a leading number past the intval() bounds check.
+	if (array_key_exists("pp",$REQUEST)) $perPage=(intval($REQUEST["pp"])>1 and intval($REQUEST["pp"])<=500)?intval($REQUEST["pp"]):100; else $perPage=0;
 	if (array_key_exists("cp",$REQUEST)) $currentPage=intval($REQUEST["cp"]); else $currentPage=0;
 
 	if (array_key_exists("filter",$REQUEST)) {
 
 			$filter=explode("=",$REQUEST["filter"],2);
 
+			// Filter values are embedded as SQL STRING LITERALS, i.e. in SINGLE
+			// quotes. escapeString() (SQLite3::escapeString) only doubles single
+			// quotes, so a value placed inside a DOUBLE-quoted literal - which
+			// SQLite accepts via its identifier-fallback quirk - was not escaped at
+			// all and a bare `"` closed the literal early. Single quotes are the
+			// only form escapeString() actually protects.
+			// `%`/`_` are intentionally left unescaped: they remain LIKE wildcards,
+			// which is the existing search behaviour.
 			if (!array_key_exists(1,$filter)){
-				$filter_queries=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or type like "%'.($db->escapeString($REQUEST["filter"])).'%" or class like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%")':'';
+				$filter_val=$db->escapeString($REQUEST["filter"]);
+				$filter_queries=$REQUEST["filter"]!=''?" and (client_ip like '%".$filter_val."%' or mac like '%".$filter_val."%'  or fqdn like '%".$filter_val."%' or type like '%".$filter_val."%' or class like '%".$filter_val."%' or action like '%".$filter_val."%' or name like '%".$filter_val."%' or vendor like '%".$filter_val."%')":'';
 
-				$filter_hits=$REQUEST["filter"]!=''?' and (client_ip like "%'.($db->escapeString($REQUEST["filter"])).'%" or mac like "%'.($db->escapeString($REQUEST["filter"])).'%"  or fqdn like "%'.($db->escapeString($REQUEST["filter"])).'%" or action like "%'.($db->escapeString($REQUEST["filter"])).'%" or rule like "%'.($db->escapeString($REQUEST["filter"])).'%" or name like "%'.($db->escapeString($REQUEST["filter"])).'%" or vendor like "%'.($db->escapeString($REQUEST["filter"])).'%" )':'';
+				$filter_hits=$REQUEST["filter"]!=''?" and (client_ip like '%".$filter_val."%' or mac like '%".$filter_val."%'  or fqdn like '%".$filter_val."%' or action like '%".$filter_val."%' or rule like '%".$filter_val."%' or name like '%".$filter_val."%' or vendor like '%".$filter_val."%' )":'';
 			}else{
-				$filter_queries=in_array($filter[0],$filter_fields_q)?" and ".($db->escapeString($filter[0])).' = "'.($db->escapeString($filter[1])).'" ':'';
-				$filter_hits=in_array($filter[0],$filter_fields_h)?" and ".($db->escapeString($filter[0])).' = "'.($db->escapeString($filter[1])).'" ':'';
+				// Field name is taken from the allowlist entry (not from the request
+				// text) so it can only ever be a known column; the value is a
+				// properly escaped single-quoted literal.
+				$filter_queries=in_array($filter[0],$filter_fields_q,true)?" and ".$filter[0]." = '".$db->escapeString($filter[1])."' ":'';
+				$filter_hits=in_array($filter[0],$filter_fields_h,true)?" and ".$filter[0]." = '".$db->escapeString($filter[1])."' ":'';
 			};
 
 		} else {
 			$filter_queries='';
 			$filter_hits='';
-		}; //not really safe but should be Ok for home usage
+		};
 
 
 	$order="order by $sortBy $sort LIMIT $perPage OFFSET ".($perPage*($currentPage-1));
 	$qps_pref='';$qps_post='';
 
-	$fields_h=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='hits_raw')?($REQUEST["fields"]?", ":"").$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":"").(preg_match('/rule[^_]/',$REQUEST["fields"])==1?", feed ":""):"client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment";
-	$fields_q=(array_key_exists("fields",$REQUEST) and $REQUEST["req"]=='queries_raw')?($REQUEST["fields"]?", ":"").$REQUEST["fields"].(strpos($REQUEST["fields"],'cname')!==false?", client_ip, mac, vendor, comment ":""):"client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment";
+	// Column selection ("fields") is interpolated straight into the SELECT list of
+	// every hits/queries statement, so it is reduced to KNOWN COLUMNS here. The
+	// request only ever names columns the UI's column pickers offer
+	// (RpzHits.vue / QueryLog.vue); anything else is dropped rather than passed
+	// through. Order is preserved and duplicates removed so the emitted SQL is
+	// identical to what a well-behaved client already produced.
+	$select_fields_h=['cname','fqdn','action','rule','rule_type','feed','client_ip','mac','vendor','comment'];
+	$select_fields_q=['cname','fqdn','action','type','class','options','server','client_ip','mac','vendor','comment'];
+	$sanitize_fields=function($raw,$allowed){
+		if (!is_string($raw)) return '';
+		$out=[];
+		foreach (explode(',',$raw) as $f){
+			$f=trim($f);
+			if ($f!=='' and in_array($f,$allowed,true) and !in_array($f,$out,true)) $out[]=$f;
+		};
+		return implode(', ',$out);
+	};
+
+	$req_fields_h=(array_key_exists("fields",$REQUEST) and array_key_exists("req",$REQUEST) and $REQUEST["req"]=='hits_raw')?$sanitize_fields($REQUEST["fields"],$select_fields_h):null;
+	$req_fields_q=(array_key_exists("fields",$REQUEST) and array_key_exists("req",$REQUEST) and $REQUEST["req"]=='queries_raw')?$sanitize_fields($REQUEST["fields"],$select_fields_q):null;
+
+	$fields_h=($req_fields_h!==null)?($req_fields_h?", ":"").$req_fields_h.(strpos($req_fields_h,'cname')!==false?", client_ip, mac, vendor, comment ":"").(preg_match('/rule[^_]/',$req_fields_h)==1?", feed ":""):"client_ip, mac, fqdn, action, rule_type, rule, feed, cname, vendor, comment";
+	$fields_q=($req_fields_q!==null)?($req_fields_q?", ":"").$req_fields_q.(strpos($req_fields_q,'cname')!==false?", client_ip, mac, vendor, comment ":""):"client_ip, mac, fqdn, type, class, options, server, action, cname, vendor, comment";
 
 	// Custom period parameters
 	$start_dt = array_key_exists("start_dt", $REQUEST) ? intval($REQUEST["start_dt"]) : 0;
@@ -1429,7 +1478,9 @@ RpiDNS powered by https://ioc2rpz.net
       $sql="insert into localzone(ioc, active, subdomains, comment, added_dt, expires_dt, ltype) values('".DB_escape($db,$ioc)."',".($REQUEST['active']=='true'?'true':'false').",".($REQUEST['subdomains']=='true'?'true':'false').",'".DB_escape($db,$REQUEST['comment'])."',".time().",".$expires.",'$list')";
       if (DB_execute($db,$sql)) {
 				$out=[];
-				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
+				// NsUpdate runs nsupdate without a shell and re-validates the
+				// indicator before it becomes part of the update script.
+				if ($REQUEST['active']=='true') $out=NsUpdate::add($bind_host,(string)$ioc,$list,$REQUEST['subdomains']=='true');
 				$response='{"status":"success","details":'.json_encode($out).'}';
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
@@ -1444,9 +1495,13 @@ RpiDNS powered by https://ioc2rpz.net
       if (DB_execute($db,$sql)) {
 				$response='{"status":"success"}';
 				$out=[];
-				if (($rec['active']=='1' and $REQUEST['active']!='true') or ($ioc != $rec['active'])) exec('printf "server '.$bind_host.'\nupdate delete '.$rec['ioc'].'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
-				if (($rec['subdomains']=='1' and $REQUEST['subdomains']!='true')) exec('printf "server '.$bind_host.'\nupdate delete *.'.$rec['ioc'].'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
-				if ($REQUEST['active']=='true') {if ($REQUEST['subdomains']=='true') exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate add *.'.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n"| /usr/bin/nsupdate -d -v',$out); else exec('printf "server '.$bind_host.'\nupdate add '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);};
+				// Same three-step provisioning as before (retire the old record,
+				// drop a no-longer-wanted wildcard, publish the new record) but via
+				// NsUpdate, so the indicator read back from the DB can no longer
+				// reach a shell. Output is accumulated exactly as exec() did.
+				if (($rec['active']=='1' and $REQUEST['active']!='true') or ($ioc != $rec['active'])) $out=array_merge($out,NsUpdate::delete($bind_host,(string)$rec['ioc'],$list));
+				if (($rec['subdomains']=='1' and $REQUEST['subdomains']!='true')) $out=array_merge($out,NsUpdate::deleteWildcard($bind_host,(string)$rec['ioc'],$list));
+				if ($REQUEST['active']=='true') $out=array_merge($out,NsUpdate::add($bind_host,(string)$ioc,$list,$REQUEST['subdomains']=='true'));
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
 
@@ -1457,7 +1512,10 @@ RpiDNS powered by https://ioc2rpz.net
 			$sql="delete from localzone where rowid=".intval($REQUEST['id']);
       if (DB_execute($db,$sql)) {
 				$out=[];
-				exec('printf "server '.$bind_host.'\nupdate delete '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate delete *.'.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v',$out);
+				// The indicator comes back OUT of the database here, so it is
+				// re-validated by NsUpdate before it is used - a DB row that did not
+				// come through the API's own validation cannot inject anything.
+				$out=NsUpdate::delete($bind_host,(string)$ioc,$list);
 				$response='{"status":"success","details":'.json_encode($out).'}';
 			} else $response='{"status":"failed", "reason":"'.DB_lasterror($db).'"}';
 			break;
@@ -1966,20 +2024,36 @@ RpiDNS powered by https://ioc2rpz.net
 		break;
 
   case "POST import":
+			require_once "/opt/rpidns/www/rpi_admin/ImportFile.php";
 			$import_db_file="";
 			$postfix = bin2hex(random_bytes(10));
 			if (!file_exists(TMPDir)) {$oldumask=umask(0);mkdir(TMPDir, 0775, true);umask($oldumask);};
-			
-			// Debug: Log import request details
-			$file_type_cmd = "/usr/bin/file ".$_FILES['file']['tmp_name']." | /usr/bin/awk '{print $2}'";
-			$detected_type = exec($file_type_cmd);
-			$file_type_full = exec("/usr/bin/file ".$_FILES['file']['tmp_name']);
+
 			error_log("[ImportDB] POST import request received");
+
+			// An upload must actually be present and have arrived successfully.
+			if (!isset($_FILES['file']) or !is_array($_FILES['file']) or ($_FILES['file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK or !is_uploaded_file($_FILES['file']['tmp_name'])) {
+				error_log("[ImportDB] Import failed - no usable upload (error code: ".json_encode($_FILES['file']['error'] ?? null).")");
+				$response='{"status":"error","details":"no file uploaded"}';
+				break;
+			}
+
+			// Only the object groups the importer understands are accepted, so the
+			// trigger file this endpoint writes is always well formed.
+			$objects = ImportFile::sanitizeObjects($REQUEST['objects'] ?? '');
+			if ($objects === '') {
+				error_log("[ImportDB] Import failed - no valid objects requested");
+				$response='{"status":"error","details":"no valid objects selected"}';
+				break;
+			}
+
+			// Type detection by MAGIC BYTES instead of shelling out to
+			// `file <path> | awk`. Same three outcomes as before ("SQLite", "gzip",
+			// "Zip"), decided in-process, with no command line to build.
+			$detected_type = ImportFile::detectType($_FILES['file']['tmp_name']);
 			error_log("[ImportDB] Uploaded file: " . json_encode($_FILES));
-			error_log("[ImportDB] File type command: " . $file_type_cmd);
-			error_log("[ImportDB] Detected type (awk): " . $detected_type);
-			error_log("[ImportDB] Full file type: " . $file_type_full);
-			error_log("[ImportDB] Objects to import: " . $REQUEST['objects']);
+			error_log("[ImportDB] Detected type: " . $detected_type);
+			error_log("[ImportDB] Objects to import: " . $objects);
 			
 			switch ($detected_type):
 				case "SQLite":
@@ -1988,29 +2062,28 @@ RpiDNS powered by https://ioc2rpz.net
 				break;
 				case "gzip":
 					error_log("[ImportDB] Processing as gzip file");
-					$gzip_cmd = "gzip -dc ".$_FILES['file']['tmp_name']. " > ".TMPDir."/import_db_".$postfix.".sqlite";
-					error_log("[ImportDB] Gzip command: " . $gzip_cmd);
-					exec($gzip_cmd);
-					$extracted_type = exec("/usr/bin/file ".TMPDir."/import_db_".$postfix.".sqlite"." | /usr/bin/awk '{print $2}'");
-					error_log("[ImportDB] Extracted file type: " . $extracted_type);
-					$import_db_file=$extracted_type=="SQLite"?TMPDir."/import_db_".$postfix.".sqlite":"";
+					// Decompressed with `gzip -dc` started via an ARGV ARRAY (no
+					// shell, no `>` redirection built as text), then verified to be
+					// a SQLite database by its header.
+					$extracted = ImportFile::extract("gzip",$_FILES['file']['tmp_name'],TMPDir."/import_db_".$postfix.".sqlite");
+					error_log("[ImportDB] Extracted file type: " . $extracted['type']);
+					$import_db_file=$extracted['ok']?TMPDir."/import_db_".$postfix.".sqlite":"";
 				break;
 				case "Zip":
 					error_log("[ImportDB] Processing as Zip file");
-					exec("unzip -p ".$_FILES['file']['tmp_name']. ">".TMPDir."/import_db_".$postfix.".sqlite");
-					$extracted_type = exec("/usr/bin/file ".TMPDir."/import_db_".$postfix.".sqlite"." | /usr/bin/awk '{print $2}'");
-					error_log("[ImportDB] Extracted file type: " . $extracted_type);
-					$import_db_file=$extracted_type=="SQLite"?TMPDir."/import_db_".$postfix.".sqlite":"";
+					$extracted = ImportFile::extract("Zip",$_FILES['file']['tmp_name'],TMPDir."/import_db_".$postfix.".sqlite");
+					error_log("[ImportDB] Extracted file type: " . $extracted['type']);
+					$import_db_file=$extracted['ok']?TMPDir."/import_db_".$postfix.".sqlite":"";
 				break;
 				default:
 					error_log("[ImportDB] Unknown file type: " . $detected_type . " - not matching SQLite, gzip, or Zip");
 			endswitch;
 			if ($import_db_file!=""){
 				chmod(TMPDir."/import_db_".$postfix.".sqlite",0660);
-				file_put_contents(TMPDir."/rpidns_import_ready",TMPDir."/import_db_".$postfix.".sqlite"."|".$REQUEST['objects']);
+				file_put_contents(TMPDir."/rpidns_import_ready",TMPDir."/import_db_".$postfix.".sqlite"."|".$objects);
 				chmod(TMPDir."/rpidns_import_ready",0660);
 				error_log("[ImportDB] Import started successfully: " . TMPDir."/import_db_".$postfix.".sqlite");
-				$response='{"status":"success","details":"import started","file_data":'.json_encode($_FILES).',"debug":"'.TMPDir."/import_db_".$postfix.'.sqlite|'.$REQUEST['objects'].'"}';
+				$response='{"status":"success","details":"import started","file_data":'.json_encode($_FILES).',"debug":'.json_encode(TMPDir."/import_db_".$postfix.".sqlite|".$objects).'}';
 			} else {
 				error_log("[ImportDB] Import failed - bad file. Detected type was: " . $detected_type);
 				$response='{"status":"error","details":"bad file","file_data":'.json_encode($_FILES).'}';

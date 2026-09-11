@@ -84,7 +84,8 @@ http {
 
         # SSL configuration
         ssl_session_cache builtin:1000 shared:SSL:10m;
-        ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+        # TLS 1.0/1.1 are deprecated (RFC 8996) and no current browser needs them.
+        ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
         ssl_prefer_server_ciphers on;
 
@@ -96,6 +97,22 @@ http {
             local common_name = ssl.server_name() -- get requested domain
             if common_name == nil then
                 common_name = "unknown"
+            end
+
+            -- The SNI value is used verbatim as a FILENAME in the cert cache
+            -- below (and as the certificate's CN). It arrives raw from the
+            -- client's ClientHello, before nginx validates any host, so a value
+            -- containing "/" or ".." would write outside the cache directory.
+            -- Anything that is not a plain hostname is replaced with a fixed
+            -- placeholder; a legitimate hostname is unaffected.
+            common_name = string.lower(common_name)
+            if #common_name > 253
+               or string.find(common_name, "^[%w%.%-_]+$") == nil
+               or string.find(common_name, "%.%.") ~= nil
+               or string.sub(common_name, 1, 1) == "."
+               or string.sub(common_name, 1, 1) == "-" then
+                ngx.log(ngx.WARN, "rejected malformed SNI, using placeholder certificate name")
+                common_name = "invalid-sni"
             end
 
             -- Try to load previously generated certificate and private key from cache files

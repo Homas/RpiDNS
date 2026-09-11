@@ -4,6 +4,20 @@
 
 The RpiDNS backend API is a PHP-based REST API that serves the Vue 3 frontend. All data endpoints are dispatched through `www/rpi_admin/rpidata.php` using a `METHOD request_name` pattern. Authentication is handled separately by `www/rpi_admin/auth.php`. RPZ feed management operations delegate to the `BindConfigManager` class in `www/rpi_admin/BindConfigManager.php`.
 
+### Authentication
+
+**Every** `rpidata.php` endpoint requires a valid session. `rpidata.php` calls `requireApiSession()` (from `www/rpi_admin/ApiAuth.php`) as its first action — before the request is parsed, before the database is opened, and before any SQL is built — so the gate applies to the whole dispatcher, including endpoints added later. The session is validated with `AuthService::verifySession()`, which reads the `rpidns_session` cookie.
+
+A request without a valid session is answered with HTTP `401` and:
+
+```json
+{"status":"error","reason":"authentication required"}
+```
+
+The frontend's axios interceptor (`rpidns-frontend/src/composables/useApi.js`) turns that into a `session-expired` event and returns the user to the login screen. Only the login/verify endpoints in `auth.php`, the SPA shell (`index.php`), its static assets, and the public block page are reachable without a session.
+
+The Research endpoints additionally call `requireResearchSession()` as defense in depth; see [Research API](#research-api).
+
 All API responses are JSON. The standard response envelope is:
 
 ```json

@@ -4,6 +4,9 @@
 #Indicators with expires_dt>0 and expires_dt<=now are disabled (active=0),
 #removed from the BIND RPZ zones and their comment is annotated on top.
 require_once "/opt/rpidns/www/rpidns_vars.php";
+// Indicators are read back out of the database here, so they are re-validated
+// and sent to nsupdate without a shell (see NsUpdate.php).
+require_once "/opt/rpidns/www/rpi_admin/NsUpdate.php";
 
 function expireIOCs($DBF){
   global $bind_host;
@@ -18,8 +21,7 @@ function expireIOCs($DBF){
     $list = $rec['ltype']; // 'block' or 'allow'
 
     // Remove the record (and wildcard) from the dynamic BIND RPZ zone
-    $out = [];
-    exec('printf "server '.$bind_host.'\nupdate delete '.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nupdate delete *.'.$ioc.'.'.$list.'.ioc2rpz.rpidns 60 CNAME .\nsend\n" | /usr/bin/nsupdate -d -v', $out);
+    NsUpdate::delete($bind_host, (string)$ioc, $list);
 
     // Annotate the comment on top and disable the indicator
     $stamp   = gmdate('Y-m-d H:i:s');
