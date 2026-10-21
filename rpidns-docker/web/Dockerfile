@@ -36,19 +36,28 @@ LABEL description="OpenResty web server with PHP-FPM and RSyslog for RpiDNS"
 RUN echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/community" >> /etc/apk/repositories
 
 # Install required packages
+# PHP is pinned to >= 8.4.27, the release fixing CVE-2026-109618 and
+# CVE-2026-109619 ("PHP2Shell", unauthenticated RCE). The pin also matters for
+# CI: an unchanged `apk add` line is served from the build cache, which kept
+# shipping 8.4.26 after Alpine had published the fix. Raise the floor here when
+# the next PHP security release has to be picked up. The quotes are required,
+# otherwise the shell reads `>` as an output redirect. php84-json stays
+# unversioned: it is only a name provided by php84-common (JSON is part of PHP 8
+# core), and apk rejects a version constraint on it. php84-common is locked to
+# the same version as php84, so the floor still covers it.
 RUN apk add --no-cache \
     openresty \
     lua-resty-openssl \
     lua-resty-lock \
-    php84 \
-    php84-fpm \
-    php84-sqlite3 \
-    php84-openssl \
-    php84-session \
-    php84-pdo \
-    php84-pdo_sqlite \
+    "php84>=8.4.27-r0" \
+    "php84-fpm>=8.4.27-r0" \
+    "php84-sqlite3>=8.4.27-r0" \
+    "php84-openssl>=8.4.27-r0" \
+    "php84-session>=8.4.27-r0" \
+    "php84-pdo>=8.4.27-r0" \
+    "php84-pdo_sqlite>=8.4.27-r0" \
     php84-json \
-    php84-curl \
+    "php84-curl>=8.4.27-r0" \
     rsyslog \
     dcron \
     git \
