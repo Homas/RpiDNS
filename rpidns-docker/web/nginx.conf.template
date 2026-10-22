@@ -50,25 +50,54 @@ http {
     ssl_certificate /opt/rpidns/conf/ssl_sign/ioc2rpz.fallback.crt;
     ssl_certificate_key /opt/rpidns/conf/ssl_sign/ioc2rpz.fallback.pkey;
 
-    # HTTP server - serve block page for DNS blocked domains
+    # HTTP server - block page for DNS blocked domains, nothing else.
+    #
+    # This server is an ALLOWLIST. It must never hand a file from the web root
+    # to the client as-is: /opt/rpidns/www holds the PHP sources and the SQLite
+    # database (db/rpidns.sqlite - users, password hashes, live session tokens).
+    # The previous catch-all `try_files $uri $uri/` served all of them as plain
+    # downloads, because this server had no PHP handler for anything but
+    # blocked.php. Anything not listed below gets the block page.
     server {
         listen 80 default_server;
         listen [::]:80 default_server;
         server_name _;
 
         root /opt/rpidns/www;
-        index blocked.php index.php index.html;
 
-        # Block page location
+        # Block page
         location = /blocked.php {
             include fastcgi_params;
             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
             fastcgi_pass php-fpm;
         }
 
-        # Serve block page for all requests (DNS blocked domains)
+        # Static block-page assets (blocked.jpg/png/js/css)
+        location ^~ /blocked/ {
+            try_files $uri =404;
+        }
+
+        # Public CA certificate, so clients can install it to trust the block
+        # page certificates. Only the certificate, never the key.
+        location = /ioc2rpzCA.crt {
+            try_files $uri =404;
+        }
+
+        # The admin interface is served over HTTPS only. Its session cookie
+        # and the login password must not travel in clear text either.
+        location ^~ /rpi_admin {
+            return 301 https://$host$request_uri;
+        }
+
+        # The database directory, refused outright rather than relying on the
+        # catch-all below, so a future edit cannot reopen it by accident.
+        location ^~ /db/ {
+            return 404;
+        }
+
+        # Everything else (requests for DNS blocked domains) - the block page
         location / {
-            try_files $uri $uri/ /blocked.php?$query_string;
+            rewrite ^ /blocked.php last;
         }
     }
 
@@ -220,22 +249,49 @@ http {
 
         # Admin interface - MUST be before blocking rules
         # Authentication is handled by PHP session (auth.php)
-        # Serve all files normally under /rpi_admin
         location ^~ /rpi_admin {
+            # Server-side data (Public Suffix List), read by PHP only
+            location ^~ /rpi_admin/data/ {
+                return 404;
+            }
+
+            # Hidden paths, e.g. dist/.vite/manifest.json (read by index.php)
+            location ~ /\. {
+                return 404;
+            }
+
             # Serve static files directly
             location ~* ^/rpi_admin/.*\.(jpg|jpeg|png|gif|ico|css|js|woff|woff2|ttf|svg|eot)$ {
                 try_files $uri =404;
             }
-            
-            # PHP files in admin
-            location ~ ^/rpi_admin/.*\.php$ {
+
+            # The three PHP entry points the UI calls. Every other .php file in
+            # rpi_admin is a library that is only ever require_once'd.
+            location ~ ^/rpi_admin/(index|auth|rpidata)\.php$ {
                 include fastcgi_params;
                 fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
                 fastcgi_pass php-fpm;
             }
-            
+
+            # Any other PHP file: not an entry point, and never served as source
+            location ~ \.php$ {
+                return 404;
+            }
+
             # Default for admin - try files or 404
             try_files $uri $uri/ =404;
+        }
+
+        # The database directory. The old `\.db$` rule did not match the actual
+        # file name (rpidns.sqlite), which made the database downloadable here.
+        location ^~ /db/ {
+            return 404;
+        }
+
+        # Public CA certificate, so clients can install it to trust the block
+        # page certificates. Only the certificate, never the key.
+        location = /ioc2rpzCA.crt {
+            try_files $uri =404;
         }
 
         # Blocked content - serve appropriate block files (only for non-admin paths)
@@ -262,27 +318,12 @@ http {
             fastcgi_pass php-fpm;
         }
 
-        # PHP files
-        location ~ \.php$ {
-            include fastcgi_params;
-            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-            fastcgi_pass php-fpm;
-            fastcgi_index index.php;
-        }
-
-        # Default location - serve block page
+        # Default location - the block page. Nothing else in the web root is
+        # served: not the PHP sources, not the database, not hidden files. The
+        # previous `try_files $uri $uri/` handed out any existing file, and the
+        # generic `\.php$` handler executed any PHP file in the web root.
         location / {
-            try_files $uri $uri/ /blocked.php?$query_string;
-        }
-
-        # Deny access to hidden files
-        location ~ /\. {
-            deny all;
-        }
-
-        # Deny access to database files
-        location ~ \.db$ {
-            deny all;
+            rewrite ^ /blocked.php last;
         }
     }
 }

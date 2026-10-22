@@ -192,7 +192,8 @@ OpenResty configuration providing:
 
 **HTTP server (port 80)**:
 - Serves `blocked.php` as the default page for DNS-blocked domains
-- All requests fall through to `blocked.php`
+- Serves only the block page, its assets under `/blocked/` and `/ioc2rpzCA.crt`. Every other request gets the block page, and `/db/` returns `404`
+- `/rpi_admin` redirects to HTTPS. The admin interface is not served over plain HTTP
 
 **HTTPS server (port 443)**:
 - Dynamic SSL certificate generation via Lua (`ssl_certificate_by_lua_block`):
@@ -200,9 +201,9 @@ OpenResty configuration providing:
   - If not cached, generates ECC (secp384r1) certificates signed by the intermediate CA
   - Uses `resty.lock` to prevent parallel generation of the same certificate
   - Caches generated certificates to disk
-- Admin interface at `/rpi_admin` — serves static assets and proxies PHP to `php-fpm` upstream
+- Admin interface at `/rpi_admin` — serves static assets and passes only `index.php`, `auth.php` and `rpidata.php` to the `php-fpm` upstream
 - Blocked content handlers — serves placeholder files for `.jpg`, `.png`, `.js`, `.css` requests
-- Security: denies access to hidden files (`/\.`) and database files (`\.db$`)
+- Security: allowlist. `/db/` returns `404`, and any other path, including PHP and hidden files in the web root, gets the block page. No file from the web root is served as-is
 
 **General settings**:
 - PHP-FPM upstream on `127.0.0.1:9000`
