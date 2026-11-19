@@ -1,5 +1,5 @@
 # RpiDNS Web Container
-# OpenResty (nginx with Lua) + PHP-FPM + RSyslog for RpiDNS web UI
+# nginx with the Lua module + PHP-FPM + RSyslog for RpiDNS web UI
 # Multi-stage build: Stage 1 builds frontend with Vite, Stage 2 creates final image
 
 #############################
@@ -30,34 +30,51 @@ RUN npm run build
 FROM alpine:3.24
 
 LABEL maintainer="Vadim Pavlov"
-LABEL description="OpenResty web server with PHP-FPM and RSyslog for RpiDNS"
+LABEL description="nginx (with Lua) web server with PHP-FPM and RSyslog for RpiDNS"
 
-# Enable community repository for openresty
-RUN echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/community" >> /etc/apk/repositories
+# Enable the community repository (PHP, Lua libraries, research tools).
+# The edge community repository is added under the "@edge" tag only, so nothing
+# is taken from it unless a package below is explicitly marked "@edge".
+RUN echo "http://dl-cdn.alpinelinux.org/alpine/v3.24/community" >> /etc/apk/repositories \
+    && echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
 
 # Install required packages
-# PHP is pinned to >= 8.4.27, the release fixing CVE-2026-109618 and
-# CVE-2026-109619 ("PHP2Shell", unauthenticated RCE). The pin also matters for
-# CI: an unchanged `apk add` line is served from the build cache, which kept
-# shipping 8.4.26 after Alpine had published the fix. Raise the floor here when
-# the next PHP security release has to be picked up. The quotes are required,
-# otherwise the shell reads `>` as an output redirect. php84-json stays
-# unversioned: it is only a name provided by php84-common (JSON is part of PHP 8
-# core), and apk rejects a version constraint on it. php84-common is locked to
-# the same version as php84, so the floor still covers it.
+#
+# Web server: Alpine's nginx plus its Lua module, instead of OpenResty.
+# nginx 1.30.7 fixes the NGINX2Root set (CVE-2026-123007, CVE-2026-123633,
+# CVE-2026-121810, CVE-2026-123634, CVE-2026-113425). There is no OpenResty
+# release with these fixes: the newest upstream OpenResty (1.31.8.1) bundles
+# the vulnerable nginx 1.31.8, and Alpine 3.24 packages an older one. The Lua
+# block-page certificate code needs only lua-nginx-module, ngx.ssl
+# (lua-resty-core), resty.lock and resty.openssl, all of which Alpine packages
+# for its nginx. The module packages are versioned to the nginx they were built
+# for, so they always match.
+#
+# PHP is pinned to >= 8.4.28, which fixes CVE-2026-129289, CVE-2026-129481,
+# CVE-2026-115560 and CVE-2026-126714 (8.4.27 fixed CVE-2026-109618/109619).
+# TEMPORARY: Alpine 3.24 only has 8.4.27, so the PHP packages are taken from
+# edge ("@edge"). They install against the 3.24 libraries. Once v3.24/community
+# ships php84 >= 8.4.28, drop every "@edge" tag and the edge repository line
+# above, otherwise later builds keep following edge.
+# Version floors also make CI rebuild this layer: an unchanged `apk add` line is
+# served from the build cache. Quotes are required, or the shell reads `>` as a
+# redirect. php84-common is listed instead of the php84-json virtual name, so it
+# cannot resolve to the older 3.24 build (JSON is part of PHP 8 core).
 RUN apk add --no-cache \
-    openresty \
+    "nginx>=1.30.7-r0" \
+    "nginx-mod-http-lua>=1.30.7-r0" \
+    lua-resty-core \
     lua-resty-openssl \
     lua-resty-lock \
-    "php84>=8.4.27-r0" \
-    "php84-fpm>=8.4.27-r0" \
-    "php84-sqlite3>=8.4.27-r0" \
-    "php84-openssl>=8.4.27-r0" \
-    "php84-session>=8.4.27-r0" \
-    "php84-pdo>=8.4.27-r0" \
-    "php84-pdo_sqlite>=8.4.27-r0" \
-    php84-json \
-    "php84-curl>=8.4.27-r0" \
+    "php84@edge>=8.4.28-r0" \
+    "php84-common@edge>=8.4.28-r0" \
+    "php84-fpm@edge>=8.4.28-r0" \
+    "php84-sqlite3@edge>=8.4.28-r0" \
+    "php84-openssl@edge>=8.4.28-r0" \
+    "php84-session@edge>=8.4.28-r0" \
+    "php84-pdo@edge>=8.4.28-r0" \
+    "php84-pdo_sqlite@edge>=8.4.28-r0" \
+    "php84-curl@edge>=8.4.28-r0" \
     rsyslog \
     dcron \
     git \
@@ -172,7 +189,7 @@ RUN mkdir -p /opt/rpidns/www \
     && mkdir -p /opt/rpidns/logs \
     && mkdir -p /opt/rpidns/scripts \
     && mkdir -p /run/php \
-    && mkdir -p /run/openresty \
+    && mkdir -p /run/nginx \
     && mkdir -p /var/log/rsyslog \
     && ln -s /sbin/ip /bin/ip
 
@@ -224,7 +241,7 @@ RUN set -e; \
 # Set ownership
 RUN chown -R www-data:www-data /opt/rpidns \
     && chown -R www-data:www-data /run/php \
-    && chown -R www-data:www-data /run/openresty
+    && chown -R www-data:www-data /run/nginx
 
 # Copy configuration files
 COPY rpidns-docker/web/nginx.conf.template /etc/nginx/nginx.conf

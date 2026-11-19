@@ -83,7 +83,7 @@ Installs RpiDNS on OpenWrt routers. This is a legacy variant of the installation
 | Package manager | `apt-get` | `opkg` |
 | PHP binary | `/usr/bin/php` | `/usr/bin/php-cli` |
 | PHP version | PHP 8.4 | PHP 7 (`php7`, `php7-cgi`, `php7-mod-sqlite3`) |
-| Web server | Nginx/OpenResty (via Docker) | `uhttpd` (OpenWrt built-in) |
+| Web server | Nginx (via Docker) | `uhttpd` (OpenWrt built-in) |
 | Frontend build | Vite build via npm | CDN downloads (Vue 2, Bootstrap Vue, Axios, ApexCharts, FontAwesome) |
 | Install path | `/opt/rpidns` | `/opt/rpidns` (with symlinks to `/www`) |
 | Node.js | Required (for Vite build) | Not required |

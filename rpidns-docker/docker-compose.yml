@@ -41,7 +41,7 @@ services:
       retries: 3
       start_period: 10s
 
-  # Web UI Container - OpenResty + PHP-FPM + RSyslog
+  # Web UI Container - nginx + PHP-FPM + RSyslog
   web:
     image: ghcr.io/homas/rpidns-web:latest
     container_name: rpidns-web

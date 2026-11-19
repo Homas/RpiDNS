@@ -1,6 +1,6 @@
 #!/bin/bash
 # RpiDNS Web Container Entrypoint
-# Initializes SSL certificates, starts rsyslog, cron, php-fpm, and openresty
+# Initializes SSL certificates, starts rsyslog, cron, php-fpm, and nginx
 # Note: Frontend assets are pre-built during Docker image creation (multi-stage build)
 # and served directly as static files - no runtime build required
 
@@ -138,7 +138,7 @@ chmod 644 "${SSL_SIGN_DIR}"/*.crt 2>/dev/null || true
 
 # Ensure directories exist
 mkdir -p /run/php
-mkdir -p /run/openresty
+mkdir -p /run/nginx
 mkdir -p /opt/rpidns/logs/nginx
 mkdir -p /opt/rpidns/www/db
 
@@ -179,7 +179,7 @@ fi
 
 # Ensure directories have correct permissions
 chown -R www-data:www-data /run/php
-chown -R www-data:www-data /run/openresty
+chown -R www-data:www-data /run/nginx
 chown -R www-data:www-data /opt/rpidns/www
 chown -R www-data:www-data /opt/rpidns/logs/nginx
 
@@ -284,6 +284,6 @@ php-fpm84 -D
 # Wait for PHP-FPM socket to be ready
 sleep 1
 
-# Start OpenResty (nginx) in foreground
-echo "Starting OpenResty..."
+# Start nginx in foreground
+echo "Starting nginx..."
 exec /usr/sbin/nginx -g "daemon off;"

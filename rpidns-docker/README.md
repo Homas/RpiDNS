@@ -14,7 +14,7 @@ The deployment consists of two containers:
 │  │  ┌─────────────────────┐  ┌─────────────────────────┐   │    │
 │  │  │   Bind Container    │  │     Web Container       │   │    │
 │  │  │   ───────────────   │  │   ─────────────────     │   │    │
-│  │  │   ISC Bind9 + RPZ   │  │   OpenResty + PHP-FPM   │   │    │
+│  │  │   ISC Bind9 + RPZ   │  │   nginx + PHP-FPM       │   │    │
 │  │  │   Port 53 TCP/UDP   │  │   + RSyslog             │   │    │
 │  │  │                     │  │   Ports 80, 443, 10514  │   │    │
 │  │  └─────────────────────┘  └─────────────────────────┘   │    │
@@ -35,7 +35,7 @@ The deployment consists of two containers:
 ### Web Container
 - **Base Image**: Alpine Linux 3.24
 - **Purpose**: Web UI for RpiDNS management, log collection
-- **Packages**: openresty, php84-fpm, php84-sqlite3, rsyslog, dcron, git, openssl, bind-tools, docker-cli, sqlite, apache2-utils
+- **Packages**: nginx (+ nginx-mod-http-lua), php84-fpm, php84-sqlite3, rsyslog, dcron, git, openssl, bind-tools, docker-cli, sqlite, apache2-utils
 - **Research tool packages**: traceroute, whois, chromium (+ chromium-swiftshader, nss, freetype, harfbuzz, font-freefont, font-noto). These are the bulk of the image size and can be dropped from the Dockerfile if the Research tools are not needed
 - **Capabilities**: requires `cap_add: [NET_ADMIN, NET_RAW]`. `NET_RAW` is what allows the file capability on `/usr/bin/traceroute` to take effect — a file capability cannot exceed the container's bounding set. Note that a bounding-set entry alone does nothing for an unprivileged process, so traceroute can work in a root shell and still fail in the UI if the image was not rebuilt
 
@@ -123,7 +123,7 @@ The initial administrator password is generated on first start and written to `/
 
 | Container Path | Host Path | Description |
 |----------------|-----------|-------------|
-| `/opt/rpidns/conf` | `./config/nginx` | Nginx/OpenResty configuration, SSL certificates |
+| `/opt/rpidns/conf` | `./config/nginx` | Nginx configuration, SSL certificates |
 | `/opt/rpidns/www/rpisettings.php` | `./www/rpisettings.php` | Application settings, persisted across upgrades |
 | `/opt/rpidns/www/db` | `./www/db` | SQLite database (persistent) |
 | `/opt/rpidns/logs` | `./logs` | Application and DNS logs |

@@ -558,5 +558,5 @@ Creates the Vue 3 app instance and configures:
 - [Database Schema](./database.md) — SQLite tables and aggregation tiers queried by the frontend
 - [BIND Configuration](./bind-configuration.md) — RPZ feeds and policy actions managed through the Admin UI
 - [Configuration Files](./configuration-files.md) — `rpisettings.php` settings displayed in the Settings component
-- [Docker Deployment](./docker-deployment.md) — Container setup for serving the frontend via OpenResty
+- [Docker Deployment](./docker-deployment.md) — Container setup for serving the frontend via Nginx
 - [README](../README.md) — Project overview and getting started

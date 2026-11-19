@@ -5,7 +5,7 @@
 RpiDNS uses a two-container Docker deployment model managed by Docker Compose. The containers are defined in the `rpidns-docker/` directory:
 
 - **Bind container** (`rpidns-bind`) — ISC BIND9 DNS server with RPZ support
-- **Web container** (`rpidns-web`) — OpenResty (Nginx + Lua) web server with PHP-FPM, rsyslog, and cron
+- **Web container** (`rpidns-web`) — nginx (with the Lua module) web server with PHP-FPM, rsyslog, and cron
 
 The containers communicate over a dedicated Docker bridge network (`rpidns-net`) and share data through bind-mounted host directories for logs, configuration, database, and scripts.
 
@@ -107,9 +107,9 @@ Installed packages:
 
 | Package | Purpose |
 |---------|---------|
-| `openresty` | Nginx with Lua support for dynamic SSL |
-| `lua-resty-openssl`, `lua-resty-lock` | Lua libraries for SSL certificate generation |
-| `php84`, `php84-fpm` | PHP 8.4 with FastCGI Process Manager |
+| `nginx`, `nginx-mod-http-lua` | Nginx with the Lua module for dynamic SSL |
+| `lua-resty-core`, `lua-resty-openssl`, `lua-resty-lock` | Lua libraries for SSL certificate generation |
+| `php84`, `php84-fpm` | PHP 8.4 with FastCGI Process Manager (from Alpine edge until 3.24 ships 8.4.28) |
 | `php84-sqlite3`, `php84-pdo_sqlite` | SQLite database access |
 | `php84-openssl`, `php84-session`, `php84-json`, `php84-curl` | PHP extensions |
 | `rsyslog` | Syslog reception from Bind container |
@@ -182,13 +182,13 @@ The entrypoint performs the following initialization sequence:
    - `rsyslogd` — syslog daemon
    - `crond` — cron daemon (background)
    - `php-fpm84` — PHP FastCGI (daemon mode)
-   - `nginx` — OpenResty in foreground (`daemon off`)
+   - `nginx` — in foreground (`daemon off`)
 
 ### Nginx Configuration
 
 **File:** `rpidns-docker/web/nginx.conf.template`
 
-OpenResty configuration providing:
+nginx configuration providing:
 
 **HTTP server (port 80)**:
 - Serves `blocked.php` as the default page for DNS-blocked domains
@@ -426,7 +426,7 @@ healthcheck:
 ```
 
 The Web health check uses `wget` to request `blocked.php` via HTTP. This verifies that:
-- OpenResty (Nginx) is running and accepting connections
+- nginx is running and accepting connections
 - PHP-FPM is running and processing requests
 - The application can serve pages
 

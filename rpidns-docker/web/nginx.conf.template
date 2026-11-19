@@ -1,9 +1,12 @@
-# RpiDNS OpenResty Configuration
-# nginx with Lua support for dynamic SSL certificate generation
+# RpiDNS nginx Configuration
+# Alpine nginx with the Lua module, for dynamic SSL certificate generation
+
+# Lua support (nginx-mod-http-lua) and the devel kit it depends on
+include /etc/nginx/modules/*.conf;
 
 worker_processes auto;
 error_log /opt/rpidns/logs/nginx/nginx_error.log warn;
-pid /run/openresty/nginx.pid;
+pid /run/nginx/nginx.pid;
 
 events {
     worker_connections 1024;
@@ -13,9 +16,9 @@ http {
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
 
-    # Lua package paths - include both openresty bundled and Alpine lua-resty packages
-    lua_package_path "/usr/lib/nginx/lualib/?.lua;/usr/share/lua/common/?.lua;/usr/share/lua/5.1/?.lua;;";
-    lua_package_cpath "/usr/lib/nginx/lualib/?.so;/usr/lib/lua/5.1/?.so;;";
+    # Lua package paths for the Alpine lua-resty-* packages (ngx.ssl, resty.*)
+    lua_package_path "/usr/share/lua/common/?.lua;/usr/share/lua/5.1/?.lua;;";
+    lua_package_cpath "/usr/lib/lua/5.1/?.so;;";
 
     log_format main '$remote_addr - $remote_user [$time_local] "$request" '
                     '$status $body_bytes_sent "$http_referer" '

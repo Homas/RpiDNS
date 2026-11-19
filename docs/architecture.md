@@ -28,7 +28,7 @@ RpiDNS uses two Docker containers orchestrated via `docker-compose.yml`:
 ### Web Container (`rpidns-web`)
 
 - **Image:** `ghcr.io/homas/rpidns-web:latest`
-- **Role:** OpenResty (Nginx) + PHP-FPM + rsyslog + cron
+- **Role:** nginx (with Lua) + PHP-FPM + rsyslog + cron
 - **Exposed ports:** `80` (HTTP), `443` (HTTPS), `10514` (syslog TCP)
 - **Depends on:** Bind container (waits for healthy status)
 - **Startup sequence** (via `rpidns-docker/web/entrypoint.sh`):
@@ -38,7 +38,7 @@ RpiDNS uses two Docker containers orchestrated via `docker-compose.yml`:
   4. Initialize SQLite database via `init_db.php` if not already initialized (checks `PRAGMA user_version`)
   5. Configure rsyslog based on `RPIDNS_LOGGING` mode (local or forward)
   6. Start rsyslog, cron, PHP-FPM (`php-fpm84`)
-  7. Start OpenResty (Nginx) in foreground
+  7. Start nginx in foreground
 
 ### Health Checks
 
@@ -139,7 +139,7 @@ RpiDNS uses bind mounts (not Docker named volumes) to provide host-level access 
 
 | Host Path | Mount Point | Purpose |
 |-----------|-------------|---------|
-| `./config/nginx` | `/opt/rpidns/conf` | Nginx/OpenResty configuration and SSL certificates |
+| `./config/nginx` | `/opt/rpidns/conf` | Nginx configuration and SSL certificates |
 | `./www/rpisettings.php` | `/opt/rpidns/www/rpisettings.php` | Application settings (retention, dashboard config) |
 | `./www/db` | `/opt/rpidns/www/db` | SQLite database directory |
 | `./scripts` | `/opt/rpidns/scripts` | Maintenance scripts (parse_bind_logs.php, clean_db.php, etc.) |
@@ -228,7 +228,7 @@ graph TB
             end
 
             subgraph WebC["Web Container (rpidns-web)"]
-                Nginx["OpenResty<br/>(Nginx)"]
+                Nginx["nginx<br/>(with Lua)"]
                 PHP["PHP-FPM 8.4"]
                 RSyslog["rsyslog<br/>(port 10514)"]
                 Cron["Cron Daemon"]
