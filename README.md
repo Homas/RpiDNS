@@ -44,7 +44,7 @@ The container deployment provides a lightweight, portable way to run RpiDNS usin
 │  │  ┌─────────────────────┐  ┌─────────────────────────┐   │    │
 │  │  │   Bind Container    │  │     Web Container       │   │    │
 │  │  │   ───────────────   │  │   ─────────────────     │   │    │
-│  │  │   ISC Bind9 + RPZ   │  │   OpenResty + PHP-FPM   │   │    │
+│  │  │   ISC Bind9 + RPZ   │  │   nginx + PHP-FPM       │   │    │
 │  │  │   Port 53 TCP/UDP   │  │   + RSyslog             │   │    │
 │  │  │                     │  │   Ports 80, 443, 10514  │   │    │
 │  │  └─────────────────────┘  └─────────────────────────┘   │    │
@@ -62,7 +62,7 @@ The container deployment provides a lightweight, portable way to run RpiDNS usin
 | Container | Base Image | Purpose | Key Packages |
 |-----------|------------|---------|--------------|
 | Bind | Alpine 3.24 | DNS resolution with RPZ blocking | bind, bind-tools, rsyslog |
-| Web | Alpine 3.24 | Web UI, log collection | openresty, php84-fpm, php84-sqlite3, rsyslog, dcron, bind-tools, docker-cli |
+| Web | Alpine 3.24 | Web UI, log collection | nginx (+ Lua module), php84-fpm, php84-sqlite3, rsyslog, dcron, bind-tools, docker-cli |
 | Web (Research tools) | — | Optional tooling for the Research page | traceroute, whois, chromium (+ swiftshader, nss, freetype, harfbuzz, fonts) |
 
 The Research tool packages are the heaviest part of the web image. Dropping that Dockerfile layer keeps everything else working — the website preview then reports itself disabled, and RDAP still works over HTTPS without the port-43 `whois` fallback.
